@@ -135,7 +135,13 @@ public class GeminiMappingService implements MappingEngine {
                 rather than guessing. For invoiceTypeCode use "01" (standard invoice) unless the document clearly \
                 indicates otherwise (e.g. "02" credit note, "03" debit note). currencyCode defaults to "MYR" if not stated. \
                 For each field and each line item, include a confidenceScore between 0 and 1 reflecting how certain \
-                you are the value was read/mapped correctly.""";
+                you are the value was read/mapped correctly.
+
+                Do not perform any arithmetic — do not multiply, apply percentages, or sum values, even if it looks \
+                straightforward (e.g. quantity × unit price, or a discount/tax percentage against a subtotal). Only \
+                report a number if it is written literally in the source document. If a total, tax amount, or line \
+                amount is blank, marked "TBD", or left for a formula to fill in, omit that field entirely rather than \
+                computing it — the user will fill it in during review.""";
     }
 
     private Map<String, Object> responseSchema() {

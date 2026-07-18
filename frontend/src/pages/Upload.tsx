@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Button, Card, Table, Tag, Typography, message } from 'antd';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate } from 'react-router-dom';
 import FileUploadDropzone from '../components/FileUploadDropzone';
-import { listDocuments, runMapping, uploadDocument } from '../api/endpoints';
+import { listDocuments, listMappingsForDocument, runMapping, uploadDocument } from '../api/endpoints';
 import type { DocumentResponse } from '../api/types';
 
 export default function Upload() {
@@ -12,6 +12,25 @@ export default function Upload() {
   const [mappingDocId, setMappingDocId] = useState<number | null>(null);
 
   const { data: documents, isLoading } = useQuery({ queryKey: ['documents'], queryFn: listDocuments });
+
+  // Fetched per document so a completed mapping stays reachable (via "View mapping") even
+  // after the user navigates away mid-run or switches tabs and comes back later.
+  const mappingQueries = useQueries({
+    queries: (documents ?? []).map((doc) => ({
+      queryKey: ['mappings', doc.id],
+      queryFn: () => listMappingsForDocument(doc.id),
+      enabled: !!documents,
+    })),
+  });
+
+  const latestMappingByDocId = new Map<number, number>();
+  (documents ?? []).forEach((doc, index) => {
+    const mappings = mappingQueries[index]?.data ?? [];
+    if (mappings.length > 0) {
+      const latest = mappings.reduce((a, b) => (b.id > a.id ? b : a));
+      latestMappingByDocId.set(doc.id, latest.id);
+    }
+  });
 
   const uploadMutation = useMutation({
     mutationFn: uploadDocument,
@@ -24,8 +43,9 @@ export default function Upload() {
 
   const mapMutation = useMutation({
     mutationFn: runMapping,
-    onSuccess: (mappedInvoice) => {
+    onSuccess: (mappedInvoice, documentId) => {
       message.success('AI mapping complete — review the results');
+      queryClient.invalidateQueries({ queryKey: ['mappings', documentId] });
       navigate(`/mapped-invoices/${mappedInvoice.id}`);
     },
     onError: (err) => message.error(err instanceof Error ? err.message : 'Mapping failed'),
@@ -44,18 +64,24 @@ export default function Upload() {
     {
       title: 'Action',
       key: 'action',
-      render: (_: unknown, record: DocumentResponse) => (
-        <Button
-          size="small"
-          loading={mappingDocId === record.id}
-          onClick={() => {
-            setMappingDocId(record.id);
-            mapMutation.mutate(record.id);
-          }}
-        >
-          Run AI mapping
-        </Button>
-      ),
+      render: (_: unknown, record: DocumentResponse) => {
+        const mappedInvoiceId = latestMappingByDocId.get(record.id);
+        return (
+          <div style={{ display: 'flex', gap: 8 }}>
+            {mappedInvoiceId && <Link to={`/mapped-invoices/${mappedInvoiceId}`}>View mapping</Link>}
+            <Button
+              size="small"
+              loading={mappingDocId === record.id}
+              onClick={() => {
+                setMappingDocId(record.id);
+                mapMutation.mutate(record.id);
+              }}
+            >
+              {mappedInvoiceId ? 'Re-run AI mapping' : 'Run AI mapping'}
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
