@@ -9,6 +9,7 @@ import com.mytax.mapper.mapping.dto.MappedInvoiceResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
@@ -105,9 +106,9 @@ public class MappingService {
                         .mappedInvoiceId(invoice.getId())
                         .lineNo(lineNo++)
                         .description(item.description())
-                        .quantity(item.quantity())
-                        .unitPrice(item.unitPrice())
-                        .taxAmount(item.taxAmount())
+                        .quantity(item.quantity() != null ? item.quantity() : BigDecimal.ONE)
+                        .unitPrice(item.unitPrice() != null ? item.unitPrice() : BigDecimal.ZERO)
+                        .taxAmount(item.taxAmount() != null ? item.taxAmount() : BigDecimal.ZERO)
                         .classificationCode(item.classificationCode())
                         .confidenceScore(item.confidenceScore())
                         .build();

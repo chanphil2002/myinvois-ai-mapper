@@ -6,6 +6,7 @@ import com.mytax.mapper.config.AnthropicProperties;
 import com.mytax.mapper.document.Document;
 import com.mytax.mapper.document.XlsxParser;
 import com.mytax.mapper.mapping.dto.MappedInvoiceDraft;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -21,6 +22,7 @@ import java.util.Set;
  * {@link XlsxParser} since Claude has no spreadsheet-cell understanding of raw binary xlsx.
  */
 @Service
+@ConditionalOnProperty(name = "app.mapping.engine", havingValue = "claude")
 public class ClaudeMappingService implements MappingEngine {
 
     private static final String TOOL_NAME = "record_invoice_mapping";

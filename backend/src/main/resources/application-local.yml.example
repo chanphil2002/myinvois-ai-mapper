@@ -14,6 +14,12 @@ MYINVOIS_ENCRYPTION_KEY: replace-with-a-32-byte-random-string
 MYINVOIS_ID_SERVER_BASE_URL: https://preprod-identity.myinvois.hasil.gov.my
 MYINVOIS_API_BASE_URL: https://preprod-api.myinvois.hasil.gov.my
 
+# Which AI provider powers document mapping: "gemini" (default, has a free tier) or "claude"
+MAPPING_ENGINE: gemini
+
+GEMINI_API_KEY: your-gemini-api-key
+GEMINI_MODEL: gemini-3.5-flash
+
 ANTHROPIC_API_KEY: sk-ant-...
 ANTHROPIC_MODEL: claude-sonnet-5
 

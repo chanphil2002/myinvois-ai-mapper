@@ -8,8 +8,11 @@ import com.mytax.mapper.mapping.MappedInvoice;
 import com.mytax.mapper.mapping.MappedInvoiceLineItem;
 import com.mytax.mapper.mapping.MappedInvoiceLineItemRepository;
 import com.mytax.mapper.mapping.MappedInvoiceRepository;
+import com.mytax.mapper.mapping.dto.MappedInvoiceResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 public class InvoiceReviewService {
@@ -33,8 +36,12 @@ public class InvoiceReviewService {
         return invoice;
     }
 
+    public MappedInvoiceResponse getOwnedResponse(Long mappedInvoiceId, Long userId) {
+        return toResponse(getOwned(mappedInvoiceId, userId));
+    }
+
     @Transactional
-    public MappedInvoice update(Long mappedInvoiceId, Long userId, UpdateMappedInvoiceRequest request) {
+    public MappedInvoiceResponse update(Long mappedInvoiceId, Long userId, UpdateMappedInvoiceRequest request) {
         MappedInvoice invoice = getOwned(mappedInvoiceId, userId);
         if (invoice.getStatus() != InvoiceStatus.DRAFT) {
             throw new IllegalStateException("Only DRAFT invoices can be edited (current status: " + invoice.getStatus() + ")");
@@ -70,16 +77,30 @@ public class InvoiceReviewService {
             }
         }
 
-        return invoice;
+        return toResponse(invoice);
     }
 
     @Transactional
-    public MappedInvoice confirm(Long mappedInvoiceId, Long userId) {
+    public MappedInvoiceResponse confirm(Long mappedInvoiceId, Long userId) {
         MappedInvoice invoice = getOwned(mappedInvoiceId, userId);
         if (invoice.getStatus() != InvoiceStatus.DRAFT) {
             throw new IllegalStateException("Only DRAFT invoices can be confirmed (current status: " + invoice.getStatus() + ")");
         }
         invoice.setStatus(InvoiceStatus.CONFIRMED);
-        return mappedInvoiceRepository.save(invoice);
+        invoice = mappedInvoiceRepository.save(invoice);
+        return toResponse(invoice);
+    }
+
+    private MappedInvoiceResponse toResponse(MappedInvoice invoice) {
+        List<MappedInvoiceLineItem> lineItems = lineItemRepository.findByMappedInvoiceIdOrderByLineNo(invoice.getId());
+        List<MappedInvoiceResponse.LineItemResponse> items = lineItems.stream()
+                .map(li -> new MappedInvoiceResponse.LineItemResponse(li.getId(), li.getLineNo(), li.getDescription(),
+                        li.getQuantity(), li.getUnitPrice(), li.getTaxAmount(), li.getClassificationCode(), li.getConfidenceScore()))
+                .toList();
+
+        return new MappedInvoiceResponse(invoice.getId(), invoice.getDocumentId(), invoice.getInvoiceTypeCode(),
+                invoice.getIssueDate(), invoice.getCurrencyCode(), invoice.getSupplierTin(), invoice.getSupplierName(),
+                invoice.getBuyerTin(), invoice.getBuyerName(), invoice.getSubtotal(), invoice.getTaxTotal(),
+                invoice.getGrandTotal(), invoice.getStatus(), invoice.getConfidenceScore(), items);
     }
 }

@@ -42,6 +42,13 @@ app:
     api-key: ${ANTHROPIC_API_KEY:}
     model: ${ANTHROPIC_MODEL:claude-sonnet-5}
     base-url: ${ANTHROPIC_BASE_URL:https://api.anthropic.com}
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-3.5-flash}
+    base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+  mapping:
+    # which AI provider powers document mapping: "gemini" (default, has a free tier) or "claude"
+    engine: ${MAPPING_ENGINE:gemini}
 
 springdoc:
   swagger-ui:
