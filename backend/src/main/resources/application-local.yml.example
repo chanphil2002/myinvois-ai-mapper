@@ -3,7 +3,7 @@
 #
 # Run with: mvn spring-boot:run -Dspring-boot.run.profiles=local
 
-DB_URL: jdbc:mysql://localhost:3306/mytax_mapper?useSSL=false&serverTimezone=UTC
+DB_URL: jdbc:mysql://localhost:3306/mytax_mapper?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
 DB_USERNAME: mytax
 DB_PASSWORD: mytax
 

@@ -3,7 +3,7 @@ spring:
     name: mytax-mapper-backend
 
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/mytax_mapper?useSSL=false&serverTimezone=UTC}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/mytax_mapper?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
     username: ${DB_USERNAME:mytax}
     password: ${DB_PASSWORD:mytax}
 
