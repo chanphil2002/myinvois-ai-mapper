@@ -1,0 +1,20 @@
+# Copy this file to application-local.yml (gitignored) and fill in real values,
+# or export the equivalent environment variables shown in application.yml.
+#
+# Run with: mvn spring-boot:run -Dspring-boot.run.profiles=local
+
+DB_URL: jdbc:mysql://localhost:3306/mytax_mapper?useSSL=false&serverTimezone=UTC
+DB_USERNAME: mytax
+DB_PASSWORD: mytax
+
+JWT_SECRET: replace-with-a-long-random-string
+JWT_EXPIRATION_MINUTES: 480
+
+MYINVOIS_ENCRYPTION_KEY: replace-with-a-32-byte-random-string
+MYINVOIS_ID_SERVER_BASE_URL: https://preprod-identity.myinvois.hasil.gov.my
+MYINVOIS_API_BASE_URL: https://preprod-api.myinvois.hasil.gov.my
+
+ANTHROPIC_API_KEY: sk-ant-...
+ANTHROPIC_MODEL: claude-sonnet-5
+
+UPLOAD_DIR: ./uploads
