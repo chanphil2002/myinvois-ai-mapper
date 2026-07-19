@@ -53,3 +53,11 @@ app:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+logging:
+  level:
+    root: INFO
+    # one line per request (method, path, status, duration, user) — see RequestLoggingFilter
+    com.mytax.mapper.access: INFO
+    # application code: bump to DEBUG locally if you need more detail than the access log gives
+    com.mytax.mapper: INFO

@@ -31,6 +31,9 @@ public class MappedInvoiceLineItem {
     @Column(name = "classification_code")
     private String classificationCode;
 
+    @Column(name = "unit_code")
+    private String unitCode = "C62";
+
     @Column(name = "confidence_score")
     private BigDecimal confidenceScore;
 
@@ -105,6 +108,14 @@ public class MappedInvoiceLineItem {
         this.classificationCode = classificationCode;
     }
 
+    public String getUnitCode() {
+        return unitCode;
+    }
+
+    public void setUnitCode(String unitCode) {
+        this.unitCode = unitCode;
+    }
+
     public BigDecimal getConfidenceScore() {
         return confidenceScore;
     }
@@ -148,6 +159,11 @@ public class MappedInvoiceLineItem {
 
         public Builder classificationCode(String classificationCode) {
             lineItem.classificationCode = classificationCode;
+            return this;
+        }
+
+        public Builder unitCode(String unitCode) {
+            lineItem.unitCode = unitCode;
             return this;
         }
 

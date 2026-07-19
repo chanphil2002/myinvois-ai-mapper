@@ -14,19 +14,28 @@ import com.mytax.mapper.myinvois.dto.DocumentSubmissionItem;
 import com.mytax.mapper.myinvois.dto.SubmissionStatusResponse;
 import com.mytax.mapper.myinvois.dto.SubmitDocumentsRequest;
 import com.mytax.mapper.myinvois.dto.SubmitDocumentsResponse;
+import com.mytax.mapper.profile.BusinessProfile;
+import com.mytax.mapper.profile.BusinessProfileService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 
 @Service
 public class SubmissionService {
 
+    private static final Logger log = LoggerFactory.getLogger(SubmissionService.class);
+
     private final InvoiceReviewService invoiceReviewService;
     private final UblDocumentBuilder ublDocumentBuilder;
     private final MyInvoisAuthService myInvoisAuthService;
     private final MyInvoisSubmissionClient myInvoisSubmissionClient;
+    private final BusinessProfileService businessProfileService;
     private final MappedInvoiceRepository mappedInvoiceRepository;
     private final MappedInvoiceLineItemRepository lineItemRepository;
     private final SubmissionRepository submissionRepository;
@@ -36,6 +45,7 @@ public class SubmissionService {
                               UblDocumentBuilder ublDocumentBuilder,
                               MyInvoisAuthService myInvoisAuthService,
                               MyInvoisSubmissionClient myInvoisSubmissionClient,
+                              BusinessProfileService businessProfileService,
                               MappedInvoiceRepository mappedInvoiceRepository,
                               MappedInvoiceLineItemRepository lineItemRepository,
                               SubmissionRepository submissionRepository,
@@ -44,6 +54,7 @@ public class SubmissionService {
         this.ublDocumentBuilder = ublDocumentBuilder;
         this.myInvoisAuthService = myInvoisAuthService;
         this.myInvoisSubmissionClient = myInvoisSubmissionClient;
+        this.businessProfileService = businessProfileService;
         this.mappedInvoiceRepository = mappedInvoiceRepository;
         this.lineItemRepository = lineItemRepository;
         this.submissionRepository = submissionRepository;
@@ -57,8 +68,13 @@ public class SubmissionService {
             throw new IllegalStateException("Invoice must be CONFIRMED before submission (current status: " + invoice.getStatus() + ")");
         }
 
+        BusinessProfile supplier = businessProfileService.getOwned(userId);
         List<MappedInvoiceLineItem> lineItems = lineItemRepository.findByMappedInvoiceIdOrderByLineNo(invoice.getId());
-        UblDocumentBuilder.BuiltDocument built = ublDocumentBuilder.build(invoice, lineItems);
+        UblDocumentBuilder.BuiltDocument built = ublDocumentBuilder.build(supplier, invoice, lineItems);
+        if (log.isDebugEnabled()) {
+            log.debug("Built MyInvois document for mapped invoice {}: {}", invoice.getId(),
+                    new String(Base64.getDecoder().decode(built.base64Document()), StandardCharsets.UTF_8));
+        }
 
         String accessToken = myInvoisAuthService.getAccessToken(userId);
         SubmitDocumentsRequest request = new SubmitDocumentsRequest(List.of(

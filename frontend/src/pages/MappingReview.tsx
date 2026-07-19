@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Button, Card, Col, DatePicker, Input, Row, Space, Tag, Typography, message } from 'antd';
+import { Button, Card, Col, DatePicker, Input, InputNumber, Row, Select, Space, Tag, Typography, message } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import MappingReviewTable from '../components/MappingReviewTable';
@@ -14,6 +14,7 @@ import {
   updateMappedInvoice,
 } from '../api/endpoints';
 import type { LineItem, MappedInvoiceResponse } from '../api/types';
+import { MALAYSIA_STATE_CODES, matchStateCode } from '../constants/malaysiaStates';
 
 export default function MappingReview() {
   const { id } = useParams();
@@ -34,7 +35,10 @@ export default function MappingReview() {
 
   useEffect(() => {
     if (invoice) {
-      setDraft(invoice);
+      // The AI can only extract the buyer's state as a free-text name (never a numeric code) —
+      // try to resolve it to a real state code so the Select below preselects it.
+      const resolvedStateCode = matchStateCode(invoice.buyerStateCode) ?? invoice.buyerStateCode;
+      setDraft({ ...invoice, buyerStateCode: resolvedStateCode });
     }
   }, [invoice]);
 
@@ -150,8 +154,22 @@ export default function MappingReview() {
           </Col>
         </Row>
         <Row gutter={16} style={{ marginTop: 16 }}>
+          <Col span={8}>
+            <Typography.Text type="secondary">Discount total</Typography.Text>
+            <InputNumber
+              style={{ width: '100%' }}
+              disabled={!editable}
+              value={draft.discountTotal}
+              onChange={(v) => updateField('discountTotal', v)}
+            />
+          </Col>
+        </Row>
+        <Row gutter={16} style={{ marginTop: 16 }}>
           <Col span={12}>
             <Typography.Text strong>Supplier</Typography.Text>
+            <Typography.Paragraph type="secondary" style={{ marginBottom: 4 }}>
+              Cross-check only — the actual submission uses your Business Profile from Settings.
+            </Typography.Paragraph>
             <Input
               placeholder="TIN"
               disabled={!editable}
@@ -183,6 +201,91 @@ export default function MappingReview() {
               onChange={(e) => updateField('buyerName', e.target.value)}
               style={{ marginTop: 8 }}
             />
+            <Space.Compact style={{ width: '100%', marginTop: 8 }}>
+              <Select
+                style={{ width: '40%' }}
+                disabled={!editable}
+                placeholder="ID type"
+                value={draft.buyerIdType ?? undefined}
+                onChange={(v) => updateField('buyerIdType', v)}
+                options={[
+                  { value: 'NRIC', label: 'NRIC' },
+                  { value: 'BRN', label: 'BRN' },
+                  { value: 'PASSPORT', label: 'Passport' },
+                  { value: 'ARMY', label: 'Army ID' },
+                ]}
+                allowClear
+              />
+              <Input
+                style={{ width: '60%' }}
+                placeholder="ID number"
+                disabled={!editable}
+                value={draft.buyerIdValue ?? ''}
+                onChange={(e) => updateField('buyerIdValue', e.target.value)}
+              />
+            </Space.Compact>
+            <Input
+              placeholder="SST registration"
+              disabled={!editable}
+              value={draft.buyerSst ?? ''}
+              onChange={(e) => updateField('buyerSst', e.target.value)}
+              style={{ marginTop: 8 }}
+            />
+            <Input
+              placeholder="Address line 1"
+              disabled={!editable}
+              value={draft.buyerAddressLine1 ?? ''}
+              onChange={(e) => updateField('buyerAddressLine1', e.target.value)}
+              style={{ marginTop: 8 }}
+            />
+            <Input
+              placeholder="Address line 2"
+              disabled={!editable}
+              value={draft.buyerAddressLine2 ?? ''}
+              onChange={(e) => updateField('buyerAddressLine2', e.target.value)}
+              style={{ marginTop: 8 }}
+            />
+            <Space.Compact style={{ width: '100%', marginTop: 8 }}>
+              <Input
+                style={{ width: '40%' }}
+                placeholder="City"
+                disabled={!editable}
+                value={draft.buyerCity ?? ''}
+                onChange={(e) => updateField('buyerCity', e.target.value)}
+              />
+              <Input
+                style={{ width: '25%' }}
+                placeholder="Postcode"
+                disabled={!editable}
+                value={draft.buyerPostalZone ?? ''}
+                onChange={(e) => updateField('buyerPostalZone', e.target.value)}
+              />
+              <Select
+                style={{ width: '35%' }}
+                disabled={!editable}
+                placeholder="State"
+                showSearch
+                optionFilterProp="label"
+                value={draft.buyerStateCode ?? undefined}
+                onChange={(v) => updateField('buyerStateCode', v)}
+                options={MALAYSIA_STATE_CODES}
+                allowClear
+              />
+            </Space.Compact>
+            <Space.Compact style={{ width: '100%', marginTop: 8 }}>
+              <Input
+                placeholder="Phone"
+                disabled={!editable}
+                value={draft.buyerPhone ?? ''}
+                onChange={(e) => updateField('buyerPhone', e.target.value)}
+              />
+              <Input
+                placeholder="Email"
+                disabled={!editable}
+                value={draft.buyerEmail ?? ''}
+                onChange={(e) => updateField('buyerEmail', e.target.value)}
+              />
+            </Space.Compact>
           </Col>
         </Row>
       </Card>

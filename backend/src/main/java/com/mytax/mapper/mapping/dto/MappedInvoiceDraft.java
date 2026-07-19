@@ -16,9 +16,21 @@ public record MappedInvoiceDraft(
         String supplierName,
         String buyerTin,
         String buyerName,
+        String buyerIdType,
+        String buyerIdValue,
+        String buyerSst,
+        String buyerAddressLine1,
+        String buyerAddressLine2,
+        String buyerCity,
+        String buyerPostalZone,
+        String buyerStateCode,
+        String buyerCountryCode,
+        String buyerPhone,
+        String buyerEmail,
         BigDecimal subtotal,
         BigDecimal taxTotal,
         BigDecimal grandTotal,
+        BigDecimal discountTotal,
         BigDecimal confidenceScore,
         List<LineItemDraft> lineItems
 ) {
@@ -28,6 +40,7 @@ public record MappedInvoiceDraft(
             BigDecimal unitPrice,
             BigDecimal taxAmount,
             String classificationCode,
+            String unitCode,
             BigDecimal confidenceScore
     ) {
     }

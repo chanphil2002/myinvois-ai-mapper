@@ -141,7 +141,17 @@ public class GeminiMappingService implements MappingEngine {
                 straightforward (e.g. quantity × unit price, or a discount/tax percentage against a subtotal). Only \
                 report a number if it is written literally in the source document. If a total, tax amount, or line \
                 amount is blank, marked "TBD", or left for a formula to fill in, omit that field entirely rather than \
-                computing it — the user will fill it in during review.""";
+                computing it — the user will fill it in during review.
+
+                The supplier is always this app's own account holder, not something to read from the document — leave \
+                supplierTin/supplierName as a best-effort cross-check only; they are not used for submission. \
+                For the buyer, extract as much identity/contact detail as the document states: buyerIdType is "NRIC" \
+                for an individual's national ID or "BRN" for a company registration number — only set it together with \
+                buyerIdValue when the document actually shows that ID. Extract buyer address into buyerAddressLine1/2, \
+                buyerCity, buyerPostalZone (postcode), buyerStateCode (a Malaysian state name if written, e.g. \
+                "Selangor" — leave as free text, do not guess a numeric code), buyerCountryCode (ISO 3-letter, default \
+                "MYS" for Malaysia), buyerPhone, buyerEmail. For each line item, unitCode is a short unit description \
+                if stated (e.g. "unit", "kg", "box") — default to "unit" if quantity is a plain count with no unit shown.""";
     }
 
     private Map<String, Object> responseSchema() {
@@ -153,6 +163,7 @@ public class GeminiMappingService implements MappingEngine {
                         "unitPrice", Map.of("type", "NUMBER"),
                         "taxAmount", Map.of("type", "NUMBER"),
                         "classificationCode", Map.of("type", "STRING"),
+                        "unitCode", Map.of("type", "STRING"),
                         "confidenceScore", Map.of("type", "NUMBER")
                 ),
                 "required", List.of("description", "quantity", "unitPrice")
@@ -168,9 +179,21 @@ public class GeminiMappingService implements MappingEngine {
                         Map.entry("supplierName", Map.of("type", "STRING")),
                         Map.entry("buyerTin", Map.of("type", "STRING")),
                         Map.entry("buyerName", Map.of("type", "STRING")),
+                        Map.entry("buyerIdType", Map.of("type", "STRING")),
+                        Map.entry("buyerIdValue", Map.of("type", "STRING")),
+                        Map.entry("buyerSst", Map.of("type", "STRING")),
+                        Map.entry("buyerAddressLine1", Map.of("type", "STRING")),
+                        Map.entry("buyerAddressLine2", Map.of("type", "STRING")),
+                        Map.entry("buyerCity", Map.of("type", "STRING")),
+                        Map.entry("buyerPostalZone", Map.of("type", "STRING")),
+                        Map.entry("buyerStateCode", Map.of("type", "STRING")),
+                        Map.entry("buyerCountryCode", Map.of("type", "STRING")),
+                        Map.entry("buyerPhone", Map.of("type", "STRING")),
+                        Map.entry("buyerEmail", Map.of("type", "STRING")),
                         Map.entry("subtotal", Map.of("type", "NUMBER")),
                         Map.entry("taxTotal", Map.of("type", "NUMBER")),
                         Map.entry("grandTotal", Map.of("type", "NUMBER")),
+                        Map.entry("discountTotal", Map.of("type", "NUMBER")),
                         Map.entry("confidenceScore", Map.of("type", "NUMBER")),
                         Map.entry("lineItems", Map.of("type", "ARRAY", "items", lineItemSchema))
                 ),

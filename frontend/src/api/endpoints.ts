@@ -1,6 +1,7 @@
 import { apiClient, unwrap, ApiResponse } from './client';
 import type {
   AuthResponse,
+  BusinessProfile,
   CredentialResponse,
   DocumentResponse,
   MappedInvoiceResponse,
@@ -31,6 +32,14 @@ export function saveCredentials(payload: {
 
 export function getCredentials(): Promise<CredentialResponse> {
   return unwrap(apiClient.get<ApiResponse<CredentialResponse>>('/api/myinvois/credentials'));
+}
+
+export function saveBusinessProfile(payload: BusinessProfile): Promise<BusinessProfile> {
+  return unwrap(apiClient.put<ApiResponse<BusinessProfile>>('/api/business-profile', payload));
+}
+
+export function getBusinessProfile(): Promise<BusinessProfile> {
+  return unwrap(apiClient.get<ApiResponse<BusinessProfile>>('/api/business-profile'));
 }
 
 export function uploadDocument(file: File): Promise<DocumentResponse> {

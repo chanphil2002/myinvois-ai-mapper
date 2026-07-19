@@ -91,9 +91,21 @@ public class MappingService {
                 .supplierName(draft.supplierName())
                 .buyerTin(draft.buyerTin())
                 .buyerName(draft.buyerName())
+                .buyerIdType(draft.buyerIdType())
+                .buyerIdValue(draft.buyerIdValue())
+                .buyerSst(draft.buyerSst())
+                .buyerAddressLine1(draft.buyerAddressLine1())
+                .buyerAddressLine2(draft.buyerAddressLine2())
+                .buyerCity(draft.buyerCity())
+                .buyerPostalZone(draft.buyerPostalZone())
+                .buyerStateCode(draft.buyerStateCode())
+                .buyerCountryCode(draft.buyerCountryCode())
+                .buyerPhone(draft.buyerPhone())
+                .buyerEmail(draft.buyerEmail())
                 .subtotal(draft.subtotal())
                 .taxTotal(draft.taxTotal())
                 .grandTotal(draft.grandTotal())
+                .discountTotal(draft.discountTotal())
                 .status(InvoiceStatus.DRAFT)
                 .confidenceScore(draft.confidenceScore())
                 .build();
@@ -110,6 +122,7 @@ public class MappingService {
                         .unitPrice(item.unitPrice() != null ? item.unitPrice() : BigDecimal.ZERO)
                         .taxAmount(item.taxAmount() != null ? item.taxAmount() : BigDecimal.ZERO)
                         .classificationCode(item.classificationCode())
+                        .unitCode(item.unitCode() != null ? item.unitCode() : "C62")
                         .confidenceScore(item.confidenceScore())
                         .build();
                 lineItemRepository.save(lineItem);
@@ -121,12 +134,17 @@ public class MappingService {
     private MappedInvoiceResponse toResponse(MappedInvoice invoice, List<MappedInvoiceLineItem> lineItems) {
         List<MappedInvoiceResponse.LineItemResponse> items = lineItems.stream()
                 .map(li -> new MappedInvoiceResponse.LineItemResponse(li.getId(), li.getLineNo(), li.getDescription(),
-                        li.getQuantity(), li.getUnitPrice(), li.getTaxAmount(), li.getClassificationCode(), li.getConfidenceScore()))
+                        li.getQuantity(), li.getUnitPrice(), li.getTaxAmount(), li.getClassificationCode(),
+                        li.getUnitCode(), li.getConfidenceScore()))
                 .toList();
 
         return new MappedInvoiceResponse(invoice.getId(), invoice.getDocumentId(), invoice.getInvoiceTypeCode(),
                 invoice.getIssueDate(), invoice.getCurrencyCode(), invoice.getSupplierTin(), invoice.getSupplierName(),
-                invoice.getBuyerTin(), invoice.getBuyerName(), invoice.getSubtotal(), invoice.getTaxTotal(),
-                invoice.getGrandTotal(), invoice.getStatus(), invoice.getConfidenceScore(), items);
+                invoice.getBuyerTin(), invoice.getBuyerName(), invoice.getBuyerIdType(), invoice.getBuyerIdValue(),
+                invoice.getBuyerSst(), invoice.getBuyerAddressLine1(), invoice.getBuyerAddressLine2(),
+                invoice.getBuyerCity(), invoice.getBuyerPostalZone(), invoice.getBuyerStateCode(),
+                invoice.getBuyerCountryCode(), invoice.getBuyerPhone(), invoice.getBuyerEmail(),
+                invoice.getSubtotal(), invoice.getTaxTotal(), invoice.getGrandTotal(), invoice.getDiscountTotal(),
+                invoice.getStatus(), invoice.getConfidenceScore(), items);
     }
 }

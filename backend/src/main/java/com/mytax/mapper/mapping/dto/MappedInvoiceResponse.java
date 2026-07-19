@@ -16,9 +16,21 @@ public record MappedInvoiceResponse(
         String supplierName,
         String buyerTin,
         String buyerName,
+        String buyerIdType,
+        String buyerIdValue,
+        String buyerSst,
+        String buyerAddressLine1,
+        String buyerAddressLine2,
+        String buyerCity,
+        String buyerPostalZone,
+        String buyerStateCode,
+        String buyerCountryCode,
+        String buyerPhone,
+        String buyerEmail,
         BigDecimal subtotal,
         BigDecimal taxTotal,
         BigDecimal grandTotal,
+        BigDecimal discountTotal,
         InvoiceStatus status,
         BigDecimal confidenceScore,
         List<LineItemResponse> lineItems
@@ -31,6 +43,7 @@ public record MappedInvoiceResponse(
             BigDecimal unitPrice,
             BigDecimal taxAmount,
             String classificationCode,
+            String unitCode,
             BigDecimal confidenceScore
     ) {
     }

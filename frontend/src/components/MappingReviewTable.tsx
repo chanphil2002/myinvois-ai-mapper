@@ -85,6 +85,18 @@ export default function MappingReviewTable({ lineItems, onChange, disabled }: Pr
         />
       ),
     },
+    {
+      title: 'Unit',
+      key: 'unitCode',
+      width: 90,
+      render: (_: unknown, record: LineItem, index: number) => (
+        <Input
+          value={record.unitCode ?? ''}
+          disabled={disabled}
+          onChange={(e) => updateField(index, 'unitCode', e.target.value)}
+        />
+      ),
+    },
     ...(disabled
       ? []
       : [

@@ -14,6 +14,26 @@ export interface CredentialResponse {
   configured: boolean;
 }
 
+export interface BusinessProfile {
+  id?: number;
+  registrationName: string;
+  tin: string;
+  idType: string;
+  idValue: string;
+  sstRegistration: string | null;
+  ttxRegistration: string | null;
+  msicCode: string | null;
+  msicDescription: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  postalZone: string | null;
+  stateCode: string | null;
+  countryCode: string;
+  phone: string | null;
+  email: string | null;
+}
+
 export type DocumentStatus = 'UPLOADED' | 'PARSING' | 'PARSED' | 'FAILED';
 
 export interface DocumentResponse {
@@ -34,6 +54,7 @@ export interface LineItem {
   unitPrice: number;
   taxAmount: number;
   classificationCode: string | null;
+  unitCode: string | null;
   confidenceScore: number | null;
 }
 
@@ -47,9 +68,21 @@ export interface MappedInvoiceResponse {
   supplierName: string | null;
   buyerTin: string | null;
   buyerName: string | null;
+  buyerIdType: string | null;
+  buyerIdValue: string | null;
+  buyerSst: string | null;
+  buyerAddressLine1: string | null;
+  buyerAddressLine2: string | null;
+  buyerCity: string | null;
+  buyerPostalZone: string | null;
+  buyerStateCode: string | null;
+  buyerCountryCode: string | null;
+  buyerPhone: string | null;
+  buyerEmail: string | null;
   subtotal: number | null;
   taxTotal: number | null;
   grandTotal: number | null;
+  discountTotal: number | null;
   status: InvoiceStatus;
   confidenceScore: number | null;
   lineItems: LineItem[];

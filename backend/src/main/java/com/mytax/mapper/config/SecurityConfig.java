@@ -2,6 +2,8 @@ package com.mytax.mapper.config;
 
 import com.mytax.mapper.auth.AppUserDetailsService;
 import com.mytax.mapper.auth.JwtAuthFilter;
+import com.mytax.mapper.common.RequestLoggingFilter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,10 +28,13 @@ public class SecurityConfig {
 
     private final AppUserDetailsService userDetailsService;
     private final JwtAuthFilter jwtAuthFilter;
+    private final RequestLoggingFilter requestLoggingFilter;
 
-    public SecurityConfig(AppUserDetailsService userDetailsService, JwtAuthFilter jwtAuthFilter) {
+    public SecurityConfig(AppUserDetailsService userDetailsService, JwtAuthFilter jwtAuthFilter,
+                           RequestLoggingFilter requestLoggingFilter) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthFilter = jwtAuthFilter;
+        this.requestLoggingFilter = requestLoggingFilter;
     }
 
     @Bean
@@ -72,8 +77,22 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(requestLoggingFilter, JwtAuthFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * RequestLoggingFilter is a @Component so Spring Boot would otherwise also auto-register it
+     * as a plain servlet filter, causing every request to be logged twice (once outside the
+     * security chain, once inside it via addFilterBefore above). Disable the automatic path.
+     */
+    @Bean
+    public FilterRegistrationBean<RequestLoggingFilter> requestLoggingFilterRegistration(
+            RequestLoggingFilter filter) {
+        FilterRegistrationBean<RequestLoggingFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 }

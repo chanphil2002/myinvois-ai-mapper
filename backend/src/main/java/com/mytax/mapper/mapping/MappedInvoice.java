@@ -41,6 +41,39 @@ public class MappedInvoice {
     @Column(name = "buyer_name")
     private String buyerName;
 
+    @Column(name = "buyer_id_type")
+    private String buyerIdType;
+
+    @Column(name = "buyer_id_value")
+    private String buyerIdValue;
+
+    @Column(name = "buyer_sst")
+    private String buyerSst;
+
+    @Column(name = "buyer_address_line1")
+    private String buyerAddressLine1;
+
+    @Column(name = "buyer_address_line2")
+    private String buyerAddressLine2;
+
+    @Column(name = "buyer_city")
+    private String buyerCity;
+
+    @Column(name = "buyer_postal_zone")
+    private String buyerPostalZone;
+
+    @Column(name = "buyer_state_code")
+    private String buyerStateCode;
+
+    @Column(name = "buyer_country_code")
+    private String buyerCountryCode;
+
+    @Column(name = "buyer_phone")
+    private String buyerPhone;
+
+    @Column(name = "buyer_email")
+    private String buyerEmail;
+
     private BigDecimal subtotal;
 
     @Column(name = "tax_total")
@@ -48,6 +81,9 @@ public class MappedInvoice {
 
     @Column(name = "grand_total")
     private BigDecimal grandTotal;
+
+    @Column(name = "discount_total")
+    private BigDecimal discountTotal;
 
     @Enumerated(EnumType.STRING)
     private InvoiceStatus status = InvoiceStatus.DRAFT;
@@ -145,6 +181,94 @@ public class MappedInvoice {
         this.buyerName = buyerName;
     }
 
+    public String getBuyerIdType() {
+        return buyerIdType;
+    }
+
+    public void setBuyerIdType(String buyerIdType) {
+        this.buyerIdType = buyerIdType;
+    }
+
+    public String getBuyerIdValue() {
+        return buyerIdValue;
+    }
+
+    public void setBuyerIdValue(String buyerIdValue) {
+        this.buyerIdValue = buyerIdValue;
+    }
+
+    public String getBuyerSst() {
+        return buyerSst;
+    }
+
+    public void setBuyerSst(String buyerSst) {
+        this.buyerSst = buyerSst;
+    }
+
+    public String getBuyerAddressLine1() {
+        return buyerAddressLine1;
+    }
+
+    public void setBuyerAddressLine1(String buyerAddressLine1) {
+        this.buyerAddressLine1 = buyerAddressLine1;
+    }
+
+    public String getBuyerAddressLine2() {
+        return buyerAddressLine2;
+    }
+
+    public void setBuyerAddressLine2(String buyerAddressLine2) {
+        this.buyerAddressLine2 = buyerAddressLine2;
+    }
+
+    public String getBuyerCity() {
+        return buyerCity;
+    }
+
+    public void setBuyerCity(String buyerCity) {
+        this.buyerCity = buyerCity;
+    }
+
+    public String getBuyerPostalZone() {
+        return buyerPostalZone;
+    }
+
+    public void setBuyerPostalZone(String buyerPostalZone) {
+        this.buyerPostalZone = buyerPostalZone;
+    }
+
+    public String getBuyerStateCode() {
+        return buyerStateCode;
+    }
+
+    public void setBuyerStateCode(String buyerStateCode) {
+        this.buyerStateCode = buyerStateCode;
+    }
+
+    public String getBuyerCountryCode() {
+        return buyerCountryCode;
+    }
+
+    public void setBuyerCountryCode(String buyerCountryCode) {
+        this.buyerCountryCode = buyerCountryCode;
+    }
+
+    public String getBuyerPhone() {
+        return buyerPhone;
+    }
+
+    public void setBuyerPhone(String buyerPhone) {
+        this.buyerPhone = buyerPhone;
+    }
+
+    public String getBuyerEmail() {
+        return buyerEmail;
+    }
+
+    public void setBuyerEmail(String buyerEmail) {
+        this.buyerEmail = buyerEmail;
+    }
+
     public BigDecimal getSubtotal() {
         return subtotal;
     }
@@ -167,6 +291,14 @@ public class MappedInvoice {
 
     public void setGrandTotal(BigDecimal grandTotal) {
         this.grandTotal = grandTotal;
+    }
+
+    public BigDecimal getDiscountTotal() {
+        return discountTotal;
+    }
+
+    public void setDiscountTotal(BigDecimal discountTotal) {
+        this.discountTotal = discountTotal;
     }
 
     public InvoiceStatus getStatus() {
@@ -237,6 +369,61 @@ public class MappedInvoice {
             return this;
         }
 
+        public Builder buyerIdType(String buyerIdType) {
+            invoice.buyerIdType = buyerIdType;
+            return this;
+        }
+
+        public Builder buyerIdValue(String buyerIdValue) {
+            invoice.buyerIdValue = buyerIdValue;
+            return this;
+        }
+
+        public Builder buyerSst(String buyerSst) {
+            invoice.buyerSst = buyerSst;
+            return this;
+        }
+
+        public Builder buyerAddressLine1(String buyerAddressLine1) {
+            invoice.buyerAddressLine1 = buyerAddressLine1;
+            return this;
+        }
+
+        public Builder buyerAddressLine2(String buyerAddressLine2) {
+            invoice.buyerAddressLine2 = buyerAddressLine2;
+            return this;
+        }
+
+        public Builder buyerCity(String buyerCity) {
+            invoice.buyerCity = buyerCity;
+            return this;
+        }
+
+        public Builder buyerPostalZone(String buyerPostalZone) {
+            invoice.buyerPostalZone = buyerPostalZone;
+            return this;
+        }
+
+        public Builder buyerStateCode(String buyerStateCode) {
+            invoice.buyerStateCode = buyerStateCode;
+            return this;
+        }
+
+        public Builder buyerCountryCode(String buyerCountryCode) {
+            invoice.buyerCountryCode = buyerCountryCode;
+            return this;
+        }
+
+        public Builder buyerPhone(String buyerPhone) {
+            invoice.buyerPhone = buyerPhone;
+            return this;
+        }
+
+        public Builder buyerEmail(String buyerEmail) {
+            invoice.buyerEmail = buyerEmail;
+            return this;
+        }
+
         public Builder subtotal(BigDecimal subtotal) {
             invoice.subtotal = subtotal;
             return this;
@@ -249,6 +436,11 @@ public class MappedInvoice {
 
         public Builder grandTotal(BigDecimal grandTotal) {
             invoice.grandTotal = grandTotal;
+            return this;
+        }
+
+        public Builder discountTotal(BigDecimal discountTotal) {
+            invoice.discountTotal = discountTotal;
             return this;
         }
 
