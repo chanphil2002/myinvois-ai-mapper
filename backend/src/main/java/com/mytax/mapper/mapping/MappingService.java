@@ -122,13 +122,25 @@ public class MappingService {
                         .unitPrice(item.unitPrice() != null ? item.unitPrice() : BigDecimal.ZERO)
                         .taxAmount(item.taxAmount() != null ? item.taxAmount() : BigDecimal.ZERO)
                         .classificationCode(item.classificationCode())
-                        .unitCode(item.unitCode() != null ? item.unitCode() : "C62")
+                        .unitCode(normalizeUnitCode(item.unitCode()))
                         .confidenceScore(item.confidenceScore())
                         .build();
                 lineItemRepository.save(lineItem);
             }
         }
         return invoice;
+    }
+
+    /**
+     * unit_code is VARCHAR(10) (it's meant to hold a short UN/ECE-style unit code or abbreviation).
+     * Defends against any AI provider returning an oversized value that would otherwise fail the
+     * insert with a SQL truncation error.
+     */
+    private String normalizeUnitCode(String unitCode) {
+        if (unitCode == null || unitCode.isBlank() || unitCode.length() > 10) {
+            return "C62";
+        }
+        return unitCode;
     }
 
     private MappedInvoiceResponse toResponse(MappedInvoice invoice, List<MappedInvoiceLineItem> lineItems) {

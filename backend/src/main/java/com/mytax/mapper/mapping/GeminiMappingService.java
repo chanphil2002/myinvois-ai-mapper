@@ -6,14 +6,18 @@ import com.mytax.mapper.config.GeminiProperties;
 import com.mytax.mapper.document.Document;
 import com.mytax.mapper.document.XlsxParser;
 import com.mytax.mapper.mapping.dto.MappedInvoiceDraft;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.util.Base64;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Calls the Gemini generateContent API with a JSON response schema so the model's output is
@@ -30,7 +34,19 @@ import java.util.Set;
 @ConditionalOnProperty(name = "app.mapping.engine", havingValue = "gemini", matchIfMissing = true)
 public class GeminiMappingService implements MappingEngine {
 
+    private static final Logger log = LoggerFactory.getLogger(GeminiMappingService.class);
+
     private static final Set<String> IMAGE_TYPES = Set.of("png", "jpg", "jpeg", "webp", "gif");
+
+    // gemini-3.5-flash occasionally degenerates under response_schema constraints: instead of
+    // closing a string field it emits a runaway repeated-character or rambling "thinking out loud"
+    // sequence until it hits the token limit. This is a decoding-time model quirk, not something
+    // any single generation_config/prompt combination reliably avoids (tested: thinking on/off/
+    // dynamic/bounded, schema maxLength, prompt simplification — all still fail intermittently).
+    // Detecting and retrying is the practical mitigation.
+    private static final int MAX_ATTEMPTS = 3;
+    private static final int MAX_REASONABLE_STRING_LENGTH = 400;
+    private static final Pattern RUNAWAY_REPEAT = Pattern.compile("(.)\\1{29,}");
 
     private final GeminiProperties properties;
     private final XlsxParser xlsxParser;
@@ -59,32 +75,91 @@ public class GeminiMappingService implements MappingEngine {
                         "response_mime_type", "application/json",
                         "response_schema", responseSchema(),
                         "max_output_tokens", 8192,
-                        // Thinking is on by default on this model and was observed producing corrupted
-                        // structured output (a runaway multi-thousand-digit number) under response_schema
-                        // constraints; disabling it fixed it in testing. This is a straightforward
-                        // extraction task that doesn't need multi-step reasoning anyway.
-                        "thinking_config", Map.of("thinking_budget", 0)
+                        // Dynamic thinking budget — matches Google's recommended default and was the
+                        // most reliable option in testing (fixed budgets, including 0, still degenerated).
+                        "thinking_config", Map.of("thinking_budget", -1)
                 )
         );
 
         String uri = properties.getBaseUrl() + "/v1beta/models/" + properties.getModel()
                 + ":generateContent";
 
-        JsonNode response = restClient.post()
-                .uri(uri)
-                .headers(h -> h.set("x-goog-api-key", properties.getApiKey()))
-                .body(requestBody)
-                .retrieve()
-                .body(JsonNode.class);
+        Exception lastFailure = null;
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            JsonNode response = restClient.post()
+                    .uri(uri)
+                    .headers(h -> h.set("x-goog-api-key", properties.getApiKey()))
+                    .body(requestBody)
+                    .retrieve()
+                    .body(JsonNode.class);
 
-        String json = extractJsonText(response);
-        MappedInvoiceDraft draft;
-        try {
-            draft = objectMapper.readValue(json, MappedInvoiceDraft.class);
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to parse Gemini structured output: " + e.getMessage(), e);
+            String json = extractJsonText(response);
+            try {
+                JsonNode parsedJson = objectMapper.readTree(json);
+                String runaway = findRunawayString(parsedJson);
+                if (runaway != null) {
+                    throw new IllegalStateException(
+                            "Gemini produced a runaway/degenerate string value: " + runaway.substring(0, 60) + "...");
+                }
+                MappedInvoiceDraft draft = objectMapper.treeToValue(parsedJson, MappedInvoiceDraft.class);
+                String oversizedUnitCode = findOversizedUnitCode(draft);
+                if (oversizedUnitCode != null) {
+                    throw new IllegalStateException(
+                            "Gemini produced an oversized unitCode value: " + oversizedUnitCode.substring(0, 60) + "...");
+                }
+                return new MappingResult(draft, response == null ? "{}" : response.toString(), properties.getModel());
+            } catch (Exception e) {
+                lastFailure = e;
+                log.warn("Gemini mapping attempt {}/{} produced malformed output for document {}: {}",
+                        attempt, MAX_ATTEMPTS, document.getId(), e.getMessage());
+            }
         }
-        return new MappingResult(draft, response == null ? "{}" : response.toString(), properties.getModel());
+        throw new IllegalStateException(
+                "Gemini produced malformed structured output " + MAX_ATTEMPTS + " times in a row: "
+                        + (lastFailure == null ? "unknown error" : lastFailure.getMessage()), lastFailure);
+    }
+
+    /**
+     * unitCode is stored in a VARCHAR(10) column. The generic {@link #findRunawayString} check
+     * only catches severe degeneration (400+ chars or a long repeated run); a shorter field like
+     * this can still overflow the column with a moderate amount of "thinking out loud" text that
+     * doesn't trip that heuristic, so it gets its own tighter bound.
+     */
+    private String findOversizedUnitCode(MappedInvoiceDraft draft) {
+        if (draft.lineItems() == null) {
+            return null;
+        }
+        for (MappedInvoiceDraft.LineItemDraft item : draft.lineItems()) {
+            if (item.unitCode() != null && item.unitCode().length() > 10) {
+                return item.unitCode();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Detects the degenerate-output pattern (runaway repeated character, or an anomalously long
+     * value from the model "thinking out loud" inside a field instead of the separate thoughts
+     * channel) by walking every string leaf in the parsed response.
+     */
+    private String findRunawayString(JsonNode node) {
+        if (node.isTextual()) {
+            String text = node.asText();
+            if (text.length() > MAX_REASONABLE_STRING_LENGTH || RUNAWAY_REPEAT.matcher(text).find()) {
+                return text;
+            }
+            return null;
+        }
+        if (node.isObject() || node.isArray()) {
+            Iterator<JsonNode> children = node.elements();
+            while (children.hasNext()) {
+                String found = findRunawayString(children.next());
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     private Map<String, Object> buildContentPart(String fileType, byte[] fileBytes) {
