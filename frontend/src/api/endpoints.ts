@@ -2,6 +2,7 @@ import { apiClient, unwrap, ApiResponse } from './client';
 import type {
   AuthResponse,
   BusinessProfile,
+  ConsolidationBatchResponse,
   CredentialResponse,
   DocumentResponse,
   MappedInvoiceResponse,
@@ -91,4 +92,42 @@ export function listSubmissions(mappedInvoiceId: number): Promise<SubmissionResp
 
 export function refreshSubmission(id: number): Promise<SubmissionResponse> {
   return unwrap(apiClient.post<ApiResponse<SubmissionResponse>>(`/api/submissions/${id}/refresh`));
+}
+
+export function getOrCreateConsolidationBatch(periodYear: number, periodMonth: number): Promise<ConsolidationBatchResponse> {
+  return unwrap(
+    apiClient.post<ApiResponse<ConsolidationBatchResponse>>('/api/consolidation-batches', { periodYear, periodMonth }),
+  );
+}
+
+export function listConsolidationBatches(): Promise<ConsolidationBatchResponse[]> {
+  return unwrap(apiClient.get<ApiResponse<ConsolidationBatchResponse[]>>('/api/consolidation-batches'));
+}
+
+export function getConsolidationBatch(id: number): Promise<ConsolidationBatchResponse> {
+  return unwrap(apiClient.get<ApiResponse<ConsolidationBatchResponse>>(`/api/consolidation-batches/${id}`));
+}
+
+export function listEligibleInvoicesForBatch(batchId: number): Promise<MappedInvoiceResponse[]> {
+  return unwrap(
+    apiClient.get<ApiResponse<MappedInvoiceResponse[]>>(`/api/consolidation-batches/${batchId}/eligible-invoices`),
+  );
+}
+
+export function addInvoiceToBatch(batchId: number, mappedInvoiceId: number): Promise<ConsolidationBatchResponse> {
+  return unwrap(
+    apiClient.post<ApiResponse<ConsolidationBatchResponse>>(`/api/consolidation-batches/${batchId}/items`, {
+      mappedInvoiceId,
+    }),
+  );
+}
+
+export function removeInvoiceFromBatch(batchId: number, mappedInvoiceId: number): Promise<ConsolidationBatchResponse> {
+  return unwrap(
+    apiClient.delete<ApiResponse<ConsolidationBatchResponse>>(`/api/consolidation-batches/${batchId}/items/${mappedInvoiceId}`),
+  );
+}
+
+export function generateConsolidatedInvoice(batchId: number): Promise<ConsolidationBatchResponse> {
+  return unwrap(apiClient.post<ApiResponse<ConsolidationBatchResponse>>(`/api/consolidation-batches/${batchId}/generate`));
 }

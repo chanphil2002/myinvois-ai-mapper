@@ -20,6 +20,12 @@ public class MappedInvoice {
     @Column(name = "extraction_job_id")
     private Long extractionJobId;
 
+    @Column(name = "consolidation_batch_id")
+    private Long consolidationBatchId;
+
+    @Column(name = "is_consolidation_result", nullable = false)
+    private boolean consolidationResult = false;
+
     @Column(name = "invoice_type_code", nullable = false)
     private String invoiceTypeCode = "01";
 
@@ -123,6 +129,22 @@ public class MappedInvoice {
 
     public void setExtractionJobId(Long extractionJobId) {
         this.extractionJobId = extractionJobId;
+    }
+
+    public Long getConsolidationBatchId() {
+        return consolidationBatchId;
+    }
+
+    public void setConsolidationBatchId(Long consolidationBatchId) {
+        this.consolidationBatchId = consolidationBatchId;
+    }
+
+    public boolean isConsolidationResult() {
+        return consolidationResult;
+    }
+
+    public void setConsolidationResult(boolean consolidationResult) {
+        this.consolidationResult = consolidationResult;
     }
 
     public String getInvoiceTypeCode() {
@@ -331,6 +353,16 @@ public class MappedInvoice {
 
         public Builder extractionJobId(Long extractionJobId) {
             invoice.extractionJobId = extractionJobId;
+            return this;
+        }
+
+        public Builder consolidationBatchId(Long consolidationBatchId) {
+            invoice.consolidationBatchId = consolidationBatchId;
+            return this;
+        }
+
+        public Builder consolidationResult(boolean consolidationResult) {
+            invoice.consolidationResult = consolidationResult;
             return this;
         }
 

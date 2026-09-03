@@ -8,6 +8,17 @@ This is a **walking skeleton**: auth, upload, and the MyInvois API client are fu
 AI mapping and MyInvois submission need real credentials (Anthropic + LHDN sandbox) to exercise
 end-to-end. See "Known limitations" below.
 
+Two submission paths are supported, matching how LHDN expects different sellers to submit:
+
+- **Per-transaction e-Invoice** — upload a document, run AI mapping, review/confirm, submit. Fits
+  low-volume/high-ticket sellers (or any B2B sale where the buyer needs a real e-Invoice).
+- **Consolidated e-Invoice** (`frontend/src/pages/Consolidation.tsx`,
+  `backend/src/main/java/com/mytax/mapper/consolidation/`) — for high-volume/low-ticket sellers
+  (retail, F&B, repair shops) who bill "General Public" and are allowed to submit one aggregate
+  e-Invoice per month instead of one per sale. Add a month's worth of already-mapped invoices to a
+  batch, generate, and the result is an ordinary mapped invoice — reviewed, confirmed, and
+  submitted through the exact same flow as above.
+
 ## Structure
 
 - `backend/` — Spring Boot 3 (Java 21) REST API, MySQL via Flyway
@@ -90,3 +101,10 @@ Opens on `http://localhost:5173`. `npm run build` (tsc + vite build) has been ve
   submission logic lives in plain services (`MappingService`, `SubmissionService`) specifically so
   a WhatsApp webhook controller can call into them later without duplicating logic.
 - **No automated tests** — out of scope for this scaffolding pass.
+- **Consolidated e-Invoice defaults are unverified against a live LHDN response**: the "General
+  Public" buyer TIN (`EI00000000010`) and ID type/value (`BRN` / `NA`) in `ConsolidationService`
+  are the commonly documented LHDN defaults, not values pulled from a real accepted submission the
+  way `UblDocumentBuilder`'s per-invoice shape was. Double-check them against the current MyInvois
+  SDK guideline before relying on this for a real monthly submission. Aggregation groups source
+  line items by classification code only (one summary line per tax category) — it doesn't attempt
+  finer-grained rollups (e.g. by product) and a batch can't yet span multiple currencies.

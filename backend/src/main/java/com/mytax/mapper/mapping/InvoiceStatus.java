@@ -5,5 +5,7 @@ public enum InvoiceStatus {
     CONFIRMED,
     SUBMITTED,
     ACCEPTED,
-    REJECTED
+    REJECTED,
+    /** Pulled into an open consolidation batch — locked out of individual confirm/submit until the batch is deleted or the invoice is removed from it. */
+    CONSOLIDATED
 }

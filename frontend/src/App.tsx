@@ -9,6 +9,7 @@ import Settings from './pages/Settings';
 import Upload from './pages/Upload';
 import MappingReview from './pages/MappingReview';
 import Submissions from './pages/Submissions';
+import Consolidation from './pages/Consolidation';
 
 const { Header, Content, Sider } = Layout;
 
@@ -19,6 +20,7 @@ function AppLayout() {
   const items = [
     { key: '/', label: <Link to="/">Dashboard</Link> },
     { key: '/upload', label: <Link to="/upload">Upload</Link> },
+    { key: '/consolidation', label: <Link to="/consolidation">Consolidated e-Invoice</Link> },
     { key: '/submissions', label: <Link to="/submissions">Submissions</Link> },
     { key: '/settings', label: <Link to="/settings">MyInvois Settings</Link> },
   ];
@@ -39,6 +41,7 @@ function AppLayout() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/mapped-invoices/:id" element={<MappingReview />} />
+            <Route path="/consolidation" element={<Consolidation />} />
             <Route path="/submissions" element={<Submissions />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>

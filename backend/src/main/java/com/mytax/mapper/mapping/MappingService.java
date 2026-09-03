@@ -61,7 +61,7 @@ public class MappingService {
             document.setStatus(DocumentStatus.PARSED);
 
             MappedInvoice mappedInvoice = persistDraft(document, job.getId(), result.draft());
-            return toResponse(mappedInvoice, lineItemRepository.findByMappedInvoiceIdOrderByLineNo(mappedInvoice.getId()));
+            return MappedInvoiceMapper.toResponse(mappedInvoice, lineItemRepository.findByMappedInvoiceIdOrderByLineNo(mappedInvoice.getId()));
         } catch (Exception e) {
             job.setStatus(ExtractionJobStatus.FAILED);
             job.setErrorMessage(e.getMessage());
@@ -76,7 +76,7 @@ public class MappingService {
     public List<MappedInvoiceResponse> listForDocument(Long documentId, Long userId) {
         documentService.getOwned(documentId, userId);
         return mappedInvoiceRepository.findByDocumentId(documentId).stream()
-                .map(invoice -> toResponse(invoice, lineItemRepository.findByMappedInvoiceIdOrderByLineNo(invoice.getId())))
+                .map(invoice -> MappedInvoiceMapper.toResponse(invoice, lineItemRepository.findByMappedInvoiceIdOrderByLineNo(invoice.getId())))
                 .toList();
     }
 
@@ -143,20 +143,4 @@ public class MappingService {
         return unitCode;
     }
 
-    private MappedInvoiceResponse toResponse(MappedInvoice invoice, List<MappedInvoiceLineItem> lineItems) {
-        List<MappedInvoiceResponse.LineItemResponse> items = lineItems.stream()
-                .map(li -> new MappedInvoiceResponse.LineItemResponse(li.getId(), li.getLineNo(), li.getDescription(),
-                        li.getQuantity(), li.getUnitPrice(), li.getTaxAmount(), li.getClassificationCode(),
-                        li.getUnitCode(), li.getConfidenceScore()))
-                .toList();
-
-        return new MappedInvoiceResponse(invoice.getId(), invoice.getDocumentId(), invoice.getInvoiceTypeCode(),
-                invoice.getIssueDate(), invoice.getCurrencyCode(), invoice.getSupplierTin(), invoice.getSupplierName(),
-                invoice.getBuyerTin(), invoice.getBuyerName(), invoice.getBuyerIdType(), invoice.getBuyerIdValue(),
-                invoice.getBuyerSst(), invoice.getBuyerAddressLine1(), invoice.getBuyerAddressLine2(),
-                invoice.getBuyerCity(), invoice.getBuyerPostalZone(), invoice.getBuyerStateCode(),
-                invoice.getBuyerCountryCode(), invoice.getBuyerPhone(), invoice.getBuyerEmail(),
-                invoice.getSubtotal(), invoice.getTaxTotal(), invoice.getGrandTotal(), invoice.getDiscountTotal(),
-                invoice.getStatus(), invoice.getConfidenceScore(), items);
-    }
 }
