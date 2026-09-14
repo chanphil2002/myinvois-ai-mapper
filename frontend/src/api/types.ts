@@ -44,7 +44,7 @@ export interface DocumentResponse {
   uploadedAt: string;
 }
 
-export type InvoiceStatus = 'DRAFT' | 'CONFIRMED' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED';
+export type InvoiceStatus = 'DRAFT' | 'CONFIRMED' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED' | 'CONSOLIDATED';
 
 export interface LineItem {
   id: number;
@@ -60,7 +60,8 @@ export interface LineItem {
 
 export interface MappedInvoiceResponse {
   id: number;
-  documentId: number;
+  /** Null for the aggregate invoice a consolidation batch generates — it has no single source document. */
+  documentId: number | null;
   invoiceTypeCode: string;
   issueDate: string | null;
   currencyCode: string;
@@ -98,4 +99,20 @@ export interface SubmissionResponse {
   status: SubmissionStatus;
   submittedAt: string | null;
   statusUpdatedAt: string | null;
+}
+
+export type ConsolidationBatchStatus = 'OPEN' | 'GENERATED';
+
+export interface ConsolidationBatchResponse {
+  id: number;
+  periodYear: number;
+  periodMonth: number;
+  status: ConsolidationBatchStatus;
+  createdAt: string | null;
+  generatedAt: string | null;
+  /** Source invoices already added to this batch. */
+  items: MappedInvoiceResponse[];
+  itemsTotal: number;
+  /** The aggregate "General Public" invoice, once the batch has been generated. */
+  resultInvoice: MappedInvoiceResponse | null;
 }

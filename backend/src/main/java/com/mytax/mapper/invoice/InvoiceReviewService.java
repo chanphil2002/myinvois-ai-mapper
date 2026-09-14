@@ -1,18 +1,18 @@
 package com.mytax.mapper.invoice;
 
 import com.mytax.mapper.common.EntityNotFoundException;
+import com.mytax.mapper.consolidation.ConsolidationBatchRepository;
 import com.mytax.mapper.document.DocumentService;
 import com.mytax.mapper.invoice.dto.UpdateMappedInvoiceRequest;
 import com.mytax.mapper.mapping.InvoiceStatus;
 import com.mytax.mapper.mapping.MappedInvoice;
 import com.mytax.mapper.mapping.MappedInvoiceLineItem;
 import com.mytax.mapper.mapping.MappedInvoiceLineItemRepository;
+import com.mytax.mapper.mapping.MappedInvoiceMapper;
 import com.mytax.mapper.mapping.MappedInvoiceRepository;
 import com.mytax.mapper.mapping.dto.MappedInvoiceResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 public class InvoiceReviewService {
@@ -20,24 +20,44 @@ public class InvoiceReviewService {
     private final MappedInvoiceRepository mappedInvoiceRepository;
     private final MappedInvoiceLineItemRepository lineItemRepository;
     private final DocumentService documentService;
+    private final ConsolidationBatchRepository consolidationBatchRepository;
 
     public InvoiceReviewService(MappedInvoiceRepository mappedInvoiceRepository,
                                  MappedInvoiceLineItemRepository lineItemRepository,
-                                 DocumentService documentService) {
+                                 DocumentService documentService,
+                                 ConsolidationBatchRepository consolidationBatchRepository) {
         this.mappedInvoiceRepository = mappedInvoiceRepository;
         this.lineItemRepository = lineItemRepository;
         this.documentService = documentService;
+        this.consolidationBatchRepository = consolidationBatchRepository;
     }
 
+    /**
+     * A mapped invoice is owned either via the single document it was extracted from, or — for
+     * the aggregate invoice a consolidation batch generates — via the batch itself, since a
+     * consolidated invoice has no source document of its own. See ConsolidationService.generate.
+     */
     public MappedInvoice getOwned(Long mappedInvoiceId, Long userId) {
         MappedInvoice invoice = mappedInvoiceRepository.findById(mappedInvoiceId)
                 .orElseThrow(() -> new EntityNotFoundException("Mapped invoice not found: " + mappedInvoiceId));
-        documentService.getOwned(invoice.getDocumentId(), userId);
+        if (invoice.getDocumentId() != null) {
+            documentService.getOwned(invoice.getDocumentId(), userId);
+        } else if (invoice.getConsolidationBatchId() != null) {
+            boolean owned = consolidationBatchRepository.findById(invoice.getConsolidationBatchId())
+                    .map(batch -> batch.getUserId().equals(userId))
+                    .orElse(false);
+            if (!owned) {
+                throw new EntityNotFoundException("Mapped invoice not found: " + mappedInvoiceId);
+            }
+        } else {
+            throw new EntityNotFoundException("Mapped invoice not found: " + mappedInvoiceId);
+        }
         return invoice;
     }
 
     public MappedInvoiceResponse getOwnedResponse(Long mappedInvoiceId, Long userId) {
-        return toResponse(getOwned(mappedInvoiceId, userId));
+        MappedInvoice invoice = getOwned(mappedInvoiceId, userId);
+        return MappedInvoiceMapper.toResponse(invoice, lineItemRepository.findByMappedInvoiceIdOrderByLineNo(invoice.getId()));
     }
 
     @Transactional
@@ -90,7 +110,7 @@ public class InvoiceReviewService {
             }
         }
 
-        return toResponse(invoice);
+        return MappedInvoiceMapper.toResponse(invoice, lineItemRepository.findByMappedInvoiceIdOrderByLineNo(invoice.getId()));
     }
 
     @Transactional
@@ -101,24 +121,7 @@ public class InvoiceReviewService {
         }
         invoice.setStatus(InvoiceStatus.CONFIRMED);
         invoice = mappedInvoiceRepository.save(invoice);
-        return toResponse(invoice);
+        return MappedInvoiceMapper.toResponse(invoice, lineItemRepository.findByMappedInvoiceIdOrderByLineNo(invoice.getId()));
     }
 
-    private MappedInvoiceResponse toResponse(MappedInvoice invoice) {
-        List<MappedInvoiceLineItem> lineItems = lineItemRepository.findByMappedInvoiceIdOrderByLineNo(invoice.getId());
-        List<MappedInvoiceResponse.LineItemResponse> items = lineItems.stream()
-                .map(li -> new MappedInvoiceResponse.LineItemResponse(li.getId(), li.getLineNo(), li.getDescription(),
-                        li.getQuantity(), li.getUnitPrice(), li.getTaxAmount(), li.getClassificationCode(),
-                        li.getUnitCode(), li.getConfidenceScore()))
-                .toList();
-
-        return new MappedInvoiceResponse(invoice.getId(), invoice.getDocumentId(), invoice.getInvoiceTypeCode(),
-                invoice.getIssueDate(), invoice.getCurrencyCode(), invoice.getSupplierTin(), invoice.getSupplierName(),
-                invoice.getBuyerTin(), invoice.getBuyerName(), invoice.getBuyerIdType(), invoice.getBuyerIdValue(),
-                invoice.getBuyerSst(), invoice.getBuyerAddressLine1(), invoice.getBuyerAddressLine2(),
-                invoice.getBuyerCity(), invoice.getBuyerPostalZone(), invoice.getBuyerStateCode(),
-                invoice.getBuyerCountryCode(), invoice.getBuyerPhone(), invoice.getBuyerEmail(),
-                invoice.getSubtotal(), invoice.getTaxTotal(), invoice.getGrandTotal(), invoice.getDiscountTotal(),
-                invoice.getStatus(), invoice.getConfidenceScore(), items);
-    }
 }

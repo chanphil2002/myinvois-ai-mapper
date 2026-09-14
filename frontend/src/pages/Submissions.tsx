@@ -1,11 +1,12 @@
 import { Card, Table, Tag, Typography } from 'antd';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { listDocuments, listMappingsForDocument } from '../api/endpoints';
+import { listConsolidationBatches, listDocuments, listMappingsForDocument } from '../api/endpoints';
 import type { MappedInvoiceResponse } from '../api/types';
 
 export default function Submissions() {
   const { data: documents } = useQuery({ queryKey: ['documents'], queryFn: listDocuments });
+  const { data: batches } = useQuery({ queryKey: ['consolidation-batches'], queryFn: listConsolidationBatches });
 
   const mappingQueries = useQueries({
     queries: (documents ?? []).map((doc) => ({
@@ -16,9 +17,16 @@ export default function Submissions() {
   });
 
   const loading = mappingQueries.some((q) => q.isLoading);
-  const invoices: MappedInvoiceResponse[] = mappingQueries
+  // CONSOLIDATED invoices were rolled into a batch, not submitted individually — they belong on
+  // the Consolidated e-Invoice page, not here. Batches' own generated result invoices (which have
+  // no source document, so listMappingsForDocument never returns them) are added in separately.
+  const individualInvoices: MappedInvoiceResponse[] = mappingQueries
     .flatMap((q) => q.data ?? [])
-    .filter((invoice) => invoice.status !== 'DRAFT');
+    .filter((invoice) => invoice.status !== 'DRAFT' && invoice.status !== 'CONSOLIDATED');
+  const consolidatedResults: MappedInvoiceResponse[] = (batches ?? [])
+    .map((batch) => batch.resultInvoice)
+    .filter((invoice): invoice is MappedInvoiceResponse => !!invoice && invoice.status !== 'DRAFT');
+  const invoices = [...individualInvoices, ...consolidatedResults];
 
   const columns = [
     { title: 'Invoice #', dataIndex: 'id', key: 'id' },
