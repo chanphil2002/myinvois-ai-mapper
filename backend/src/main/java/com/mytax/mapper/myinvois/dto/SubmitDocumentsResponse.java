@@ -17,7 +17,12 @@ public record SubmitDocumentsResponse(
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record RejectedDocument(String invoiceCodeNumber, Error error) {
         @JsonIgnoreProperties(ignoreUnknown = true)
-        public record Error(String code, String message) {
+        public record Error(String code, String message, String target, List<ErrorDetail> details) {
+        }
+
+        /** One field-level validation failure nested under {@code error.details[]} in LHDN's response. */
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        public record ErrorDetail(String code, String message, String target, String propertyPath) {
         }
     }
 }
