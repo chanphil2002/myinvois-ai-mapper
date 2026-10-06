@@ -38,4 +38,15 @@ public class MyInvoisSubmissionClient {
                 .retrieve()
                 .body(SubmissionStatusResponse.class);
     }
+
+    /** Per-document details including {@code validationResults} — the only endpoint that exposes
+     *  the step-level reason (e.g. ERR406) behind an Invalid document. Returns the raw JSON body so
+     *  no nested error fields (innerError/details) are lost to DTO mapping before they can be read. */
+    public String getDocumentDetails(String accessToken, String documentUuid) {
+        return restClient.get()
+                .uri(properties.getApiBaseUrl() + "/api/v1.0/documents/{documentUuid}/details", documentUuid)
+                .headers(h -> h.setBearerAuth(accessToken))
+                .retrieve()
+                .body(String.class);
+    }
 }

@@ -98,6 +98,7 @@ public class SubmissionService {
         Submission submission = Submission.builder()
                 .mappedInvoiceId(invoice.getId())
                 .myInvoisSubmissionUid(response.submissionUid())
+                .myInvoisDocumentUuid(acceptedDocumentUuid(response))
                 .status(SubmissionStatus.PENDING)
                 .submittedAt(Instant.now())
                 .responsePayload(toJson(response))
@@ -138,7 +139,27 @@ public class SubmissionService {
 
         submission.setStatus(mapStatus(status.overallStatus()));
         submission.setStatusUpdatedAt(Instant.now());
-        submission.setResponsePayload(toJson(status));
+
+        // The status endpoint only reports Valid/Invalid; it never says why. For an invalid document
+        // fetch the per-step validation results, which carry the actual reason (e.g. ERR406), and
+        // store those as the payload so the reason reaches the frontend.
+        if (submission.getMyInvoisDocumentUuid() == null) {
+            submission.setMyInvoisDocumentUuid(firstDocumentUuid(status));
+        }
+        String payloadJson = toJson(status);
+        if (submission.getStatus() == SubmissionStatus.INVALID && submission.getMyInvoisDocumentUuid() != null) {
+            try {
+                String details = myInvoisSubmissionClient.getDocumentDetails(
+                        accessToken, submission.getMyInvoisDocumentUuid());
+                if (details != null && !details.isBlank()) {
+                    payloadJson = details;
+                }
+            } catch (Exception e) {
+                log.warn("Could not fetch document details for {}: {}",
+                        submission.getMyInvoisDocumentUuid(), e.getMessage());
+            }
+        }
+        submission.setResponsePayload(payloadJson);
         submission = submissionRepository.save(submission);
 
         if (mappedInvoice != null) {
@@ -174,6 +195,20 @@ public class SubmissionService {
                 .toList();
     }
 
+    private String acceptedDocumentUuid(SubmitDocumentsResponse response) {
+        if (response == null || response.acceptedDocuments() == null || response.acceptedDocuments().isEmpty()) {
+            return null;
+        }
+        return response.acceptedDocuments().get(0).uuid();
+    }
+
+    private String firstDocumentUuid(SubmissionStatusResponse status) {
+        if (status == null || status.documentSummary() == null || status.documentSummary().isEmpty()) {
+            return null;
+        }
+        return status.documentSummary().get(0).uuid();
+    }
+
     private SubmissionStatus mapStatus(String overallStatus) {
         if (overallStatus == null) {
             return SubmissionStatus.PENDING;
@@ -205,6 +240,12 @@ public class SubmissionService {
         }
         try {
             JsonNode root = objectMapper.readTree(responsePayloadJson);
+            // A document-details payload (stored for Invalid docs on refresh) carries the real
+            // step-level reason under validationResults.validationSteps[].error; prefer it.
+            String stepMessage = extractValidationStepErrors(root);
+            if (stepMessage != null) {
+                return stepMessage;
+            }
             JsonNode rejected = root.path("rejectedDocuments");
             if (!rejected.isArray() || rejected.isEmpty()) {
                 return null;
@@ -237,6 +278,74 @@ public class SubmissionService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * Pulls the reason(s) out of a document-details payload's
+     * {@code validationResults.validationSteps[]}, naming each failing step and its error code,
+     * e.g. "Step05-Taxpayer Profile Validator: ERR406 Buyer TIN is invalid...".
+     */
+    private String extractValidationStepErrors(JsonNode root) {
+        JsonNode steps = root.path("validationResults").path("validationSteps");
+        if (!steps.isArray() || steps.isEmpty()) {
+            return null;
+        }
+        List<String> messages = new ArrayList<>();
+        for (JsonNode step : steps) {
+            JsonNode error = step.path("error");
+            if (error.isMissingNode() || error.isNull()) {
+                continue;
+            }
+            // Prefer the granular reasons nested under innerError/details (e.g. ERR406 "Buyer TIN is
+            // invalid...") over the generic top-level step error (e.g. Error05 "Invalid Taxpayer
+            // Profile Validator"); fall back to the top-level message if there is no nested detail.
+            List<String> leaves = new ArrayList<>();
+            collectLeafErrors(error, leaves);
+            if (leaves.isEmpty()) {
+                continue;
+            }
+            String stepName = step.path("name").asText(null);
+            String joined = String.join(", ", leaves);
+            messages.add(stepName == null || stepName.isBlank() ? joined : stepName + ": " + joined);
+        }
+        return messages.isEmpty() ? null : String.join("; ", messages);
+    }
+
+    /** Walks an LHDN error node, descending into {@code innerError}/{@code details} so the most
+     *  specific error codes/messages win; a node with no children contributes its own message. */
+    private void collectLeafErrors(JsonNode error, List<String> out) {
+        if (error == null || error.isMissingNode() || error.isNull()) {
+            return;
+        }
+        List<JsonNode> children = new ArrayList<>();
+        for (String childField : List.of("innerError", "details")) {
+            JsonNode child = error.path(childField);
+            if (child.isArray()) {
+                child.forEach(children::add);
+            } else if (child.isObject()) {
+                children.add(child);
+            }
+        }
+        int before = out.size();
+        for (JsonNode child : children) {
+            collectLeafErrors(child, out);
+        }
+        if (out.size() > before) {
+            return; // children already contributed more specific messages
+        }
+        String message = firstNonBlank(error.path("error").asText(null), error.path("message").asText(null));
+        if (message == null) {
+            return;
+        }
+        String code = firstNonBlank(error.path("errorCode").asText(null), error.path("code").asText(null));
+        out.add(code == null ? message : code + " " + message);
+    }
+
+    private String firstNonBlank(String a, String b) {
+        if (a != null && !a.isBlank()) {
+            return a;
+        }
+        return b != null && !b.isBlank() ? b : null;
     }
 
     public SubmissionResponse toResponse(Submission submission) {
