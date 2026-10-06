@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -19,20 +18,20 @@ public class MappingService {
     private final DocumentService documentService;
     private final FileStorageService fileStorageService;
     private final MappingEngine mappingEngine;
-    private final ExtractionJobRepository extractionJobRepository;
+    private final ExtractionJobSupport extractionJobSupport;
     private final MappedInvoiceRepository mappedInvoiceRepository;
     private final MappedInvoiceLineItemRepository lineItemRepository;
 
     public MappingService(DocumentService documentService,
                            FileStorageService fileStorageService,
                            MappingEngine mappingEngine,
-                           ExtractionJobRepository extractionJobRepository,
+                           ExtractionJobSupport extractionJobSupport,
                            MappedInvoiceRepository mappedInvoiceRepository,
                            MappedInvoiceLineItemRepository lineItemRepository) {
         this.documentService = documentService;
         this.fileStorageService = fileStorageService;
         this.mappingEngine = mappingEngine;
-        this.extractionJobRepository = extractionJobRepository;
+        this.extractionJobSupport = extractionJobSupport;
         this.mappedInvoiceRepository = mappedInvoiceRepository;
         this.lineItemRepository = lineItemRepository;
     }
@@ -41,35 +40,33 @@ public class MappingService {
     public MappedInvoiceResponse runMapping(Long documentId, Long userId) {
         Document document = documentService.getOwned(documentId, userId);
 
-        ExtractionJob job = ExtractionJob.builder()
-                .documentId(documentId)
-                .status(ExtractionJobStatus.RUNNING)
-                .startedAt(Instant.now())
-                .build();
-        job = extractionJobRepository.save(job);
+        ExtractionJob job = extractionJobSupport.start(documentId);
 
         try {
             byte[] fileBytes = fileStorageService.load(document.getStoragePath());
             MappingEngine.MappingResult result = mappingEngine.map(document, fileBytes);
 
-            job.setStatus(ExtractionJobStatus.COMPLETED);
-            job.setAiModel(result.modelName());
-            job.setRawAiResponse(result.rawResponseJson());
-            job.setCompletedAt(Instant.now());
-            extractionJobRepository.save(job);
-
+            extractionJobSupport.complete(job, result.modelName(), result.rawResponseJson());
             document.setStatus(DocumentStatus.PARSED);
 
             MappedInvoice mappedInvoice = persistDraft(document, job.getId(), result.draft());
             return toResponse(mappedInvoice, lineItemRepository.findByMappedInvoiceIdOrderByLineNo(mappedInvoice.getId()));
         } catch (Exception e) {
-            job.setStatus(ExtractionJobStatus.FAILED);
-            job.setErrorMessage(e.getMessage());
-            job.setCompletedAt(Instant.now());
-            extractionJobRepository.save(job);
-
+            extractionJobSupport.fail(job, e.getMessage());
             document.setStatus(DocumentStatus.FAILED);
-            throw new IllegalStateException("AI mapping failed: " + e.getMessage(), e);
+            String message = e.getMessage() == null ? "" : e.getMessage();
+            // A 401/403 (or Google's PERMISSION_DENIED) from the provider means the AI engine's API
+            // key is missing or invalid — a configuration issue, not a server fault. Surface a clear,
+            // actionable 400 instead of an opaque "Unexpected error ... 403 Forbidden".
+            String lower = message.toLowerCase();
+            if (message.contains("401") || message.contains("403") || lower.contains("permission_denied")
+                    || lower.contains("unauthorized") || lower.contains("api key") || lower.contains("api-key")) {
+                throw new IllegalArgumentException(
+                        "AI mapping isn't configured: the AI provider rejected the request (missing or invalid API key). "
+                        + "Set a valid API key for the selected mapping engine (see Settings/application-local.yml), "
+                        + "or use manual key-in instead.");
+            }
+            throw new IllegalStateException("AI mapping failed: " + message, e);
         }
     }
 
@@ -122,25 +119,13 @@ public class MappingService {
                         .unitPrice(item.unitPrice() != null ? item.unitPrice() : BigDecimal.ZERO)
                         .taxAmount(item.taxAmount() != null ? item.taxAmount() : BigDecimal.ZERO)
                         .classificationCode(item.classificationCode())
-                        .unitCode(normalizeUnitCode(item.unitCode()))
+                        .unitCode(extractionJobSupport.normalizeUnitCode(item.unitCode()))
                         .confidenceScore(item.confidenceScore())
                         .build();
                 lineItemRepository.save(lineItem);
             }
         }
         return invoice;
-    }
-
-    /**
-     * unit_code is VARCHAR(10) (it's meant to hold a short UN/ECE-style unit code or abbreviation).
-     * Defends against any AI provider returning an oversized value that would otherwise fail the
-     * insert with a SQL truncation error.
-     */
-    private String normalizeUnitCode(String unitCode) {
-        if (unitCode == null || unitCode.isBlank() || unitCode.length() > 10) {
-            return "C62";
-        }
-        return unitCode;
     }
 
     private MappedInvoiceResponse toResponse(MappedInvoice invoice, List<MappedInvoiceLineItem> lineItems) {
