@@ -1,5 +1,6 @@
-import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
-import { Layout, Menu } from 'antd';
+import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Button, Layout, Menu } from 'antd';
+import { ArrowLeftOutlined } from '@ant-design/icons';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { useAuth } from './auth/AuthContext';
 import Login from './pages/Login';
@@ -18,6 +19,7 @@ const { Header, Content, Sider } = Layout;
 
 function AppLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { email, logout } = useAuth();
 
   const items = [
@@ -42,7 +44,20 @@ function AppLayout() {
           <a onClick={logout}>Log out</a>
         </Header>
         <Content style={{ margin: 24 }}>
-          <Routes>
+          {/* Constrain content so forms/sections don't stretch across very wide screens, and keep
+              everything left-aligned. A back button is shown on every page except the Dashboard. */}
+          <div style={{ maxWidth: 1080 }}>
+            {location.pathname !== '/' && (
+              <Button
+                type="text"
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate(-1)}
+                style={{ marginBottom: 16, paddingLeft: 0 }}
+              >
+                Back
+              </Button>
+            )}
+            <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/create" element={<CreateInvoice />} />
             <Route path="/create/individual" element={<CreateIndividual />} />
@@ -52,7 +67,8 @@ function AppLayout() {
             <Route path="/consolidate" element={<ConsolidationBuilder />} />
             <Route path="/consolidated-invoices/:id" element={<ConsolidatedInvoiceReview />} />
             <Route path="/settings" element={<Settings />} />
-          </Routes>
+            </Routes>
+          </div>
         </Content>
       </Layout>
     </Layout>

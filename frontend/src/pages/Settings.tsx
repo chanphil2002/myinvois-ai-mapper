@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, Form, Input, Modal, Select, Space, Typography, message } from 'antd';
+import { Button, Card, Col, Form, Input, Modal, Row, Select, Space, Typography, message } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getBusinessProfile,
@@ -47,7 +47,7 @@ function MyInvoisCredentialsCard() {
   });
 
   return (
-    <Card style={{ maxWidth: 520 }}>
+    <Card style={{ height: '100%' }}>
       <Typography.Title level={4}>MyInvois API Credentials</Typography.Title>
       <Typography.Paragraph type="secondary">
         Enter the client_id / client_secret (App Key / App Secret) issued by LHDN for your
@@ -151,7 +151,7 @@ function BusinessProfileCard() {
   };
 
   return (
-    <Card style={{ maxWidth: 640 }}>
+    <Card style={{ height: '100%' }}>
       <Typography.Title level={4}>Business Profile</Typography.Title>
       <Typography.Paragraph type="secondary">
         Your own registration details as the supplier on every e-Invoice you submit — this is set once here,
@@ -251,9 +251,13 @@ function BusinessProfileCard() {
 
 export default function Settings() {
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <MyInvoisCredentialsCard />
-      <BusinessProfileCard />
-    </Space>
+    <Row gutter={[24, 24]} align="top">
+      <Col xs={24} lg={10}>
+        <MyInvoisCredentialsCard />
+      </Col>
+      <Col xs={24} lg={14}>
+        <BusinessProfileCard />
+      </Col>
+    </Row>
   );
 }

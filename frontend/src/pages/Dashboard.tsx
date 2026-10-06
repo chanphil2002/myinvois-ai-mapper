@@ -1,7 +1,9 @@
+import type { Key } from 'react';
 import { Card, Col, Row, Statistic, Table, Tag, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { listDocuments } from '../api/endpoints';
+import type { DocumentResponse } from '../api/types';
 
 export default function Dashboard() {
   const { data: documents, isLoading } = useQuery({ queryKey: ['documents'], queryFn: listDocuments });
@@ -12,7 +14,14 @@ export default function Dashboard() {
 
   const columns = [
     { title: 'File', dataIndex: 'originalFilename', key: 'originalFilename' },
-    { title: 'Status', dataIndex: 'status', key: 'status', render: (s: string) => <Tag>{s}</Tag> },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      filters: ['UPLOADED', 'PARSING', 'PARSED', 'FAILED'].map((s) => ({ text: s, value: s })),
+      onFilter: (value: boolean | Key, record: DocumentResponse) => record.status === value,
+      render: (s: string) => <Tag>{s}</Tag>,
+    },
     { title: 'Uploaded', dataIndex: 'uploadedAt', key: 'uploadedAt' },
   ];
 

@@ -1,3 +1,4 @@
+import type { Key } from 'react';
 import { Card, Table, Tabs, Tag, Typography } from 'antd';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -20,12 +21,20 @@ function IndividualSubmissions() {
     .flatMap((q) => q.data ?? [])
     .filter((invoice) => invoice.status !== 'DRAFT');
 
+  const statusFilters = ['CONFIRMED', 'SUBMITTED', 'ACCEPTED', 'REJECTED'].map((s) => ({ text: s, value: s }));
   const columns = [
     { title: 'Invoice #', dataIndex: 'id', key: 'id' },
     { title: 'Supplier', dataIndex: 'supplierName', key: 'supplierName' },
     { title: 'Buyer', dataIndex: 'buyerName', key: 'buyerName' },
     { title: 'Grand Total', dataIndex: 'grandTotal', key: 'grandTotal' },
-    { title: 'Status', dataIndex: 'status', key: 'status', render: (status: string) => <Tag>{status}</Tag> },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      filters: statusFilters,
+      onFilter: (value: boolean | Key, record: MappedInvoiceResponse) => record.status === value,
+      render: (status: string) => <Tag>{status}</Tag>,
+    },
     {
       title: '',
       key: 'view',
@@ -64,7 +73,14 @@ function ConsolidatedSubmissions() {
       render: (_: unknown, r: ConsolidatedInvoiceResponse) => r.transactions.length,
     },
     { title: 'Grand Total', dataIndex: 'grandTotal', key: 'grandTotal' },
-    { title: 'Status', dataIndex: 'status', key: 'status', render: (status: string) => <Tag>{status}</Tag> },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      filters: ['DRAFT', 'CONFIRMED', 'SUBMITTED', 'ACCEPTED', 'REJECTED'].map((s) => ({ text: s, value: s })),
+      onFilter: (value: boolean | Key, record: ConsolidatedInvoiceResponse) => record.status === value,
+      render: (status: string) => <Tag>{status}</Tag>,
+    },
     {
       title: '',
       key: 'view',
