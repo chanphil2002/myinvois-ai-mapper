@@ -14,6 +14,8 @@ export interface CredentialResponse {
   configured: boolean;
 }
 
+export type SubmissionMode = 'INDIVIDUAL' | 'CONSOLIDATED';
+
 export interface BusinessProfile {
   id?: number;
   registrationName: string;
@@ -32,9 +34,31 @@ export interface BusinessProfile {
   countryCode: string;
   phone: string | null;
   email: string | null;
+  defaultSubmissionMode: SubmissionMode;
 }
 
-export type DocumentStatus = 'UPLOADED' | 'PARSING' | 'PARSED' | 'FAILED';
+export type DocumentStatus = 'UPLOADED' | 'PARSING' | 'PARSED' | 'FAILED' | 'MANUAL';
+
+export interface RevealedCredentialResponse {
+  clientId: string;
+  clientSecret: string;
+  environment: MyInvoisEnvironment;
+}
+
+export interface ManualConsolidatedLineItem {
+  transactionDate?: string | null;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  taxAmount: number;
+  unitCode?: string | null;
+}
+
+export interface CreateManualConsolidatedInvoicePayload {
+  periodStart: string;
+  periodEnd: string;
+  lineItems: ManualConsolidatedLineItem[];
+}
 
 export interface DocumentResponse {
   id: number;
@@ -92,10 +116,46 @@ export type SubmissionStatus = 'PENDING' | 'IN_PROGRESS' | 'VALID' | 'INVALID' |
 
 export interface SubmissionResponse {
   id: number;
-  mappedInvoiceId: number;
+  mappedInvoiceId: number | null;
+  consolidatedInvoiceId: number | null;
   myInvoisSubmissionUid: string | null;
   myInvoisDocumentUuid: string | null;
   status: SubmissionStatus;
   submittedAt: string | null;
   statusUpdatedAt: string | null;
+  errorMessage: string | null;
+}
+
+export type SalesTransactionStatus = 'PENDING' | 'GROUPED' | 'EXCLUDED';
+
+export interface SalesTransactionResponse {
+  id: number;
+  documentId: number;
+  transactionDate: string | null;
+  description: string | null;
+  quantity: number;
+  unitPrice: number;
+  taxAmount: number;
+  classificationCode: string | null;
+  unitCode: string | null;
+  buyerName: string | null;
+  buyerTin: string | null;
+  eligibleForConsolidation: boolean;
+  status: SalesTransactionStatus;
+  confidenceScore: number | null;
+}
+
+export type ConsolidatedInvoiceStatus = 'DRAFT' | 'CONFIRMED' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED';
+
+export interface ConsolidatedInvoiceResponse {
+  id: number;
+  periodStart: string;
+  periodEnd: string;
+  invoiceTypeCode: string;
+  currencyCode: string;
+  subtotal: number;
+  taxTotal: number;
+  grandTotal: number;
+  status: ConsolidatedInvoiceStatus;
+  transactions: SalesTransactionResponse[];
 }

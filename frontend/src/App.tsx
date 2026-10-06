@@ -6,9 +6,13 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
-import Upload from './pages/Upload';
 import MappingReview from './pages/MappingReview';
 import Submissions from './pages/Submissions';
+import ConsolidationBuilder from './pages/ConsolidationBuilder';
+import ConsolidatedInvoiceReview from './pages/ConsolidatedInvoiceReview';
+import CreateInvoice from './pages/create/CreateInvoice';
+import CreateIndividual from './pages/create/CreateIndividual';
+import CreateConsolidated from './pages/create/CreateConsolidated';
 
 const { Header, Content, Sider } = Layout;
 
@@ -18,7 +22,14 @@ function AppLayout() {
 
   const items = [
     { key: '/', label: <Link to="/">Dashboard</Link> },
-    { key: '/upload', label: <Link to="/upload">Upload</Link> },
+    {
+      key: 'create',
+      label: 'Create Invoice',
+      children: [
+        { key: '/create/individual', label: <Link to="/create/individual">Individual</Link> },
+        { key: '/create/consolidated', label: <Link to="/create/consolidated">Consolidated</Link> },
+      ],
+    },
     { key: '/submissions', label: <Link to="/submissions">Submissions</Link> },
     { key: '/settings', label: <Link to="/settings">MyInvois Settings</Link> },
   ];
@@ -27,7 +38,13 @@ function AppLayout() {
     <Layout style={{ minHeight: '100vh' }}>
       <Sider breakpoint="lg" collapsedWidth="0">
         <div style={{ color: 'white', padding: 16, fontWeight: 600 }}>AI MyInvois Mapper</div>
-        <Menu theme="dark" mode="inline" selectedKeys={[location.pathname]} items={items} />
+        <Menu
+          theme="dark"
+          mode="inline"
+          selectedKeys={[location.pathname]}
+          defaultOpenKeys={location.pathname.startsWith('/create') ? ['create'] : []}
+          items={items}
+        />
       </Sider>
       <Layout>
         <Header style={{ background: '#fff', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, padding: '0 24px' }}>
@@ -37,9 +54,13 @@ function AppLayout() {
         <Content style={{ margin: 24 }}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/upload" element={<Upload />} />
+            <Route path="/create" element={<CreateInvoice />} />
+            <Route path="/create/individual" element={<CreateIndividual />} />
+            <Route path="/create/consolidated" element={<CreateConsolidated />} />
             <Route path="/mapped-invoices/:id" element={<MappingReview />} />
             <Route path="/submissions" element={<Submissions />} />
+            <Route path="/consolidate" element={<ConsolidationBuilder />} />
+            <Route path="/consolidated-invoices/:id" element={<ConsolidatedInvoiceReview />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </Content>

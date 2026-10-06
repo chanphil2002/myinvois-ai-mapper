@@ -18,26 +18,26 @@ export default function Dashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <Row gutter={16}>
-        <Col span={8}>
-          <Card>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={8}>
+          <Card style={{ height: '100%' }}>
             <Statistic title="Documents uploaded" value={total} />
           </Card>
         </Col>
-        <Col span={8}>
-          <Card>
+        <Col xs={24} sm={8}>
+          <Card style={{ height: '100%' }}>
             <Statistic title="Parsed" value={parsed} />
           </Card>
         </Col>
-        <Col span={8}>
-          <Card>
+        <Col xs={24} sm={8}>
+          <Card style={{ height: '100%' }}>
             <Statistic title="Failed" value={failed} valueStyle={{ color: failed > 0 ? '#cf1322' : undefined }} />
           </Card>
         </Col>
       </Row>
       <Card
         title="Recent documents"
-        extra={<Link to="/upload">Upload a new file</Link>}
+        extra={<Link to="/create">Create an invoice</Link>}
       >
         <Typography.Paragraph type="secondary">
           Upload a document, then run AI mapping to review and submit it to MyInvois.
@@ -48,6 +48,7 @@ export default function Dashboard() {
           dataSource={(documents ?? []).slice(0, 5)}
           columns={columns}
           pagination={false}
+          scroll={{ x: 'max-content' }}
         />
       </Card>
     </div>

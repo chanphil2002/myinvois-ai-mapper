@@ -42,8 +42,26 @@ public class DocumentService {
 
     public List<DocumentResponse> list(Long userId) {
         return documentRepository.findByUserIdOrderByUploadedAtDesc(userId).stream()
+                .filter(d -> d.getStatus() != DocumentStatus.MANUAL)
                 .map(this::toResponse)
                 .toList();
+    }
+
+    /**
+     * Creates a placeholder document that backs a manually keyed-in invoice or set of
+     * transactions (there is no uploaded file). Lets manual entries reuse the document-scoped
+     * ownership/edit/submit pipeline unchanged. Hidden from {@link #list(Long)}.
+     */
+    @Transactional
+    public Document createManual(Long userId, String label) {
+        Document document = Document.builder()
+                .userId(userId)
+                .originalFilename(label != null ? label : "Manual entry")
+                .fileType("manual")
+                .storagePath("manual")
+                .status(DocumentStatus.MANUAL)
+                .build();
+        return documentRepository.save(document);
     }
 
     public Document getOwned(Long documentId, Long userId) {

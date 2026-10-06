@@ -1,8 +1,14 @@
-import { useEffect } from 'react';
-import { Button, Card, Form, Input, Select, Space, Typography, message } from 'antd';
+import { useEffect, useState } from 'react';
+import { Button, Card, Form, Input, Modal, Select, Space, Typography, message } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getBusinessProfile, getCredentials, saveBusinessProfile, saveCredentials } from '../api/endpoints';
-import type { BusinessProfile, MyInvoisEnvironment } from '../api/types';
+import {
+  getBusinessProfile,
+  getCredentials,
+  revealCredentials,
+  saveBusinessProfile,
+  saveCredentials,
+} from '../api/endpoints';
+import type { BusinessProfile, MyInvoisEnvironment, RevealedCredentialResponse } from '../api/types';
 import { MALAYSIA_STATE_CODES } from '../constants/malaysiaStates';
 
 function MyInvoisCredentialsCard() {
@@ -26,18 +32,72 @@ function MyInvoisCredentialsCard() {
     mutation.mutate(values);
   };
 
+  const [revealOpen, setRevealOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [revealed, setRevealed] = useState<RevealedCredentialResponse | null>(null);
+
+  const revealMutation = useMutation({
+    mutationFn: () => revealCredentials({ password }),
+    onSuccess: (data) => {
+      setRevealed(data);
+      setRevealOpen(false);
+      setPassword('');
+    },
+    onError: (err) => message.error(err instanceof Error ? err.message : 'Could not reveal credentials'),
+  });
+
   return (
     <Card style={{ maxWidth: 520 }}>
       <Typography.Title level={4}>MyInvois API Credentials</Typography.Title>
       <Typography.Paragraph type="secondary">
-        Enter the client_id / client_secret issued by LHDN for your intermediary/taxpayer system.
-        {existing && (
-          <>
-            {' '}
-            Currently configured: <strong>{existing.clientId}</strong> ({existing.environment}).
-          </>
-        )}
+        Enter the client_id / client_secret (App Key / App Secret) issued by LHDN for your
+        intermediary/taxpayer system.
       </Typography.Paragraph>
+
+      {existing && (
+        <Card size="small" type="inner" title="Current credentials" style={{ marginBottom: 16 }}>
+          <Typography.Paragraph style={{ marginBottom: 8 }}>
+            <Typography.Text type="secondary">App Key (client id): </Typography.Text>
+            <Typography.Text copyable>{existing.clientId}</Typography.Text>{' '}
+            <Typography.Text type="secondary">({existing.environment})</Typography.Text>
+          </Typography.Paragraph>
+          {revealed ? (
+            <Typography.Paragraph style={{ marginBottom: 0 }}>
+              <Typography.Text type="secondary">App Secret: </Typography.Text>
+              <Typography.Text copyable code>{revealed.clientSecret}</Typography.Text>
+            </Typography.Paragraph>
+          ) : (
+            <Space>
+              <Typography.Text type="secondary">App Secret: ••••••••</Typography.Text>
+              <Button size="small" onClick={() => setRevealOpen(true)}>
+                Reveal
+              </Button>
+            </Space>
+          )}
+        </Card>
+      )}
+
+      <Modal
+        title="Confirm your password"
+        open={revealOpen}
+        onOk={() => revealMutation.mutate()}
+        confirmLoading={revealMutation.isPending}
+        okText="Reveal"
+        onCancel={() => {
+          setRevealOpen(false);
+          setPassword('');
+        }}
+      >
+        <Typography.Paragraph type="secondary">
+          Re-enter your account password to view the stored App Secret.
+        </Typography.Paragraph>
+        <Input.Password
+          value={password}
+          placeholder="Account password"
+          onChange={(e) => setPassword(e.target.value)}
+          onPressEnter={() => revealMutation.mutate()}
+        />
+      </Modal>
       <Form layout="vertical" onFinish={onFinish} initialValues={{ environment: 'SANDBOX' }}>
         <Form.Item name="clientId" label="Client ID" rules={[{ required: true }]}>
           <Input />
@@ -101,8 +161,21 @@ function BusinessProfileCard() {
         form={form}
         layout="vertical"
         onFinish={onFinish}
-        initialValues={{ idType: 'NRIC', countryCode: 'MYS' }}
+        initialValues={{ idType: 'NRIC', countryCode: 'MYS', defaultSubmissionMode: 'INDIVIDUAL' }}
       >
+        <Form.Item
+          name="defaultSubmissionMode"
+          label="Default submission mode"
+          rules={[{ required: true }]}
+          tooltip="Which mode the Upload page starts on — you can still switch it per upload."
+        >
+          <Select
+            options={[
+              { value: 'INDIVIDUAL', label: 'Individual e-Invoice' },
+              { value: 'CONSOLIDATED', label: 'Consolidated e-Invoice' },
+            ]}
+          />
+        </Form.Item>
         <Form.Item name="registrationName" label="Registration name" rules={[{ required: true }]}>
           <Input placeholder="Legal or registered business name" />
         </Form.Item>

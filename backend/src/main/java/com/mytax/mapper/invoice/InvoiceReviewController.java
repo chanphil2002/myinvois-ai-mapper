@@ -16,6 +16,11 @@ public class InvoiceReviewController {
         this.invoiceReviewService = invoiceReviewService;
     }
 
+    @PostMapping
+    public ApiResponse<MappedInvoiceResponse> createManual(@RequestBody UpdateMappedInvoiceRequest request) {
+        return ApiResponse.ok(invoiceReviewService.createManual(CurrentUser.id(), request));
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<MappedInvoiceResponse> get(@PathVariable Long id) {
         return ApiResponse.ok(invoiceReviewService.getOwnedResponse(id, CurrentUser.id()));

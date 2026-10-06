@@ -1,4 +1,4 @@
-import { Table, InputNumber, Input, Button } from 'antd';
+import { Table, InputNumber, Input, Button, Space } from 'antd';
 import type { LineItem } from '../api/types';
 
 interface Props {
@@ -22,6 +22,25 @@ export default function MappingReviewTable({ lineItems, onChange, disabled }: Pr
 
   const removeRow = (index: number) => {
     onChange(lineItems.filter((_, i) => i !== index));
+  };
+
+  const addRow = () => {
+    const nextLineNo = lineItems.reduce((max, li) => Math.max(max, li.lineNo), 0) + 1;
+    // No id => the backend treats this as a brand-new line (see InvoiceReviewService.applyRequest).
+    onChange([
+      ...lineItems,
+      {
+        id: undefined as unknown as number,
+        lineNo: nextLineNo,
+        description: '',
+        quantity: 1,
+        unitPrice: 0,
+        taxAmount: 0,
+        classificationCode: '022',
+        unitCode: 'C62',
+        confidenceScore: null,
+      },
+    ]);
   };
 
   const columns = [
@@ -113,5 +132,21 @@ export default function MappingReviewTable({ lineItems, onChange, disabled }: Pr
         ]),
   ];
 
-  return <Table rowKey="lineNo" dataSource={lineItems} columns={columns} pagination={false} size="small" />;
+  return (
+    <Space direction="vertical" style={{ width: '100%' }}>
+      <Table
+        rowKey="lineNo"
+        dataSource={lineItems}
+        columns={columns}
+        pagination={false}
+        size="small"
+        scroll={{ x: 'max-content' }}
+      />
+      {!disabled && (
+        <Button type="dashed" block onClick={addRow}>
+          + Add line item
+        </Button>
+      )}
+    </Space>
+  );
 }

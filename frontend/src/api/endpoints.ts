@@ -2,10 +2,14 @@ import { apiClient, unwrap, ApiResponse } from './client';
 import type {
   AuthResponse,
   BusinessProfile,
+  ConsolidatedInvoiceResponse,
+  CreateManualConsolidatedInvoicePayload,
   CredentialResponse,
   DocumentResponse,
   MappedInvoiceResponse,
   MyInvoisEnvironment,
+  RevealedCredentialResponse,
+  SalesTransactionResponse,
   SubmissionResponse,
 } from './types';
 
@@ -32,6 +36,12 @@ export function saveCredentials(payload: {
 
 export function getCredentials(): Promise<CredentialResponse> {
   return unwrap(apiClient.get<ApiResponse<CredentialResponse>>('/api/myinvois/credentials'));
+}
+
+export function revealCredentials(payload: { password: string }): Promise<RevealedCredentialResponse> {
+  return unwrap(
+    apiClient.post<ApiResponse<RevealedCredentialResponse>>('/api/myinvois/credentials/reveal', payload),
+  );
 }
 
 export function saveBusinessProfile(payload: BusinessProfile): Promise<BusinessProfile> {
@@ -75,6 +85,10 @@ export function updateMappedInvoice(
   return unwrap(apiClient.patch<ApiResponse<MappedInvoiceResponse>>(`/api/mapped-invoices/${id}`, payload));
 }
 
+export function createManualInvoice(payload: Partial<MappedInvoiceResponse>): Promise<MappedInvoiceResponse> {
+  return unwrap(apiClient.post<ApiResponse<MappedInvoiceResponse>>('/api/mapped-invoices', payload));
+}
+
 export function confirmMappedInvoice(id: number): Promise<MappedInvoiceResponse> {
   return unwrap(apiClient.post<ApiResponse<MappedInvoiceResponse>>(`/api/mapped-invoices/${id}/confirm`));
 }
@@ -91,4 +105,63 @@ export function listSubmissions(mappedInvoiceId: number): Promise<SubmissionResp
 
 export function refreshSubmission(id: number): Promise<SubmissionResponse> {
   return unwrap(apiClient.post<ApiResponse<SubmissionResponse>>(`/api/submissions/${id}/refresh`));
+}
+
+// --- Consolidated e-invoice ---
+
+export function extractTransactions(documentId: number): Promise<SalesTransactionResponse[]> {
+  return unwrap(apiClient.post<ApiResponse<SalesTransactionResponse[]>>(`/api/documents/${documentId}/transactions`));
+}
+
+export function listTransactionsForDocument(documentId: number): Promise<SalesTransactionResponse[]> {
+  return unwrap(apiClient.get<ApiResponse<SalesTransactionResponse[]>>(`/api/documents/${documentId}/transactions`));
+}
+
+export function listEligibleTransactions(): Promise<SalesTransactionResponse[]> {
+  return unwrap(apiClient.get<ApiResponse<SalesTransactionResponse[]>>('/api/transactions/eligible'));
+}
+
+export function createConsolidatedInvoice(payload: {
+  transactionIds: number[];
+  periodStart: string;
+  periodEnd: string;
+}): Promise<ConsolidatedInvoiceResponse> {
+  return unwrap(apiClient.post<ApiResponse<ConsolidatedInvoiceResponse>>('/api/consolidated-invoices', payload));
+}
+
+export function createManualConsolidatedInvoice(
+  payload: CreateManualConsolidatedInvoicePayload,
+): Promise<ConsolidatedInvoiceResponse> {
+  return unwrap(
+    apiClient.post<ApiResponse<ConsolidatedInvoiceResponse>>('/api/consolidated-invoices/manual', payload),
+  );
+}
+
+export function listConsolidatedInvoices(): Promise<ConsolidatedInvoiceResponse[]> {
+  return unwrap(apiClient.get<ApiResponse<ConsolidatedInvoiceResponse[]>>('/api/consolidated-invoices'));
+}
+
+export function getConsolidatedInvoice(id: number): Promise<ConsolidatedInvoiceResponse> {
+  return unwrap(apiClient.get<ApiResponse<ConsolidatedInvoiceResponse>>(`/api/consolidated-invoices/${id}`));
+}
+
+export function updateConsolidatedInvoice(
+  id: number,
+  payload: { transactionIds: number[]; periodStart: string; periodEnd: string },
+): Promise<ConsolidatedInvoiceResponse> {
+  return unwrap(apiClient.patch<ApiResponse<ConsolidatedInvoiceResponse>>(`/api/consolidated-invoices/${id}`, payload));
+}
+
+export function confirmConsolidatedInvoice(id: number): Promise<ConsolidatedInvoiceResponse> {
+  return unwrap(apiClient.post<ApiResponse<ConsolidatedInvoiceResponse>>(`/api/consolidated-invoices/${id}/confirm`));
+}
+
+export function submitConsolidatedInvoice(id: number): Promise<SubmissionResponse> {
+  return unwrap(apiClient.post<ApiResponse<SubmissionResponse>>(`/api/consolidated-invoices/${id}/submit`));
+}
+
+export function listConsolidatedSubmissions(consolidatedInvoiceId: number): Promise<SubmissionResponse[]> {
+  return unwrap(
+    apiClient.get<ApiResponse<SubmissionResponse[]>>(`/api/consolidated-invoices/${consolidatedInvoiceId}/submissions`),
+  );
 }

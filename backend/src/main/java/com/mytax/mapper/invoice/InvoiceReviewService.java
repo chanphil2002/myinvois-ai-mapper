@@ -46,7 +46,29 @@ public class InvoiceReviewService {
         if (invoice.getStatus() != InvoiceStatus.DRAFT) {
             throw new IllegalStateException("Only DRAFT invoices can be edited (current status: " + invoice.getStatus() + ")");
         }
+        return toResponse(applyRequest(invoice, request));
+    }
 
+    /**
+     * Creates a DRAFT invoice from manually keyed-in data, backed by a placeholder "manual"
+     * document so it flows through the same edit/confirm/submit pipeline as an AI-mapped one.
+     */
+    @Transactional
+    public MappedInvoiceResponse createManual(Long userId, UpdateMappedInvoiceRequest request) {
+        var document = documentService.createManual(userId, "Manual entry — individual invoice");
+        MappedInvoice invoice = MappedInvoice.builder()
+                .documentId(document.getId())
+                .status(InvoiceStatus.DRAFT)
+                .invoiceTypeCode(request.invoiceTypeCode() != null ? request.invoiceTypeCode() : "01")
+                .currencyCode(request.currencyCode() != null ? request.currencyCode() : "MYR")
+                .build();
+        invoice = mappedInvoiceRepository.save(invoice);
+        return toResponse(applyRequest(invoice, request));
+    }
+
+    /** Copies all editable fields + line items from the request onto {@code invoice}. Shared by
+     *  manual-create and edit so the two never drift. */
+    private MappedInvoice applyRequest(MappedInvoice invoice, UpdateMappedInvoiceRequest request) {
         invoice.setInvoiceTypeCode(request.invoiceTypeCode());
         invoice.setIssueDate(request.issueDate());
         invoice.setCurrencyCode(request.currencyCode());
@@ -74,10 +96,11 @@ public class InvoiceReviewService {
         if (request.lineItems() != null) {
             int lineNo = 1;
             for (UpdateMappedInvoiceRequest.LineItem item : request.lineItems()) {
+                Long invoiceId = invoice.getId();
                 MappedInvoiceLineItem lineItem = item.id() != null
                         ? lineItemRepository.findById(item.id())
                             .orElseThrow(() -> new EntityNotFoundException("Line item not found: " + item.id()))
-                        : MappedInvoiceLineItem.builder().mappedInvoiceId(invoice.getId()).build();
+                        : MappedInvoiceLineItem.builder().mappedInvoiceId(invoiceId).build();
 
                 lineItem.setLineNo(lineNo++);
                 lineItem.setDescription(item.description());
@@ -89,8 +112,7 @@ public class InvoiceReviewService {
                 lineItemRepository.save(lineItem);
             }
         }
-
-        return toResponse(invoice);
+        return invoice;
     }
 
     @Transactional
