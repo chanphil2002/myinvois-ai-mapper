@@ -163,84 +163,110 @@ function BusinessProfileCard() {
         onFinish={onFinish}
         initialValues={{ idType: 'NRIC', countryCode: 'MYS', defaultSubmissionMode: 'INDIVIDUAL' }}
       >
-        <Form.Item
-          name="defaultSubmissionMode"
-          label="Default submission mode"
-          rules={[{ required: true }]}
-          tooltip="Which mode the Upload page starts on — you can still switch it per upload."
-        >
-          <Select
-            options={[
-              { value: 'INDIVIDUAL', label: 'Individual e-Invoice' },
-              { value: 'CONSOLIDATED', label: 'Consolidated e-Invoice' },
-            ]}
-          />
-        </Form.Item>
-        <Form.Item name="registrationName" label="Registration name" rules={[{ required: true }]}>
-          <Input placeholder="Legal or registered business name" />
-        </Form.Item>
-        <Form.Item name="tin" label="TIN" rules={[{ required: true }]}>
-          <Input placeholder="e.g. IG50974019070" />
-        </Form.Item>
-        <Space.Compact style={{ width: '100%' }}>
-          <Form.Item name="idType" label="ID type" rules={[{ required: true }]} style={{ width: '35%' }}>
-            <Select
-              options={[
-                { value: 'NRIC', label: 'NRIC (individual)' },
-                { value: 'BRN', label: 'BRN (company)' },
-                { value: 'PASSPORT', label: 'Passport' },
-                { value: 'ARMY', label: 'Army ID' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="idValue" label="ID number" rules={[{ required: true }]} style={{ width: '65%' }}>
-            <Input />
-          </Form.Item>
-        </Space.Compact>
-        <Space.Compact style={{ width: '100%' }}>
-          <Form.Item name="sstRegistration" label="SST registration" style={{ width: '50%' }}>
-            <Input placeholder="NA if not registered" />
-          </Form.Item>
-          <Form.Item name="ttxRegistration" label="Tourism tax registration" style={{ width: '50%' }}>
-            <Input placeholder="NA if not registered" />
-          </Form.Item>
-        </Space.Compact>
-        <Space.Compact style={{ width: '100%' }}>
-          <Form.Item name="msicCode" label="MSIC code" style={{ width: '30%' }}>
-            <Input placeholder="e.g. 47411" />
-          </Form.Item>
-          <Form.Item name="msicDescription" label="MSIC description" style={{ width: '70%' }}>
-            <Input placeholder="e.g. Retail sale of computers..." />
-          </Form.Item>
-        </Space.Compact>
-        <Form.Item name="addressLine1" label="Address line 1">
-          <Input />
-        </Form.Item>
-        <Form.Item name="addressLine2" label="Address line 2">
-          <Input />
-        </Form.Item>
-        <Space.Compact style={{ width: '100%' }}>
-          <Form.Item name="city" label="City" style={{ width: '40%' }}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="postalZone" label="Postcode" style={{ width: '25%' }}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="stateCode" label="State" style={{ width: '35%' }}>
-            <Select options={MALAYSIA_STATE_CODES} showSearch optionFilterProp="label" />
-          </Form.Item>
-        </Space.Compact>
-        <Form.Item name="countryCode" label="Country" initialValue="MYS">
-          <Input disabled />
-        </Form.Item>
-        <Space.Compact style={{ width: '100%' }}>
-          <Form.Item name="phone" label="Phone" style={{ width: '50%' }}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="email" label="Email" style={{ width: '50%' }}>
-            <Input />
-          </Form.Item>
-        </Space.Compact>
+        <Row gutter={16}>
+          <Col xs={24} md={12}>
+            <Form.Item
+              name="defaultSubmissionMode"
+              label="Default submission mode"
+              rules={[{ required: true }]}
+              tooltip="Which type the create flow starts on — you can still switch it per invoice."
+            >
+              <Select
+                options={[
+                  { value: 'INDIVIDUAL', label: 'Individual e-Invoice' },
+                  { value: 'CONSOLIDATED', label: 'Consolidated e-Invoice' },
+                ]}
+              />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="registrationName" label="Registration name" rules={[{ required: true }]}>
+              <Input placeholder="Legal or registered business name" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="tin" label="TIN" rules={[{ required: true }]}>
+              <Input placeholder="e.g. IG50974019070" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="idType" label="ID type" rules={[{ required: true }]}>
+              <Select
+                options={[
+                  { value: 'NRIC', label: 'NRIC (individual)' },
+                  { value: 'BRN', label: 'BRN (company)' },
+                  { value: 'PASSPORT', label: 'Passport' },
+                  { value: 'ARMY', label: 'Army ID' },
+                ]}
+              />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="idValue" label="ID number" rules={[{ required: true }]}>
+              <Input />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="sstRegistration" label="SST registration">
+              <Input placeholder="NA if not registered" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="ttxRegistration" label="Tourism tax registration">
+              <Input placeholder="NA if not registered" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="msicCode" label="MSIC code">
+              <Input placeholder="e.g. 47411" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="msicDescription" label="MSIC description">
+              <Input placeholder="e.g. Retail sale of computers..." />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="addressLine1" label="Address line 1">
+              <Input />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="addressLine2" label="Address line 2">
+              <Input />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="city" label="City">
+              <Input />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="postalZone" label="Postcode">
+              <Input />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="stateCode" label="State">
+              <Select options={MALAYSIA_STATE_CODES} showSearch optionFilterProp="label" />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="countryCode" label="Country" initialValue="MYS">
+              <Input disabled />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="phone" label="Phone">
+              <Input />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={12}>
+            <Form.Item name="email" label="Email">
+              <Input />
+            </Form.Item>
+          </Col>
+        </Row>
         <Button type="primary" htmlType="submit" loading={mutation.isPending}>
           Save business profile
         </Button>
@@ -252,10 +278,10 @@ function BusinessProfileCard() {
 export default function Settings() {
   return (
     <Row gutter={[24, 24]} align="top">
-      <Col xs={24} lg={10}>
+      <Col xs={24} lg={8}>
         <MyInvoisCredentialsCard />
       </Col>
-      <Col xs={24} lg={14}>
+      <Col xs={24} lg={16}>
         <BusinessProfileCard />
       </Col>
     </Row>
