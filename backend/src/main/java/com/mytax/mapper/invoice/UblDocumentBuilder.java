@@ -8,6 +8,9 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -63,8 +66,13 @@ public class UblDocumentBuilder {
 
         Map<String, Object> invoiceNode = new LinkedHashMap<>();
         support.put(invoiceNode, "ID", support.val(codeNumber));
-        support.put(invoiceNode, "IssueDate", support.val(invoice.getIssueDate() != null ? invoice.getIssueDate().toString() : null));
-        support.put(invoiceNode, "IssueTime", support.val("00:00:00Z"));
+        // LHDN requires the issuance datetime to be current UTC (not in the future, not stale) — see
+        // CF321. A document-level IssueDate from the user's own timezone can read as "tomorrow" in
+        // UTC, so stamp the actual submission instant in UTC, mirroring ConsolidatedUblDocumentBuilder.
+        OffsetDateTime nowUtc = OffsetDateTime.now(ZoneOffset.UTC);
+        support.put(invoiceNode, "IssueDate", support.val(nowUtc.toLocalDate().toString()));
+        support.put(invoiceNode, "IssueTime",
+                support.val(nowUtc.format(DateTimeFormatter.ofPattern("HH:mm:ss'Z'"))));
         // Document version "1.0" — per LHDN's SDK FAQ, only version 1.1 triggers digital-signature
         // validation; 1.0 is accepted without a signature "until such time as LHDN issues an
         // official notice concerning the retirement of version 1.0." Digital signing (UBLExtensions/
