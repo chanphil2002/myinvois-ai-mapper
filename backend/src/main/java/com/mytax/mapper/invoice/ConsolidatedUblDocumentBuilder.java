@@ -9,6 +9,9 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -24,6 +27,9 @@ import java.util.Map;
  */
 @Component
 public class ConsolidatedUblDocumentBuilder {
+
+    /** LHDN item classification code for a consolidated e-invoice line (see ERR236). */
+    private static final String CONSOLIDATED_CLASSIFICATION_CODE = "004";
 
     private final ObjectMapper objectMapper;
     private final UblJsonSupport support;
@@ -52,10 +58,17 @@ public class ConsolidatedUblDocumentBuilder {
 
         Map<String, Object> invoiceNode = new LinkedHashMap<>();
         support.put(invoiceNode, "ID", support.val(codeNumber));
-        support.put(invoiceNode, "IssueDate",
-                support.val(invoice.getPeriodEnd() != null ? invoice.getPeriodEnd().toString() : null));
-        support.put(invoiceNode, "IssueTime", support.val("00:00:00Z"));
-        support.put(invoiceNode, "InvoiceTypeCode", support.val(invoice.getInvoiceTypeCode(), Map.of("listVersionID", "1.1")));
+        // IssueDate/IssueTime must be the actual submission instant in UTC — LHDN rejects a stale
+        // datetime (CF321). The aggregation period is conveyed separately via InvoicePeriod, so the
+        // issue datetime is "now", not the period end.
+        OffsetDateTime nowUtc = OffsetDateTime.now(ZoneOffset.UTC);
+        support.put(invoiceNode, "IssueDate", support.val(nowUtc.toLocalDate().toString()));
+        support.put(invoiceNode, "IssueTime",
+                support.val(nowUtc.format(DateTimeFormatter.ofPattern("HH:mm:ss'Z'"))));
+        // Document version "1.0": like UblDocumentBuilder, only 1.1 triggers digital-signature
+        // validation, and signing is not implemented yet. Declaring 1.1 here made LHDN reject the
+        // whole submission ("Invalid structured submission"); keep 1.0 until signing is built.
+        support.put(invoiceNode, "InvoiceTypeCode", support.val(invoice.getInvoiceTypeCode(), Map.of("listVersionID", "1.0")));
         support.put(invoiceNode, "DocumentCurrencyCode", support.val(currency));
 
         support.put(invoiceNode, "InvoicePeriod", List.of(new LinkedHashMap<>(Map.of(
@@ -78,9 +91,11 @@ public class ConsolidatedUblDocumentBuilder {
         List<Map<String, Object>> lines = new ArrayList<>();
         int lineNo = 1;
         for (SalesTransaction transaction : transactions) {
+            // LHDN rule ERR236: a consolidated e-invoice (general TIN EI00000000010, BRN "NA") must
+            // use item classification code "004" on every line, regardless of the product's own code.
             lines.add(support.invoiceLine(lineNo++, transaction.getDescription(), transaction.getQuantity(),
                     transaction.getUnitPrice(), transaction.getTaxAmount(), transaction.getUnitCode(),
-                    transaction.getClassificationCode(), currency));
+                    CONSOLIDATED_CLASSIFICATION_CODE, currency));
         }
         support.put(invoiceNode, "InvoiceLine", lines);
 
@@ -110,13 +125,27 @@ public class ConsolidatedUblDocumentBuilder {
         Map<String, Object> party = new LinkedHashMap<>();
         List<Map<String, Object>> ids = new ArrayList<>();
         support.addIdentification(ids, "TIN", consolidationProperties.getGenericBuyerTin());
+        // General-public buyer has no business registration; LHDN's convention is the literal "NA".
+        support.addIdentification(ids, "BRN", "NA");
         support.put(party, "PartyIdentification", ids.isEmpty() ? null : ids);
+
+        // AccountingCustomerParty requires a PostalAddress structurally — omitting it made LHDN
+        // reject the whole submission ("Invalid structured submission"). The general-public buyer
+        // has no real address, so use "NA" placeholders (state code 17 = Not Applicable).
+        Map<String, Object> address = support.postalAddress("NA", null, "17", "NA", null, "MYS");
+        if (!address.isEmpty()) {
+            support.put(party, "PostalAddress", List.of(address));
+        }
+
         // Map.of rejects null values; guard so a misconfigured generic-buyer name degrades to an
         // omitted field rather than an opaque NPE (mirrors UblDocumentBuilder.buyerParty).
         List<Map<String, Object>> registrationName = support.val(consolidationProperties.getGenericBuyerName());
         if (registrationName != null) {
             support.put(party, "PartyLegalEntity", List.of(Map.of("RegistrationName", registrationName)));
         }
+        // LHDN core field CF349 requires a buyer contact number; the general-public buyer has none,
+        // so use the literal "NA" placeholder LHDN prescribes for consolidated e-invoices.
+        support.put(party, "Contact", support.contact("NA", null));
         return party;
     }
 }
