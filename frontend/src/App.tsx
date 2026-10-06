@@ -22,29 +22,19 @@ function AppLayout() {
 
   const items = [
     { key: '/', label: <Link to="/">Dashboard</Link> },
-    {
-      key: 'create',
-      label: 'Create Invoice',
-      children: [
-        { key: '/create/individual', label: <Link to="/create/individual">Individual</Link> },
-        { key: '/create/consolidated', label: <Link to="/create/consolidated">Consolidated</Link> },
-      ],
-    },
+    { key: '/create', label: <Link to="/create">Create Invoice</Link> },
     { key: '/submissions', label: <Link to="/submissions">Submissions</Link> },
     { key: '/settings', label: <Link to="/settings">MyInvois Settings</Link> },
   ];
+
+  // Keep "Create Invoice" highlighted across the whole create flow (type picker + per-type pages).
+  const selectedKey = location.pathname.startsWith('/create') ? '/create' : location.pathname;
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider breakpoint="lg" collapsedWidth="0">
         <div style={{ color: 'white', padding: 16, fontWeight: 600 }}>AI MyInvois Mapper</div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          defaultOpenKeys={location.pathname.startsWith('/create') ? ['create'] : []}
-          items={items}
-        />
+        <Menu theme="dark" mode="inline" selectedKeys={[selectedKey]} items={items} />
       </Sider>
       <Layout>
         <Header style={{ background: '#fff', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, padding: '0 24px' }}>
