@@ -1,25 +1,17 @@
 import type { Key } from 'react';
 import { Card, Table, Tabs, Tag, Typography } from 'antd';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { listConsolidatedInvoices, listDocuments, listMappingsForDocument } from '../api/endpoints';
+import { listConsolidatedInvoices, listMappedInvoices } from '../api/endpoints';
 import type { ConsolidatedInvoiceResponse, MappedInvoiceResponse } from '../api/types';
 
 function IndividualSubmissions() {
-  const { data: documents } = useQuery({ queryKey: ['documents'], queryFn: listDocuments });
-
-  const mappingQueries = useQueries({
-    queries: (documents ?? []).map((doc) => ({
-      queryKey: ['mappings', doc.id],
-      queryFn: () => listMappingsForDocument(doc.id),
-      enabled: !!documents,
-    })),
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ['mapped-invoices'],
+    queryFn: listMappedInvoices,
   });
-
-  const loading = mappingQueries.some((q) => q.isLoading);
-  const invoices: MappedInvoiceResponse[] = mappingQueries
-    .flatMap((q) => q.data ?? [])
-    .filter((invoice) => invoice.status !== 'DRAFT');
+  // Show confirmed/submitted/accepted/rejected invoices (drafts are still being edited).
+  const invoices: MappedInvoiceResponse[] = (data ?? []).filter((invoice) => invoice.status !== 'DRAFT');
 
   const statusFilters = ['CONFIRMED', 'SUBMITTED', 'ACCEPTED', 'REJECTED'].map((s) => ({ text: s, value: s }));
   const columns = [

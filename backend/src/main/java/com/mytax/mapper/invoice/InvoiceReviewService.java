@@ -40,6 +40,13 @@ public class InvoiceReviewService {
         return toResponse(getOwned(mappedInvoiceId, userId));
     }
 
+    /** All of the user's mapped invoices (including manually-keyed ones), newest first. */
+    public List<MappedInvoiceResponse> listForUser(Long userId) {
+        return mappedInvoiceRepository.findAllForUser(userId).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     @Transactional
     public MappedInvoiceResponse update(Long mappedInvoiceId, Long userId, UpdateMappedInvoiceRequest request) {
         MappedInvoice invoice = getOwned(mappedInvoiceId, userId);

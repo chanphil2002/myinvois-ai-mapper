@@ -89,6 +89,10 @@ export function createManualInvoice(payload: Partial<MappedInvoiceResponse>): Pr
   return unwrap(apiClient.post<ApiResponse<MappedInvoiceResponse>>('/api/mapped-invoices', payload));
 }
 
+export function listMappedInvoices(): Promise<MappedInvoiceResponse[]> {
+  return unwrap(apiClient.get<ApiResponse<MappedInvoiceResponse[]>>('/api/mapped-invoices'));
+}
+
 export function confirmMappedInvoice(id: number): Promise<MappedInvoiceResponse> {
   return unwrap(apiClient.post<ApiResponse<MappedInvoiceResponse>>(`/api/mapped-invoices/${id}/confirm`));
 }
