@@ -183,3 +183,8 @@ export async function getSubscription(): Promise<SubscriptionResponse | null> {
 export function subscribePlan(plan: string): Promise<SubscribeResponse> {
   return unwrap(apiClient.post<ApiResponse<SubscribeResponse>>('/api/billing/subscribe', { plan }));
 }
+
+export async function getDocumentFile(id: number): Promise<Blob> {
+  const res = await apiClient.get(`/api/documents/${id}/file`, { responseType: 'blob' });
+  return res.data as Blob;
+}

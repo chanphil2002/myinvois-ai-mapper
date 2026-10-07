@@ -73,6 +73,31 @@ public class DocumentService {
         return document;
     }
 
+    /** A stored document's raw bytes plus a servable content type, for previewing/downloading. */
+    public record DocumentFile(byte[] bytes, String contentType, String filename) {
+    }
+
+    public DocumentFile loadFile(Long documentId, Long userId) {
+        Document document = getOwned(documentId, userId);
+        if (document.getStatus() == DocumentStatus.MANUAL) {
+            throw new EntityNotFoundException("No file for a manually keyed-in entry");
+        }
+        return new DocumentFile(fileStorageService.load(document.getStoragePath()),
+                contentTypeFor(document.getFileType()), document.getOriginalFilename());
+    }
+
+    private String contentTypeFor(String fileType) {
+        return switch (fileType == null ? "" : fileType.toLowerCase()) {
+            case "png" -> "image/png";
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "webp" -> "image/webp";
+            case "gif" -> "image/gif";
+            case "pdf" -> "application/pdf";
+            case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            default -> "application/octet-stream";
+        };
+    }
+
     private String resolveFileType(String filename, String contentType) {
         if (filename != null && filename.contains(".")) {
             return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
