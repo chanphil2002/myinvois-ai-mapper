@@ -15,6 +15,7 @@ import ConsolidatedInvoiceReview from './pages/ConsolidatedInvoiceReview';
 import CreateInvoice from './pages/create/CreateInvoice';
 import CreateIndividual from './pages/create/CreateIndividual';
 import CreateConsolidated from './pages/create/CreateConsolidated';
+import Billing from './pages/Billing';
 
 const { Header, Content, Sider } = Layout;
 
@@ -30,6 +31,7 @@ function AppLayout() {
     { key: '/', label: <Link to="/">Dashboard</Link> },
     { key: '/create', label: <Link to="/create">Create Invoice</Link> },
     { key: '/submissions', label: <Link to="/submissions">Submissions</Link> },
+    { key: '/billing', label: <Link to="/billing">Billing</Link> },
     { key: '/settings', label: <Link to="/settings">MyInvois Settings</Link> },
   ];
 
@@ -105,6 +107,7 @@ function AppLayout() {
             <Route path="/submissions" element={<Submissions />} />
             <Route path="/consolidate" element={<ConsolidationBuilder />} />
             <Route path="/consolidated-invoices/:id" element={<ConsolidatedInvoiceReview />} />
+            <Route path="/billing" element={<Billing />} />
             <Route path="/settings" element={<Settings />} />
             </Routes>
           </div>
