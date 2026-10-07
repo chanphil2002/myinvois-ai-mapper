@@ -58,8 +58,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // localhost for normal dev, 192.168.*/10.* for testing from a phone on the same WiFi
-        config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://192.168.*:*", "http://10.*:*"));
+        // localhost for normal dev, 192.168.*/10.* for a phone on the same WiFi, and
+        // *.trycloudflare.com for remote testing through a Cloudflare quick tunnel.
+        config.setAllowedOriginPatterns(List.of(
+                "http://localhost:*", "http://192.168.*:*", "http://10.*:*",
+                "https://*.trycloudflare.com", "https://*.ngrok-free.app", "https://*.ngrok.io"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
