@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Drawer, Grid, Layout, Menu } from 'antd';
 import { ArrowLeftOutlined, MenuOutlined } from '@ant-design/icons';
+import BrandLogo from './components/BrandLogo';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { useAuth } from './auth/AuthContext';
 import Login from './pages/Login';
@@ -47,7 +48,11 @@ function AppLayout() {
       onClick={() => setDrawerOpen(false)}
     />
   );
-  const brand = <div style={{ color: 'white', padding: 16, fontWeight: 600 }}>AI MyInvois Mapper</div>;
+  const brand = (
+    <div style={{ padding: '20px 16px 12px' }}>
+      <BrandLogo dark />
+    </div>
+  );
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -73,7 +78,7 @@ function AppLayout() {
         </Drawer>
       )}
       <Layout>
-        <Header style={{ background: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, padding: '0 16px' }}>
+        <Header style={{ background: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, padding: '0 20px', borderBottom: '1px solid #eef1f6', boxShadow: '0 1px 2px rgba(16,24,40,0.04)' }}>
           {isMobile ? (
             <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawerOpen(true)} aria-label="Open menu" />
           ) : (

@@ -58,7 +58,7 @@ function PlanCards({
         return (
           <Col xs={24} md={8} key={p.id}>
             <Card
-              style={{ height: '100%', borderColor: p.popular ? '#0958d9' : undefined }}
+              style={{ height: '100%', borderColor: p.popular ? '#3b5bdb' : undefined }}
               title={
                 <Space>
                   {p.name}

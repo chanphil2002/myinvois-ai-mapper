@@ -1,9 +1,36 @@
-import type { Key } from 'react';
+import type { Key, ReactNode } from 'react';
 import { Card, Col, Row, Statistic, Table, Tag, Typography } from 'antd';
+import { FileTextOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { listDocuments } from '../api/endpoints';
 import type { DocumentResponse } from '../api/types';
+
+function StatCard({ title, value, icon, color }: { title: string; value: number; icon: ReactNode; color: string }) {
+  return (
+    <Card style={{ height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 12,
+            flex: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 22,
+            color,
+            background: `${color}14`,
+          }}
+        >
+          {icon}
+        </div>
+        <Statistic title={title} value={value} valueStyle={{ color }} />
+      </div>
+    </Card>
+  );
+}
 
 export default function Dashboard() {
   const { data: documents, isLoading } = useQuery({ queryKey: ['documents'], queryFn: listDocuments });
@@ -27,21 +54,18 @@ export default function Dashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <Typography.Title level={3} style={{ margin: 0 }}>
+        Dashboard
+      </Typography.Title>
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={8}>
-          <Card style={{ height: '100%' }}>
-            <Statistic title="Documents uploaded" value={total} />
-          </Card>
+          <StatCard title="Documents uploaded" value={total} icon={<FileTextOutlined />} color="#3b5bdb" />
         </Col>
         <Col xs={24} sm={8}>
-          <Card style={{ height: '100%' }}>
-            <Statistic title="Parsed" value={parsed} />
-          </Card>
+          <StatCard title="Parsed" value={parsed} icon={<CheckCircleOutlined />} color="#16a34a" />
         </Col>
         <Col xs={24} sm={8}>
-          <Card style={{ height: '100%' }}>
-            <Statistic title="Failed" value={failed} valueStyle={{ color: failed > 0 ? '#cf1322' : undefined }} />
-          </Card>
+          <StatCard title="Failed" value={failed} icon={<CloseCircleOutlined />} color="#dc2626" />
         </Col>
       </Row>
       <Card
