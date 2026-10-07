@@ -49,6 +49,21 @@ app:
   mapping:
     # which AI provider powers document mapping: "gemini" (default, has a free tier) or "claude"
     engine: ${MAPPING_ENGINE:gemini}
+  consolidation:
+    # Placeholder generic-buyer values for consolidated e-invoices — NOT verified against LHDN's
+    # actual published policy (see ConsolidationProperties). Override once confirmed.
+    generic-buyer-name: ${CONSOLIDATION_GENERIC_BUYER_NAME:General Public}
+    generic-buyer-tin: ${CONSOLIDATION_GENERIC_BUYER_TIN:EI00000000010}
+  billplz:
+    # Billplz payment gateway. Leave api-key/collection-id blank to disable billing. Base URL
+    # defaults to the SANDBOX; use https://www.billplz.com/api/v3 for production. callback-url must
+    # be publicly reachable by Billplz (use a tunnel like ngrok for local testing).
+    api-key: ${BILLPLZ_API_KEY:}
+    x-signature-key: ${BILLPLZ_X_SIGNATURE_KEY:}
+    collection-id: ${BILLPLZ_COLLECTION_ID:}
+    base-url: ${BILLPLZ_BASE_URL:https://www.billplz-sandbox.com/api/v3}
+    callback-url: ${BILLPLZ_CALLBACK_URL:http://localhost:8080/api/billing/callback}
+    redirect-url: ${BILLPLZ_REDIRECT_URL:http://localhost:5173/billing}
 
 springdoc:
   swagger-ui:

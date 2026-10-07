@@ -45,6 +45,21 @@ export interface RevealedCredentialResponse {
   environment: MyInvoisEnvironment;
 }
 
+export type BillingSubscriptionStatus = 'PENDING' | 'ACTIVE' | 'CANCELLED';
+
+export interface SubscriptionResponse {
+  plan: string;
+  planName: string;
+  status: BillingSubscriptionStatus;
+  amountCents: number;
+  paidAt: string | null;
+}
+
+export interface SubscribeResponse {
+  paymentUrl: string;
+  billId: string;
+}
+
 export interface ManualConsolidatedLineItem {
   transactionDate?: string | null;
   description: string;

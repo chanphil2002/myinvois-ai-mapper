@@ -11,6 +11,8 @@ import type {
   RevealedCredentialResponse,
   SalesTransactionResponse,
   SubmissionResponse,
+  SubscribeResponse,
+  SubscriptionResponse,
 } from './types';
 
 export function register(payload: {
@@ -168,4 +170,16 @@ export function listConsolidatedSubmissions(consolidatedInvoiceId: number): Prom
   return unwrap(
     apiClient.get<ApiResponse<SubmissionResponse[]>>(`/api/consolidated-invoices/${consolidatedInvoiceId}/submissions`),
   );
+}
+
+// --- Billing (Billplz) ---
+
+export async function getSubscription(): Promise<SubscriptionResponse | null> {
+  // Returns null when the user has no active subscription, so don't use unwrap (which rejects null).
+  const res = await apiClient.get<ApiResponse<SubscriptionResponse | null>>('/api/billing/subscription');
+  return res.data.data;
+}
+
+export function subscribePlan(plan: string): Promise<SubscribeResponse> {
+  return unwrap(apiClient.post<ApiResponse<SubscribeResponse>>('/api/billing/subscribe', { plan }));
 }

@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { Button, Card, Col, Row, Space, Table, Tag, Typography, message } from 'antd';
 import { CheckCircleTwoTone } from '@ant-design/icons';
-
-type PlanId = 'beginner' | 'heavy' | 'elite';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getSubscription, subscribePlan } from '../api/endpoints';
 
 interface Plan {
-  id: PlanId;
+  id: string;
   name: string;
   price: string;
   period: string;
@@ -42,22 +42,19 @@ const PLANS: Plan[] = [
   },
 ];
 
-const PLAN_KEY = 'mytax_billing_plan';
-
-function loadPlan(): PlanId | null {
-  try {
-    const v = localStorage.getItem(PLAN_KEY);
-    return v === 'beginner' || v === 'heavy' || v === 'elite' ? v : null;
-  } catch {
-    return null;
-  }
-}
-
-function PlanCards({ current, onChoose }: { current: PlanId | null; onChoose: (id: PlanId) => void }) {
+function PlanCards({
+  currentPlan,
+  onChoose,
+  pendingPlan,
+}: {
+  currentPlan: string | null;
+  onChoose: (id: string) => void;
+  pendingPlan: string | null;
+}) {
   return (
     <Row gutter={[16, 16]}>
       {PLANS.map((p) => {
-        const isCurrent = p.id === current;
+        const isCurrent = p.id === currentPlan;
         return (
           <Col xs={24} md={8} key={p.id}>
             <Card
@@ -89,9 +86,10 @@ function PlanCards({ current, onChoose }: { current: PlanId | null; onChoose: (i
                 type={p.popular ? 'primary' : 'default'}
                 block
                 disabled={isCurrent}
+                loading={pendingPlan === p.id}
                 onClick={() => onChoose(p.id)}
               >
-                {isCurrent ? 'Current plan' : current ? 'Switch to this plan' : 'Subscribe'}
+                {isCurrent ? 'Current plan' : currentPlan ? 'Switch to this plan' : 'Subscribe'}
               </Button>
             </Card>
           </Col>
@@ -102,33 +100,50 @@ function PlanCards({ current, onChoose }: { current: PlanId | null; onChoose: (i
 }
 
 export default function Billing() {
-  const [plan, setPlan] = useState<PlanId | null>(loadPlan());
-  const current = PLANS.find((p) => p.id === plan) ?? null;
+  const queryClient = useQueryClient();
+  const { data: current } = useQuery({ queryKey: ['subscription'], queryFn: getSubscription });
 
-  const choose = (id: PlanId) => {
-    try {
-      localStorage.setItem(PLAN_KEY, id);
-    } catch {
-      /* storage unavailable — keep in-memory only */
+  // When Billplz redirects the user back here after payment, acknowledge it and refresh. The actual
+  // activation is driven by the server-to-server callback, so the status may briefly stay PENDING.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paid = params.get('billplz[paid]');
+    if (paid !== null) {
+      if (paid === 'true') {
+        message.success('Payment received — your subscription will activate shortly.');
+      } else {
+        message.warning('Payment was not completed.');
+      }
+      queryClient.invalidateQueries({ queryKey: ['subscription'] });
+      window.history.replaceState({}, '', '/billing');
     }
-    setPlan(id);
-    message.success(`Subscribed to ${PLANS.find((p) => p.id === id)?.name}`);
-  };
+  }, [queryClient]);
 
-  const cancel = () => {
-    try {
-      localStorage.removeItem(PLAN_KEY);
-    } catch {
-      /* ignore */
-    }
-    setPlan(null);
-    message.info('Subscription cancelled');
-  };
+  const subscribeMutation = useMutation({
+    mutationFn: subscribePlan,
+    onSuccess: (res) => {
+      // Hand off to Billplz's hosted payment page.
+      window.location.href = res.paymentUrl;
+    },
+    onError: (err) => message.error(err instanceof Error ? err.message : 'Could not start checkout'),
+  });
 
-  // Mock history — a subscribed account shows one sample paid invoice for its current plan.
-  const pastInvoices = current
-    ? [{ key: '1', invoice: 'INV-2026-0001', date: '2026-10-01', plan: current.name, amount: `${current.price}`, status: 'Paid' }]
-    : [];
+  const currentPlan = current?.status === 'ACTIVE' ? current.plan : null;
+  const pendingPlan = subscribeMutation.isPending ? (subscribeMutation.variables as string) : null;
+
+  const pastInvoices =
+    current?.status === 'ACTIVE'
+      ? [
+          {
+            key: '1',
+            invoice: 'INV-0001',
+            date: current.paidAt ? current.paidAt.slice(0, 10) : '',
+            plan: current.planName,
+            amount: `RM ${(current.amountCents / 100).toFixed(2)}`,
+            status: 'Paid',
+          },
+        ]
+      : [];
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -137,45 +152,39 @@ export default function Billing() {
       </Typography.Title>
 
       <Card title="Current Plan">
-        {current ? (
+        {currentPlan ? (
           <Space direction="vertical" size="small">
             <Space>
               <Typography.Text strong style={{ fontSize: 18 }}>
-                {current.name}
+                {current?.planName}
               </Typography.Text>
               <Tag color="green">Active</Tag>
             </Space>
             <Typography.Text type="secondary">
-              {current.price}
-              {current.period}
+              RM {((current?.amountCents ?? 0) / 100).toFixed(2)}/month
             </Typography.Text>
-            <Button danger onClick={cancel} style={{ marginTop: 8 }}>
-              Cancel subscription
-            </Button>
           </Space>
         ) : (
           <>
             <Typography.Paragraph type="secondary">
-              You're not subscribed yet. Choose a plan to get started.
+              You're not subscribed yet. Choose a plan to get started — you'll be taken to Billplz to pay.
             </Typography.Paragraph>
-            <PlanCards current={plan} onChoose={choose} />
+            <PlanCards currentPlan={currentPlan} onChoose={subscribeMutation.mutate} pendingPlan={pendingPlan} />
           </>
         )}
       </Card>
 
-      {current && (
+      {currentPlan && (
         <Card title="Change plan">
-          <PlanCards current={plan} onChoose={choose} />
+          <PlanCards currentPlan={currentPlan} onChoose={subscribeMutation.mutate} pendingPlan={pendingPlan} />
         </Card>
       )}
 
       <Card title="Payment Method">
-        <Space direction="vertical">
-          <Typography.Text type="secondary">No payment method on file.</Typography.Text>
-          <Button onClick={() => message.info('Payment method setup is coming soon.')}>
-            Add payment method
-          </Button>
-        </Space>
+        <Typography.Text type="secondary">
+          Payments are handled securely by Billplz (FPX online banking) at checkout — no card details are
+          stored here.
+        </Typography.Text>
       </Card>
 
       <Card title="Past Invoices">
