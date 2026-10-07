@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Drawer, Grid, Layout, Menu } from 'antd';
-import { ArrowLeftOutlined, MenuOutlined } from '@ant-design/icons';
+import { Button, Grid, Layout, Menu } from 'antd';
+import { ArrowLeftOutlined } from '@ant-design/icons';
 import BrandLogo from './components/BrandLogo';
+import BottomTabBar from './components/BottomTabBar';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { useAuth } from './auth/AuthContext';
 import Login from './pages/Login';
@@ -20,14 +20,79 @@ import Billing from './pages/Billing';
 
 const { Header, Content, Sider } = Layout;
 
+// Primary navigation destinations (sidebar on desktop, bottom tabs on mobile). Pages not listed
+// here (invoice detail, create sub-steps) are drill-downs and show a Back button instead.
+const TAB_ROOTS = ['/', '/create', '/submissions', '/billing', '/settings'];
+
 function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { email, logout } = useAuth();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.lg;
-  const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // Keep "Create Invoice" highlighted across the whole create flow (type picker + per-type pages).
+  const selectedKey = location.pathname.startsWith('/create') ? '/create' : location.pathname;
+  const showBack = !TAB_ROOTS.includes(location.pathname);
+
+  const backButton = showBack && (
+    <Button
+      type="text"
+      icon={<ArrowLeftOutlined />}
+      onClick={() => navigate(-1)}
+      style={{ marginBottom: 12, paddingLeft: 0 }}
+    >
+      Back
+    </Button>
+  );
+
+  const routes = (
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/create" element={<CreateInvoice />} />
+      <Route path="/create/individual" element={<CreateIndividual />} />
+      <Route path="/create/consolidated" element={<CreateConsolidated />} />
+      <Route path="/mapped-invoices/:id" element={<MappingReview />} />
+      <Route path="/submissions" element={<Submissions />} />
+      <Route path="/consolidate" element={<ConsolidationBuilder />} />
+      <Route path="/consolidated-invoices/:id" element={<ConsolidatedInvoiceReview />} />
+      <Route path="/billing" element={<Billing />} />
+      <Route path="/settings" element={<Settings />} />
+    </Routes>
+  );
+
+  // ---- Mobile: safe-area header + native bottom tab bar (no hidden hamburger) ----
+  if (isMobile) {
+    return (
+      <Layout style={{ minHeight: '100vh' }}>
+        <div
+          style={{
+            background: '#fff',
+            borderBottom: '1px solid #eef1f6',
+            padding: 'calc(env(safe-area-inset-top) + 10px) 16px 10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            position: 'sticky',
+            top: 0,
+            zIndex: 50,
+          }}
+        >
+          <BrandLogo />
+          <a onClick={logout} style={{ color: '#3b5bdb', fontWeight: 500 }}>
+            Log out
+          </a>
+        </div>
+        <Content style={{ margin: 16, paddingBottom: 'calc(72px + env(safe-area-inset-bottom))' }}>
+          {backButton}
+          {routes}
+        </Content>
+        <BottomTabBar />
+      </Layout>
+    );
+  }
+
+  // ---- Desktop: fixed sidebar ----
   const items = [
     { key: '/', label: <Link to="/">Dashboard</Link> },
     { key: '/create', label: <Link to="/create">Create Invoice</Link> },
@@ -36,85 +101,23 @@ function AppLayout() {
     { key: '/settings', label: <Link to="/settings">MyInvois Settings</Link> },
   ];
 
-  // Keep "Create Invoice" highlighted across the whole create flow (type picker + per-type pages).
-  const selectedKey = location.pathname.startsWith('/create') ? '/create' : location.pathname;
-
-  const navMenu = (
-    <Menu
-      theme="dark"
-      mode="inline"
-      selectedKeys={[selectedKey]}
-      items={items}
-      onClick={() => setDrawerOpen(false)}
-    />
-  );
-  const brand = (
-    <div style={{ padding: '20px 16px 12px' }}>
-      <BrandLogo dark />
-    </div>
-  );
-
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {/* Desktop: fixed sidebar. Mobile: a drawer opened from the header's menu button, so the nav
-          is a proper slide-over instead of antd's push-sider (which collapses to an unusable strip). */}
-      {!isMobile && (
-        <Sider>
-          {brand}
-          {navMenu}
-        </Sider>
-      )}
-      {isMobile && (
-        <Drawer
-          placement="left"
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          width={240}
-          closable={false}
-          styles={{ body: { padding: 0, background: '#001529' } }}
-        >
-          {brand}
-          {navMenu}
-        </Drawer>
-      )}
+      <Sider>
+        <div style={{ padding: '20px 16px 12px' }}>
+          <BrandLogo dark />
+        </div>
+        <Menu theme="dark" mode="inline" selectedKeys={[selectedKey]} items={items} />
+      </Sider>
       <Layout>
-        <Header style={{ background: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, padding: '0 20px', borderBottom: '1px solid #eef1f6', boxShadow: '0 1px 2px rgba(16,24,40,0.04)' }}>
-          {isMobile ? (
-            <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawerOpen(true)} aria-label="Open menu" />
-          ) : (
-            <span />
-          )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <span>{email}</span>
-            <a onClick={logout}>Log out</a>
-          </div>
+        <Header style={{ background: '#fff', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, padding: '0 20px', borderBottom: '1px solid #eef1f6', boxShadow: '0 1px 2px rgba(16,24,40,0.04)' }}>
+          <span>{email}</span>
+          <a onClick={logout}>Log out</a>
         </Header>
         <Content style={{ margin: 24 }}>
-          {/* Constrain content so forms/sections don't stretch across very wide screens, and keep
-              everything left-aligned. A back button is shown on every page except the Dashboard. */}
           <div style={{ maxWidth: 1080 }}>
-            {location.pathname !== '/' && (
-              <Button
-                type="text"
-                icon={<ArrowLeftOutlined />}
-                onClick={() => navigate(-1)}
-                style={{ marginBottom: 16, paddingLeft: 0 }}
-              >
-                Back
-              </Button>
-            )}
-            <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/create" element={<CreateInvoice />} />
-            <Route path="/create/individual" element={<CreateIndividual />} />
-            <Route path="/create/consolidated" element={<CreateConsolidated />} />
-            <Route path="/mapped-invoices/:id" element={<MappingReview />} />
-            <Route path="/submissions" element={<Submissions />} />
-            <Route path="/consolidate" element={<ConsolidationBuilder />} />
-            <Route path="/consolidated-invoices/:id" element={<ConsolidatedInvoiceReview />} />
-            <Route path="/billing" element={<Billing />} />
-            <Route path="/settings" element={<Settings />} />
-            </Routes>
+            {backButton}
+            {routes}
           </div>
         </Content>
       </Layout>
