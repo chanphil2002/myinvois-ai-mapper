@@ -7,10 +7,12 @@ import java.time.Instant;
 public record SubmissionResponse(
         Long id,
         Long mappedInvoiceId,
+        Long consolidatedInvoiceId,
         String myInvoisSubmissionUid,
         String myInvoisDocumentUuid,
         SubmissionStatus status,
         Instant submittedAt,
-        Instant statusUpdatedAt
+        Instant statusUpdatedAt,
+        String errorMessage
 ) {
 }

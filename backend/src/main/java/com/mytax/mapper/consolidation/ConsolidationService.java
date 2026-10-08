@@ -207,7 +207,7 @@ public class ConsolidationService {
 
         return new ConsolidatedInvoiceResponse(invoice.getId(), invoice.getPeriodStart(), invoice.getPeriodEnd(),
                 invoice.getInvoiceTypeCode(), invoice.getCurrencyCode(), invoice.getSubtotal(), invoice.getTaxTotal(),
-                invoice.getGrandTotal(), invoice.getStatus(), transactions);
+                invoice.getGrandTotal(), invoice.getStatus(), transactions, invoice.getCreatedAt());
     }
 
     private SalesTransactionResponse toTransactionResponse(SalesTransaction t) {

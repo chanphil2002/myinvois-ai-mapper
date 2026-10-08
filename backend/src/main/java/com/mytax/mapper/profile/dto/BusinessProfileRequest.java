@@ -1,5 +1,6 @@
 package com.mytax.mapper.profile.dto;
 
+import com.mytax.mapper.profile.SubmissionMode;
 import jakarta.validation.constraints.NotBlank;
 
 public record BusinessProfileRequest(
@@ -18,6 +19,7 @@ public record BusinessProfileRequest(
         String stateCode,
         String countryCode,
         String phone,
-        String email
+        String email,
+        SubmissionMode defaultSubmissionMode
 ) {
 }

@@ -9,5 +9,7 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
 
     List<Submission> findByMappedInvoiceId(Long mappedInvoiceId);
 
+    List<Submission> findByConsolidatedInvoiceId(Long consolidatedInvoiceId);
+
     Optional<Submission> findByMyInvoisSubmissionUid(String submissionUid);
 }

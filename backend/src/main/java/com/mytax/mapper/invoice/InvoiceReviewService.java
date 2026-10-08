@@ -148,6 +148,6 @@ public class InvoiceReviewService {
                 invoice.getBuyerCity(), invoice.getBuyerPostalZone(), invoice.getBuyerStateCode(),
                 invoice.getBuyerCountryCode(), invoice.getBuyerPhone(), invoice.getBuyerEmail(),
                 invoice.getSubtotal(), invoice.getTaxTotal(), invoice.getGrandTotal(), invoice.getDiscountTotal(),
-                invoice.getStatus(), invoice.getConfidenceScore(), items);
+                invoice.getStatus(), invoice.getConfidenceScore(), items, invoice.getCreatedAt());
     }
 }

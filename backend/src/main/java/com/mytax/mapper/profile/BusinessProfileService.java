@@ -36,6 +36,9 @@ public class BusinessProfileService {
         profile.setCountryCode(request.countryCode() != null ? request.countryCode() : "MYS");
         profile.setPhone(request.phone());
         profile.setEmail(request.email());
+        if (request.defaultSubmissionMode() != null) {
+            profile.setDefaultSubmissionMode(request.defaultSubmissionMode());
+        }
 
         profile = businessProfileRepository.save(profile);
         return toResponse(profile);
@@ -57,6 +60,6 @@ public class BusinessProfileService {
                 profile.getIdType(), profile.getIdValue(), profile.getSstRegistration(), profile.getTtxRegistration(),
                 profile.getMsicCode(), profile.getMsicDescription(), profile.getAddressLine1(), profile.getAddressLine2(),
                 profile.getCity(), profile.getPostalZone(), profile.getStateCode(), profile.getCountryCode(),
-                profile.getPhone(), profile.getEmail());
+                profile.getPhone(), profile.getEmail(), profile.getDefaultSubmissionMode());
     }
 }

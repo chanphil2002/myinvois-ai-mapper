@@ -6,10 +6,12 @@ import com.mytax.mapper.config.AnthropicProperties;
 import com.mytax.mapper.document.Document;
 import com.mytax.mapper.document.XlsxParser;
 import com.mytax.mapper.mapping.dto.MappedInvoiceDraft;
+import com.mytax.mapper.mapping.dto.SalesTransactionDraft;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,7 @@ import java.util.Set;
 public class ClaudeMappingService implements MappingEngine {
 
     private static final String TOOL_NAME = "record_invoice_mapping";
+    private static final String TRANSACTIONS_TOOL_NAME = "record_transaction_extraction";
     private static final Set<String> IMAGE_TYPES = Set.of("png", "jpg", "jpeg", "webp", "gif");
 
     private final AnthropicProperties properties;
@@ -70,9 +73,50 @@ public class ClaudeMappingService implements MappingEngine {
                 .retrieve()
                 .body(JsonNode.class);
 
-        JsonNode toolInput = extractToolInput(response);
+        JsonNode toolInput = extractToolInput(response, TOOL_NAME);
         MappedInvoiceDraft draft = objectMapper.convertValue(toolInput, MappedInvoiceDraft.class);
         return new MappingResult(draft, response == null ? "{}" : response.toString(), properties.getModel());
+    }
+
+    @Override
+    public TransactionExtractionResult mapTransactions(Document document, byte[] fileBytes) {
+        String fileType = document.getFileType().toLowerCase();
+        Map<String, Object> userContentBlock = buildContentBlock(fileType, fileBytes);
+
+        Map<String, Object> requestBody = Map.of(
+                "model", properties.getModel(),
+                "max_tokens", 4096,
+                "system", transactionSystemPrompt(),
+                "tools", List.of(transactionExtractionTool()),
+                "tool_choice", Map.of("type", "tool", "name", TRANSACTIONS_TOOL_NAME),
+                "messages", List.of(Map.of(
+                        "role", "user",
+                        "content", List.of(userContentBlock)
+                ))
+        );
+
+        JsonNode response = restClient.post()
+                .uri(properties.getBaseUrl() + "/v1/messages")
+                .headers(h -> {
+                    h.set("x-api-key", properties.getApiKey());
+                    h.set("anthropic-version", "2023-06-01");
+                    if ("pdf".equals(fileType)) {
+                        h.set("anthropic-beta", "pdfs-2024-09-25");
+                    }
+                })
+                .body(requestBody)
+                .retrieve()
+                .body(JsonNode.class);
+
+        JsonNode toolInput = extractToolInput(response, TRANSACTIONS_TOOL_NAME);
+        JsonNode transactionsNode = toolInput.path("transactions");
+        List<SalesTransactionDraft> drafts = new ArrayList<>();
+        if (transactionsNode.isArray()) {
+            for (JsonNode node : transactionsNode) {
+                drafts.add(objectMapper.convertValue(node, SalesTransactionDraft.class));
+            }
+        }
+        return new TransactionExtractionResult(drafts, response == null ? "{}" : response.toString(), properties.getModel());
     }
 
     private Map<String, Object> buildContentBlock(String fileType, byte[] fileBytes) {
@@ -110,16 +154,16 @@ public class ClaudeMappingService implements MappingEngine {
                         "Supported: xlsx/xls, pdf, png/jpg/jpeg/webp/gif.");
     }
 
-    private JsonNode extractToolInput(JsonNode response) {
+    private JsonNode extractToolInput(JsonNode response, String toolName) {
         if (response == null || !response.has("content")) {
             throw new IllegalStateException("Empty response from Claude API");
         }
         for (JsonNode block : response.get("content")) {
-            if ("tool_use".equals(block.path("type").asText()) && TOOL_NAME.equals(block.path("name").asText())) {
+            if ("tool_use".equals(block.path("type").asText()) && toolName.equals(block.path("name").asText())) {
                 return block.get("input");
             }
         }
-        throw new IllegalStateException("Claude response did not contain a " + TOOL_NAME + " tool_use block");
+        throw new IllegalStateException("Claude response did not contain a " + toolName + " tool_use block");
     }
 
     private String systemPrompt() {
@@ -198,6 +242,63 @@ public class ClaudeMappingService implements MappingEngine {
         return Map.of(
                 "name", TOOL_NAME,
                 "description", "Record the mapped MyInvois e-Invoice fields extracted from the source document.",
+                "input_schema", inputSchema
+        );
+    }
+
+    private String transactionSystemPrompt() {
+        return """
+                You are an expert at reading Malaysian sales documents (spreadsheets of daily sales, batches \
+                of receipts, order lists) and extracting every individual sales transaction they contain, for \
+                LHDN MyInvois consolidated e-Invoice submission. Unlike a single invoice, this document may \
+                represent MANY separate sales — extract each one as its own entry in the transactions list.
+
+                Rule of thumb: if the document is a spreadsheet, each row (after the header) is normally its \
+                own transaction. If the document is a batch of scanned receipts, each receipt is its own \
+                transaction. If the document is clearly a single already-complete invoice for one sale with \
+                several product lines, treat the WHOLE document as ONE transaction — do not split its line \
+                items into separate transactions.
+
+                For each transaction, buyerName/buyerTin should only be filled in if the document actually \
+                identifies a specific buyer for that transaction — leave both null for anonymous/walk-in retail \
+                sales, which is the normal case for documents destined for consolidation. transactionDate is the \
+                date of that specific sale (ISO-8601, e.g. 2026-07-18) if shown, otherwise null.
+
+                Do not perform any arithmetic — do not multiply, apply percentages, or sum values, even if it \
+                looks straightforward (e.g. quantity × unit price). Only report a number if it is written \
+                literally in the source document; leave a field null rather than computing it. unitCode is a \
+                short unit description if stated (e.g. "unit", "kg", "box") — default to "unit" if quantity is \
+                a plain count with no unit shown. Include a confidenceScore between 0 and 1 per transaction \
+                reflecting how certain you are it was read correctly.""";
+    }
+
+    private Map<String, Object> transactionExtractionTool() {
+        Map<String, Object> transactionSchema = Map.of(
+                "type", "object",
+                "properties", Map.of(
+                        "transactionDate", Map.of("type", "string", "description", "ISO-8601 date, e.g. 2026-07-18"),
+                        "description", Map.of("type", "string"),
+                        "quantity", Map.of("type", "number"),
+                        "unitPrice", Map.of("type", "number"),
+                        "taxAmount", Map.of("type", "number"),
+                        "classificationCode", Map.of("type", "string", "description", "LHDN e-Invoice classification code, if identifiable"),
+                        "unitCode", Map.of("type", "string"),
+                        "buyerName", Map.of("type", "string"),
+                        "buyerTin", Map.of("type", "string"),
+                        "confidenceScore", Map.of("type", "number")
+                ),
+                "required", List.of("description", "quantity", "unitPrice")
+        );
+
+        Map<String, Object> inputSchema = Map.of(
+                "type", "object",
+                "properties", Map.of("transactions", Map.of("type", "array", "items", transactionSchema)),
+                "required", List.of("transactions")
+        );
+
+        return Map.of(
+                "name", TRANSACTIONS_TOOL_NAME,
+                "description", "Record every individual sales transaction extracted from the source document.",
                 "input_schema", inputSchema
         );
     }

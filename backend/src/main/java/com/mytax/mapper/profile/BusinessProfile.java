@@ -60,6 +60,10 @@ public class BusinessProfile {
 
     private String email;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "default_submission_mode", nullable = false)
+    private SubmissionMode defaultSubmissionMode = SubmissionMode.INDIVIDUAL;
+
     @Column(name = "created_at", updatable = false, insertable = false)
     private Instant createdAt;
 
@@ -217,6 +221,14 @@ public class BusinessProfile {
         this.email = email;
     }
 
+    public SubmissionMode getDefaultSubmissionMode() {
+        return defaultSubmissionMode;
+    }
+
+    public void setDefaultSubmissionMode(SubmissionMode defaultSubmissionMode) {
+        this.defaultSubmissionMode = defaultSubmissionMode;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -310,6 +322,11 @@ public class BusinessProfile {
 
         public Builder email(String email) {
             profile.email = email;
+            return this;
+        }
+
+        public Builder defaultSubmissionMode(SubmissionMode defaultSubmissionMode) {
+            profile.defaultSubmissionMode = defaultSubmissionMode;
             return this;
         }
 

@@ -1,5 +1,7 @@
 package com.mytax.mapper.profile.dto;
 
+import com.mytax.mapper.profile.SubmissionMode;
+
 public record BusinessProfileResponse(
         Long id,
         String registrationName,
@@ -17,6 +19,7 @@ public record BusinessProfileResponse(
         String stateCode,
         String countryCode,
         String phone,
-        String email
+        String email,
+        SubmissionMode defaultSubmissionMode
 ) {
 }

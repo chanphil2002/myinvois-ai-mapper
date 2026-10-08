@@ -3,6 +3,7 @@ package com.mytax.mapper.mapping.dto;
 import com.mytax.mapper.mapping.InvoiceStatus;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -33,7 +34,8 @@ public record MappedInvoiceResponse(
         BigDecimal discountTotal,
         InvoiceStatus status,
         BigDecimal confidenceScore,
-        List<LineItemResponse> lineItems
+        List<LineItemResponse> lineItems,
+        Instant createdAt
 ) {
     public record LineItemResponse(
             Long id,

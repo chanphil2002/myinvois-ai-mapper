@@ -6,12 +6,14 @@ import com.mytax.mapper.config.GeminiProperties;
 import com.mytax.mapper.document.Document;
 import com.mytax.mapper.document.XlsxParser;
 import com.mytax.mapper.mapping.dto.MappedInvoiceDraft;
+import com.mytax.mapper.mapping.dto.SalesTransactionDraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Iterator;
 import java.util.List;
@@ -21,9 +23,10 @@ import java.util.regex.Pattern;
 
 /**
  * Calls the Gemini generateContent API with a JSON response schema so the model's output is
- * structured JSON matching {@link MappedInvoiceDraft}, rather than free text we'd have to parse.
- * Images/PDFs are sent as inline_data parts (vision); .xlsx is parsed to text first via
- * {@link XlsxParser} since Gemini has no spreadsheet-cell understanding of raw binary xlsx.
+ * structured JSON matching {@link MappedInvoiceDraft} (or, for consolidated mode,
+ * {@link SalesTransactionDraft}), rather than free text we'd have to parse. Images/PDFs are sent
+ * as inline_data parts (vision); .xlsx is parsed to text first via {@link XlsxParser} since Gemini
+ * has no spreadsheet-cell understanding of raw binary xlsx.
  *
  * Uses the "generateContent" REST endpoint rather than Google's newer "Interactions API" —
  * generateContent remains fully supported and its structured-output shape (response_schema)
@@ -43,7 +46,8 @@ public class GeminiMappingService implements MappingEngine {
     // sequence until it hits the token limit. This is a decoding-time model quirk, not something
     // any single generation_config/prompt combination reliably avoids (tested: thinking on/off/
     // dynamic/bounded, schema maxLength, prompt simplification — all still fail intermittently).
-    // Detecting and retrying is the practical mitigation.
+    // Detecting and retrying is the practical mitigation — see callWithRetry(), shared by both
+    // individual-invoice mapping and consolidated-mode transaction extraction below.
     private static final int MAX_ATTEMPTS = 3;
     private static final int MAX_REASONABLE_STRING_LENGTH = 400;
     private static final Pattern RUNAWAY_REPEAT = Pattern.compile("(.)\\1{29,}");
@@ -64,25 +68,81 @@ public class GeminiMappingService implements MappingEngine {
     public MappingResult map(Document document, byte[] fileBytes) {
         String fileType = document.getFileType().toLowerCase();
         Map<String, Object> userPart = buildContentPart(fileType, fileBytes);
+        Map<String, Object> requestBody = buildRequestBody(userPart, systemPrompt(), responseSchema());
 
-        Map<String, Object> requestBody = Map.of(
-                "system_instruction", Map.of("parts", List.of(Map.of("text", systemPrompt()))),
+        RawExtraction<MappedInvoiceDraft> result = callWithRetry(requestBody, document.getId(), "mapping", parsedJson -> {
+            MappedInvoiceDraft draft = objectMapper.treeToValue(parsedJson, MappedInvoiceDraft.class);
+            String oversizedUnitCode = findOversizedUnitCode(draft.lineItems() == null
+                    ? List.of()
+                    : draft.lineItems().stream().map(MappedInvoiceDraft.LineItemDraft::unitCode).toList());
+            if (oversizedUnitCode != null) {
+                throw new IllegalStateException(
+                        "Gemini produced an oversized unitCode value: " + oversizedUnitCode.substring(0, 60) + "...");
+            }
+            return draft;
+        });
+        return new MappingResult(result.value(), result.rawResponseJson(), properties.getModel());
+    }
+
+    @Override
+    public TransactionExtractionResult mapTransactions(Document document, byte[] fileBytes) {
+        String fileType = document.getFileType().toLowerCase();
+        Map<String, Object> userPart = buildContentPart(fileType, fileBytes);
+        Map<String, Object> requestBody = buildRequestBody(userPart, transactionSystemPrompt(), transactionResponseSchema());
+
+        RawExtraction<List<SalesTransactionDraft>> result = callWithRetry(requestBody, document.getId(), "transaction extraction", parsedJson -> {
+            JsonNode transactionsNode = parsedJson.path("transactions");
+            List<SalesTransactionDraft> drafts = new ArrayList<>();
+            if (transactionsNode.isArray()) {
+                for (JsonNode node : transactionsNode) {
+                    drafts.add(objectMapper.treeToValue(node, SalesTransactionDraft.class));
+                }
+            }
+            String oversizedUnitCode = findOversizedUnitCode(drafts.stream().map(SalesTransactionDraft::unitCode).toList());
+            if (oversizedUnitCode != null) {
+                throw new IllegalStateException(
+                        "Gemini produced an oversized unitCode value: " + oversizedUnitCode.substring(0, 60) + "...");
+            }
+            return drafts;
+        });
+        return new TransactionExtractionResult(result.value(), result.rawResponseJson(), properties.getModel());
+    }
+
+    private Map<String, Object> buildRequestBody(Map<String, Object> userPart, String systemPrompt, Map<String, Object> schema) {
+        return Map.of(
+                "system_instruction", Map.of("parts", List.of(Map.of("text", systemPrompt))),
                 "contents", List.of(Map.of(
                         "role", "user",
                         "parts", List.of(userPart)
                 )),
                 "generation_config", Map.of(
                         "response_mime_type", "application/json",
-                        "response_schema", responseSchema(),
+                        "response_schema", schema,
                         "max_output_tokens", 8192,
                         // Dynamic thinking budget — matches Google's recommended default and was the
                         // most reliable option in testing (fixed budgets, including 0, still degenerated).
                         "thinking_config", Map.of("thinking_budget", -1)
                 )
         );
+    }
 
-        String uri = properties.getBaseUrl() + "/v1beta/models/" + properties.getModel()
-                + ":generateContent";
+    private record RawExtraction<T>(T value, String rawResponseJson) {
+    }
+
+    @FunctionalInterface
+    private interface DegenerationCheckingParser<T> {
+        T parse(JsonNode parsedJson) throws Exception;
+    }
+
+    /**
+     * Shared retry wrapper for both {@link #map} and {@link #mapTransactions}: calls Gemini, checks
+     * the parsed response for the runaway-string degeneration pattern before handing it to
+     * {@code parser} (which does its own type-specific validation, e.g. oversized unitCode), and
+     * retries up to {@link #MAX_ATTEMPTS} times on any failure.
+     */
+    private <T> RawExtraction<T> callWithRetry(Map<String, Object> requestBody, Long documentId, String operationName,
+                                                DegenerationCheckingParser<T> parser) {
+        String uri = properties.getBaseUrl() + "/v1beta/models/" + properties.getModel() + ":generateContent";
 
         Exception lastFailure = null;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -101,17 +161,12 @@ public class GeminiMappingService implements MappingEngine {
                     throw new IllegalStateException(
                             "Gemini produced a runaway/degenerate string value: " + runaway.substring(0, 60) + "...");
                 }
-                MappedInvoiceDraft draft = objectMapper.treeToValue(parsedJson, MappedInvoiceDraft.class);
-                String oversizedUnitCode = findOversizedUnitCode(draft);
-                if (oversizedUnitCode != null) {
-                    throw new IllegalStateException(
-                            "Gemini produced an oversized unitCode value: " + oversizedUnitCode.substring(0, 60) + "...");
-                }
-                return new MappingResult(draft, response == null ? "{}" : response.toString(), properties.getModel());
+                T value = parser.parse(parsedJson);
+                return new RawExtraction<>(value, response == null ? "{}" : response.toString());
             } catch (Exception e) {
                 lastFailure = e;
-                log.warn("Gemini mapping attempt {}/{} produced malformed output for document {}: {}",
-                        attempt, MAX_ATTEMPTS, document.getId(), e.getMessage());
+                log.warn("Gemini {} attempt {}/{} produced malformed output for document {}: {}",
+                        operationName, attempt, MAX_ATTEMPTS, documentId, e.getMessage());
             }
         }
         throw new IllegalStateException(
@@ -125,13 +180,10 @@ public class GeminiMappingService implements MappingEngine {
      * this can still overflow the column with a moderate amount of "thinking out loud" text that
      * doesn't trip that heuristic, so it gets its own tighter bound.
      */
-    private String findOversizedUnitCode(MappedInvoiceDraft draft) {
-        if (draft.lineItems() == null) {
-            return null;
-        }
-        for (MappedInvoiceDraft.LineItemDraft item : draft.lineItems()) {
-            if (item.unitCode() != null && item.unitCode().length() > 10) {
-                return item.unitCode();
+    private String findOversizedUnitCode(List<String> unitCodes) {
+        for (String unitCode : unitCodes) {
+            if (unitCode != null && unitCode.length() > 10) {
+                return unitCode;
             }
         }
         return null;
@@ -229,6 +281,32 @@ public class GeminiMappingService implements MappingEngine {
                 if stated (e.g. "unit", "kg", "box") — default to "unit" if quantity is a plain count with no unit shown.""";
     }
 
+    private String transactionSystemPrompt() {
+        return """
+                You are an expert at reading Malaysian sales documents (spreadsheets of daily sales, batches \
+                of receipts, order lists) and extracting every individual sales transaction they contain, for \
+                LHDN MyInvois consolidated e-Invoice submission. Unlike a single invoice, this document may \
+                represent MANY separate sales — extract each one as its own entry in the transactions list.
+
+                Rule of thumb: if the document is a spreadsheet, each row (after the header) is normally its \
+                own transaction. If the document is a batch of scanned receipts, each receipt is its own \
+                transaction. If the document is clearly a single already-complete invoice for one sale with \
+                several product lines, treat the WHOLE document as ONE transaction — do not split its line \
+                items into separate transactions.
+
+                For each transaction, buyerName/buyerTin should only be filled in if the document actually \
+                identifies a specific buyer for that transaction — omit both for anonymous/walk-in retail \
+                sales, which is the normal case for documents destined for consolidation. transactionDate is \
+                the date of that specific sale (ISO-8601, e.g. 2026-07-18) if shown, otherwise omit it.
+
+                Do not perform any arithmetic — do not multiply, apply percentages, or sum values, even if it \
+                looks straightforward (e.g. quantity × unit price). Only report a number if it is written \
+                literally in the source document; omit a field rather than computing it. unitCode is a short \
+                unit description if stated (e.g. "unit", "kg", "box") — default to "unit" if quantity is a \
+                plain count with no unit shown. Include a confidenceScore between 0 and 1 per transaction \
+                reflecting how certain you are it was read correctly.""";
+    }
+
     private Map<String, Object> responseSchema() {
         Map<String, Object> lineItemSchema = Map.of(
                 "type", "OBJECT",
@@ -273,6 +351,31 @@ public class GeminiMappingService implements MappingEngine {
                         Map.entry("lineItems", Map.of("type", "ARRAY", "items", lineItemSchema))
                 ),
                 "required", List.of("lineItems")
+        );
+    }
+
+    private Map<String, Object> transactionResponseSchema() {
+        Map<String, Object> transactionSchema = Map.of(
+                "type", "OBJECT",
+                "properties", Map.of(
+                        "transactionDate", Map.of("type", "STRING", "description", "ISO-8601 date, e.g. 2026-07-18"),
+                        "description", Map.of("type", "STRING"),
+                        "quantity", Map.of("type", "NUMBER"),
+                        "unitPrice", Map.of("type", "NUMBER"),
+                        "taxAmount", Map.of("type", "NUMBER"),
+                        "classificationCode", Map.of("type", "STRING"),
+                        "unitCode", Map.of("type", "STRING"),
+                        "buyerName", Map.of("type", "STRING"),
+                        "buyerTin", Map.of("type", "STRING"),
+                        "confidenceScore", Map.of("type", "NUMBER")
+                ),
+                "required", List.of("description", "quantity", "unitPrice")
+        );
+
+        return Map.of(
+                "type", "OBJECT",
+                "properties", Map.of("transactions", Map.of("type", "ARRAY", "items", transactionSchema)),
+                "required", List.of("transactions")
         );
     }
 }

@@ -14,8 +14,13 @@ public class Submission {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "mapped_invoice_id", nullable = false)
+    // Exactly one of mappedInvoiceId / consolidatedInvoiceId is set per row — this table is shared
+    // between individual and consolidated e-invoice submissions (see V3 migration).
+    @Column(name = "mapped_invoice_id")
     private Long mappedInvoiceId;
+
+    @Column(name = "consolidated_invoice_id")
+    private Long consolidatedInvoiceId;
 
     @Column(name = "myinvois_submission_uid")
     private String myInvoisSubmissionUid;
@@ -57,6 +62,14 @@ public class Submission {
 
     public void setMappedInvoiceId(Long mappedInvoiceId) {
         this.mappedInvoiceId = mappedInvoiceId;
+    }
+
+    public Long getConsolidatedInvoiceId() {
+        return consolidatedInvoiceId;
+    }
+
+    public void setConsolidatedInvoiceId(Long consolidatedInvoiceId) {
+        this.consolidatedInvoiceId = consolidatedInvoiceId;
     }
 
     public String getMyInvoisSubmissionUid() {
@@ -112,6 +125,11 @@ public class Submission {
 
         public Builder mappedInvoiceId(Long mappedInvoiceId) {
             submission.mappedInvoiceId = mappedInvoiceId;
+            return this;
+        }
+
+        public Builder consolidatedInvoiceId(Long consolidatedInvoiceId) {
+            submission.consolidatedInvoiceId = consolidatedInvoiceId;
             return this;
         }
 
