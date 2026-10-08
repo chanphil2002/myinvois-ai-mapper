@@ -202,35 +202,54 @@ function AppearanceCard() {
 
 function BusinessProfileCard() {
   const queryClient = useQueryClient();
-  const { data: existing } = useQuery({
+  const { data: existing, isLoading } = useQuery({
     queryKey: ['business-profile'],
     queryFn: getBusinessProfile,
     retry: false,
   });
 
+  const [editing, setEditing] = useState(false);
+  const [form] = Form.useForm<BusinessProfile>();
+
   const mutation = useMutation({
     mutationFn: saveBusinessProfile,
     onSuccess: () => {
       message.success('Business profile saved');
+      setEditing(false);
       queryClient.invalidateQueries({ queryKey: ['business-profile'] });
     },
     onError: (err) => message.error(err instanceof Error ? err.message : 'Failed to save business profile'),
   });
 
-  const [form] = Form.useForm<BusinessProfile>();
-
   useEffect(() => {
     if (existing) form.setFieldsValue(existing);
-  }, [existing, form]);
+    // First-time setup (no saved profile yet): open the form straight away.
+    if (!isLoading && !existing) setEditing(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existing, isLoading]);
 
   const onFinish = (values: BusinessProfile) => mutation.mutate(values);
+  const onCancel = () => {
+    if (existing) form.setFieldsValue(existing);
+    setEditing(false);
+  };
 
-  // Pair short fields two-to-a-row; give long fields (addresses, MSIC description) their own width.
-  const half = { xs: 24, sm: 12 } as const;
-  const third = { xs: 24, sm: 8 } as const;
+  // Three-across on desktop so the profile scales horizontally (stays short), not down the page.
+  const col = { xs: 24, sm: 12, lg: 8 } as const;
+  const firstTime = !isLoading && !existing;
 
   return (
-    <Card title="Business Profile" style={{ height: '100%' }}>
+    <Card
+      title="Business Profile"
+      style={{ height: '100%' }}
+      extra={
+        !editing && !firstTime ? (
+          <Button icon={<EditOutlined />} onClick={() => setEditing(true)}>
+            Edit Profile
+          </Button>
+        ) : null
+      }
+    >
       <Typography.Paragraph type="secondary" style={{ marginBottom: 20 }}>
         Your own registration details as the supplier on every e-Invoice — set once here, not re-guessed by the
         AI from each uploaded document.
@@ -239,6 +258,7 @@ function BusinessProfileCard() {
         form={form}
         layout="vertical"
         onFinish={onFinish}
+        disabled={!editing}
         initialValues={{ idType: 'NRIC', countryCode: 'MYS', defaultSubmissionMode: 'INDIVIDUAL' }}
       >
         {/* Kept so the backend still receives a value; the create flow is type-first now. */}
@@ -246,17 +266,17 @@ function BusinessProfileCard() {
           <Input />
         </Form.Item>
         <Row gutter={16}>
-          <Col {...half}>
+          <Col {...col}>
             <Form.Item name="registrationName" label="Registration name" rules={[{ required: true }]}>
               <Input placeholder="Legal / registered name" />
             </Form.Item>
           </Col>
-          <Col {...half}>
+          <Col {...col}>
             <Form.Item name="tin" label="TIN" rules={[{ required: true }]}>
               <Input placeholder="e.g. IG50974019070" />
             </Form.Item>
           </Col>
-          <Col {...half}>
+          <Col {...col}>
             <Form.Item name="idType" label="ID type" rules={[{ required: true }]}>
               <Select
                 options={[
@@ -268,27 +288,27 @@ function BusinessProfileCard() {
               />
             </Form.Item>
           </Col>
-          <Col {...half}>
+          <Col {...col}>
             <Form.Item name="idValue" label="ID number" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
           </Col>
-          <Col {...half}>
+          <Col {...col}>
             <Form.Item name="sstRegistration" label="SST registration">
               <Input placeholder="NA if none" />
             </Form.Item>
           </Col>
-          <Col {...half}>
+          <Col {...col}>
             <Form.Item name="ttxRegistration" label="Tourism tax">
               <Input placeholder="NA if none" />
             </Form.Item>
           </Col>
-          <Col {...third}>
+          <Col {...col}>
             <Form.Item name="msicCode" label="MSIC code">
               <Input placeholder="e.g. 47411" />
             </Form.Item>
           </Col>
-          <Col xs={24} sm={16}>
+          <Col xs={24} sm={12} lg={16}>
             <Form.Item name="msicDescription" label="MSIC description">
               <Input placeholder="e.g. Retail sale of computers in specialised stores" />
             </Form.Item>
@@ -303,40 +323,45 @@ function BusinessProfileCard() {
               <Input />
             </Form.Item>
           </Col>
-          <Col {...third}>
+          <Col {...col}>
             <Form.Item name="city" label="City">
               <Input />
             </Form.Item>
           </Col>
-          <Col {...third}>
+          <Col {...col}>
             <Form.Item name="postalZone" label="Postcode">
               <Input />
             </Form.Item>
           </Col>
-          <Col {...third}>
+          <Col {...col}>
             <Form.Item name="stateCode" label="State">
               <Select options={MALAYSIA_STATE_CODES} showSearch optionFilterProp="label" />
             </Form.Item>
           </Col>
-          <Col {...third}>
+          <Col {...col}>
             <Form.Item name="countryCode" label="Country">
               <Input disabled />
             </Form.Item>
           </Col>
-          <Col {...third}>
+          <Col {...col}>
             <Form.Item name="phone" label="Phone">
               <Input />
             </Form.Item>
           </Col>
-          <Col {...third}>
+          <Col {...col}>
             <Form.Item name="email" label="Email">
               <Input />
             </Form.Item>
           </Col>
         </Row>
-        <Button type="primary" htmlType="submit" loading={mutation.isPending}>
-          Save business profile
-        </Button>
+        {editing && (
+          <Space>
+            <Button type="primary" htmlType="submit" loading={mutation.isPending}>
+              Save business profile
+            </Button>
+            {!firstTime && <Button onClick={onCancel}>Cancel</Button>}
+          </Space>
+        )}
       </Form>
     </Card>
   );
@@ -344,16 +369,21 @@ function BusinessProfileCard() {
 
 export default function Settings() {
   return (
-    <Row gutter={[16, 16]} align="top">
-      <Col xs={24} lg={8}>
-        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      {/* Credentials and Business Profile stretch to the same height. */}
+      <Row gutter={[16, 16]} align="stretch">
+        <Col xs={24} lg={9}>
           <MyInvoisCredentialsCard />
+        </Col>
+        <Col xs={24} lg={15}>
+          <BusinessProfileCard />
+        </Col>
+      </Row>
+      <Row>
+        <Col xs={24} lg={9}>
           <AppearanceCard />
-        </Space>
-      </Col>
-      <Col xs={24} lg={16}>
-        <BusinessProfileCard />
-      </Col>
-    </Row>
+        </Col>
+      </Row>
+    </Space>
   );
 }

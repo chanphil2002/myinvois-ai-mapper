@@ -30,6 +30,7 @@ const emptyRow = (): Row => ({ description: '', quantity: 1, unitPrice: 0, taxAm
 export default function CreateConsolidated() {
   const navigate = useNavigate();
   const [method, setMethod] = useState<Method>(null);
+  const [name, setName] = useState('');
   const [period, setPeriod] = useState<[Dayjs, Dayjs] | null>([dayjs().startOf('month'), dayjs().endOf('month')]);
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
 
@@ -63,6 +64,7 @@ export default function CreateConsolidated() {
         .map((r) => ({ description: r.description, quantity: r.quantity, unitPrice: r.unitPrice, taxAmount: r.taxAmount }));
       if (lineItems.length === 0) throw new Error('Add at least one line item');
       return createManualConsolidatedInvoice({
+        invoiceName: name.trim() || null,
         periodStart: period[0].format('YYYY-MM-DD'),
         periodEnd: period[1].format('YYYY-MM-DD'),
         lineItems,
@@ -236,6 +238,17 @@ export default function CreateConsolidated() {
       {back}
       <Card title="Key in a consolidated e-Invoice">
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <div style={{ maxWidth: 360 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Invoice name (optional)
+            </Typography.Text>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. September B2C consolidated"
+              style={{ marginTop: 4 }}
+            />
+          </div>
           <div>
             <Typography.Text type="secondary">Aggregation period</Typography.Text>
             <br />

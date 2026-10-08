@@ -1,9 +1,11 @@
 import type { Key } from 'react';
-import { Card, Table, Typography, theme } from 'antd';
+import { Card, Table, Tag, Typography, theme } from 'antd';
 import { RightOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import StatusTag from './StatusTag';
+
+export type InvoiceType = 'Individual' | 'Consolidated';
 
 export interface InvoiceRow {
   id: number;
@@ -11,6 +13,7 @@ export interface InvoiceRow {
   name: string;
   grandTotal: number | null;
   status: string;
+  type: InvoiceType;
   to: string;
 }
 
@@ -18,13 +21,17 @@ const money = (v: number | null | undefined) =>
   v == null ? '—' : `RM ${Number(v).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const dateTime = (iso: string | null | undefined) => (iso ? dayjs(iso).format('MMM D, YY - HH:mm') : '—');
 
+function TypeTag({ type }: { type: InvoiceType }) {
+  return <Tag color={type === 'Individual' ? 'geekblue' : 'purple'}>{type}</Tag>;
+}
+
 /** Mobile: each invoice as a tappable card so there's no horizontal scrolling. */
-function Cards({ rows }: { rows: InvoiceRow[] }) {
+function Cards({ rows, showType }: { rows: InvoiceRow[]; showType: boolean }) {
   const { token } = theme.useToken();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {rows.map((r) => (
-        <Link key={r.id} to={r.to} style={{ color: 'inherit' }}>
+        <Link key={r.to} to={r.to} style={{ color: 'inherit' }}>
           <Card size="small" hoverable>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ minWidth: 0, flex: 1 }}>
@@ -40,9 +47,10 @@ function Cards({ rows }: { rows: InvoiceRow[] }) {
                 >
                   {r.name}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 600 }}>{money(r.grandTotal)}</span>
                   <StatusTag status={r.status} />
+                  {showType && <TypeTag type={r.type} />}
                 </div>
               </div>
               <RightOutlined style={{ color: token.colorTextQuaternary }} />
@@ -54,23 +62,51 @@ function Cards({ rows }: { rows: InvoiceRow[] }) {
   );
 }
 
-/** Desktop: table with Date · Invoice · Grand Total · Status · action column order. */
+/** Desktop: table with the invoice name as the link (no separate action column). */
 function DesktopTable({
   rows,
   loading,
   statuses,
   emptyText,
   paginate,
+  showType,
 }: {
   rows: InvoiceRow[];
   loading: boolean;
   statuses: string[];
   emptyText: string;
   paginate: boolean;
+  showType: boolean;
 }) {
   const columns = [
     { title: 'Date', dataIndex: 'createdAt', key: 'createdAt', width: 170, render: dateTime },
-    { title: 'Invoice', dataIndex: 'name', key: 'name', ellipsis: true, render: (v: string) => <strong>{v}</strong> },
+    {
+      title: 'Invoice',
+      dataIndex: 'name',
+      key: 'name',
+      ellipsis: true,
+      render: (v: string, r: InvoiceRow) => (
+        <Link to={r.to} style={{ fontWeight: 600 }}>
+          {v}
+        </Link>
+      ),
+    },
+    ...(showType
+      ? [
+          {
+            title: 'Type',
+            dataIndex: 'type',
+            key: 'type',
+            width: 140,
+            filters: [
+              { text: 'Individual', value: 'Individual' },
+              { text: 'Consolidated', value: 'Consolidated' },
+            ],
+            onFilter: (value: boolean | Key, record: InvoiceRow) => record.type === value,
+            render: (type: InvoiceType) => <TypeTag type={type} />,
+          },
+        ]
+      : []),
     { title: 'Grand Total', dataIndex: 'grandTotal', key: 'grandTotal', align: 'right' as const, render: money },
     {
       title: 'Status',
@@ -81,12 +117,11 @@ function DesktopTable({
       onFilter: (value: boolean | Key, record: InvoiceRow) => record.status === value,
       render: (status: string) => <StatusTag status={status} />,
     },
-    { title: '', key: 'open', width: 70, render: (_: unknown, record: InvoiceRow) => <Link to={record.to}>Open</Link> },
   ];
 
   return (
     <Table
-      rowKey="id"
+      rowKey={(r) => r.to}
       loading={loading}
       dataSource={rows}
       columns={columns}
@@ -104,6 +139,7 @@ export default function InvoiceList({
   emptyText,
   loading = false,
   paginate = true,
+  showType = false,
 }: {
   rows: InvoiceRow[];
   mobile: boolean;
@@ -111,9 +147,23 @@ export default function InvoiceList({
   emptyText: string;
   loading?: boolean;
   paginate?: boolean;
+  showType?: boolean;
 }) {
   if (mobile) {
-    return rows.length ? <Cards rows={rows} /> : <Typography.Text type="secondary">{emptyText}</Typography.Text>;
+    return rows.length ? (
+      <Cards rows={rows} showType={showType} />
+    ) : (
+      <Typography.Text type="secondary">{emptyText}</Typography.Text>
+    );
   }
-  return <DesktopTable rows={rows} loading={loading} statuses={statuses} emptyText={emptyText} paginate={paginate} />;
+  return (
+    <DesktopTable
+      rows={rows}
+      loading={loading}
+      statuses={statuses}
+      emptyText={emptyText}
+      paginate={paginate}
+      showType={showType}
+    />
+  );
 }

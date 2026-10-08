@@ -70,6 +70,7 @@ export interface ManualConsolidatedLineItem {
 }
 
 export interface CreateManualConsolidatedInvoicePayload {
+  invoiceName?: string | null;
   periodStart: string;
   periodEnd: string;
   lineItems: ManualConsolidatedLineItem[];
@@ -126,6 +127,7 @@ export interface MappedInvoiceResponse {
   confidenceScore: number | null;
   lineItems: LineItem[];
   createdAt: string | null;
+  invoiceName: string | null;
 }
 
 export type SubmissionStatus = 'PENDING' | 'IN_PROGRESS' | 'VALID' | 'INVALID' | 'PARTIALLY_VALID';
@@ -175,4 +177,5 @@ export interface ConsolidatedInvoiceResponse {
   status: ConsolidatedInvoiceStatus;
   transactions: SalesTransactionResponse[];
   createdAt: string | null;
+  invoiceName: string | null;
 }

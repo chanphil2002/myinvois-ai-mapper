@@ -18,6 +18,7 @@ import {
 } from '../api/endpoints';
 import type { LineItem, MappedInvoiceResponse } from '../api/types';
 import { MALAYSIA_STATE_CODES, matchStateCode } from '../constants/malaysiaStates';
+import { defaultInvoiceName } from '../utils/invoice';
 
 export default function MappingReview() {
   const { id } = useParams();
@@ -150,6 +151,17 @@ export default function MappingReview() {
 
       <Card title="Invoice details">
         <Row gutter={[16, 16]}>
+          <Col xs={24}>
+            {field(
+              'Invoice name',
+              <Input
+                disabled={!editable}
+                value={draft.invoiceName ?? ''}
+                placeholder={defaultInvoiceName(draft.id, draft.createdAt ?? draft.issueDate)}
+                onChange={(e) => updateField('invoiceName', e.target.value)}
+              />,
+            )}
+          </Col>
           <Col xs={12} sm={6}>
             {field(
               'Issue date',

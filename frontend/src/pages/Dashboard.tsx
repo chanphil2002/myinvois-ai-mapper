@@ -1,18 +1,15 @@
 import type { ReactNode } from 'react';
-import { Card, Col, Grid, Progress, Row, Typography, theme } from 'antd';
-import { FileTextOutlined, CheckCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { Button, Card, Col, Grid, Progress, Row, Typography, theme } from 'antd';
+import { FileTextOutlined, CheckCircleOutlined, ThunderboltOutlined, PlusOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
-import { getSubscription, listDocuments, listMappedInvoices } from '../api/endpoints';
-import type { MappedInvoiceResponse } from '../api/types';
+import { Link, useNavigate } from 'react-router-dom';
+import { getSubscription, listConsolidatedInvoices, listDocuments, listMappedInvoices } from '../api/endpoints';
 import InvoiceList from '../components/InvoiceList';
 import type { InvoiceRow } from '../components/InvoiceList';
+import { invoiceDisplayName } from '../utils/invoice';
 
 const PLAN_CREDITS: Record<string, number> = { beginner: 30, heavy: 500, elite: 1500 };
 const FREE_DAILY_CREDITS = 2; // Free tier: 2 documents per day.
-
-const invoiceName = (inv: MappedInvoiceResponse) =>
-  inv.buyerName?.trim() || `Invoice-${(inv.createdAt ?? inv.issueDate ?? '').slice(0, 10) || '—'}#${inv.id}`;
 
 function StatTile({ title, value, icon, color }: { title: string; value: number; icon: ReactNode; color: string }) {
   const { token } = theme.useToken();
@@ -67,19 +64,42 @@ function StatTile({ title, value, icon, color }: { title: string; value: number;
 
 export default function Dashboard() {
   const { token } = theme.useToken();
+  const navigate = useNavigate();
   const screens = Grid.useBreakpoint();
   const mobile = !screens.md;
   const { data: documents } = useQuery({ queryKey: ['documents'], queryFn: listDocuments });
-  const { data: invoices, isLoading } = useQuery({ queryKey: ['mapped-invoices'], queryFn: listMappedInvoices });
+  const { data: individual, isLoading: loadingInd } = useQuery({ queryKey: ['mapped-invoices'], queryFn: listMappedInvoices });
+  const { data: consolidated, isLoading: loadingCon } = useQuery({ queryKey: ['consolidated-invoices'], queryFn: listConsolidatedInvoices });
   const { data: subscription } = useQuery({ queryKey: ['subscription'], queryFn: getSubscription });
+  const isLoading = loadingInd || loadingCon;
 
   const parsed = documents?.filter((d) => d.status === 'PARSED').length ?? 0;
 
-  // Invoice-centric counts so the home reads as "work", not raw files.
-  const list = invoices ?? [];
-  const drafts = list.filter((i) => i.status === 'DRAFT').length;
-  const inProgress = list.filter((i) => i.status === 'CONFIRMED' || i.status === 'SUBMITTED').length;
-  const accepted = list.filter((i) => i.status === 'ACCEPTED').length;
+  // Unified list across both invoice types, so the home shows every e-invoice with its type.
+  const allRows: InvoiceRow[] = [
+    ...(individual ?? []).map((inv) => ({
+      id: inv.id,
+      createdAt: inv.createdAt,
+      name: invoiceDisplayName(inv.invoiceName, inv.id, inv.createdAt ?? inv.issueDate),
+      grandTotal: inv.grandTotal,
+      status: inv.status,
+      type: 'Individual' as const,
+      to: `/mapped-invoices/${inv.id}`,
+    })),
+    ...(consolidated ?? []).map((inv) => ({
+      id: inv.id,
+      createdAt: inv.createdAt,
+      name: invoiceDisplayName(inv.invoiceName, inv.id, inv.createdAt ?? inv.periodStart),
+      grandTotal: inv.grandTotal,
+      status: inv.status,
+      type: 'Consolidated' as const,
+      to: `/consolidated-invoices/${inv.id}`,
+    })),
+  ];
+
+  const drafts = allRows.filter((i) => i.status === 'DRAFT').length;
+  const inProgress = allRows.filter((i) => i.status === 'CONFIRMED' || i.status === 'SUBMITTED').length;
+  const accepted = allRows.filter((i) => i.status === 'ACCEPTED').length;
 
   const planId = subscription?.status === 'ACTIVE' ? subscription.plan : null;
   const planName = planId ? subscription?.planName : 'Free';
@@ -94,17 +114,9 @@ export default function Dashboard() {
   const creditPct = creditLimit > 0 ? Math.round((creditsLeft / creditLimit) * 100) : 0;
   const periodLabel = isFree ? 'left today' : 'left';
 
-  const recent: InvoiceRow[] = [...list]
+  const recent: InvoiceRow[] = [...allRows]
     .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '') || b.id - a.id)
-    .slice(0, 6)
-    .map((inv) => ({
-      id: inv.id,
-      createdAt: inv.createdAt,
-      name: invoiceName(inv),
-      grandTotal: inv.grandTotal,
-      status: inv.status,
-      to: `/mapped-invoices/${inv.id}`,
-    }));
+    .slice(0, 6);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -150,12 +162,20 @@ export default function Dashboard() {
         />
       </Card>
 
-      <Card title="Recent e-invoices" extra={<Link to="/create">Create an invoice</Link>}>
+      <Card
+        title="Recent e-invoices"
+        extra={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/create')}>
+            Create an invoice
+          </Button>
+        }
+      >
         <InvoiceList
           rows={recent}
           mobile={mobile}
           loading={isLoading}
           paginate={false}
+          showType
           statuses={['DRAFT', 'CONFIRMED', 'SUBMITTED', 'ACCEPTED', 'REJECTED']}
           emptyText="No e-invoices yet — create one from Create. Each invoice keeps its source file (or manual entry) inside it."
         />

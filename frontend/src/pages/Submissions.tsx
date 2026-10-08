@@ -4,6 +4,7 @@ import { listConsolidatedInvoices, listMappedInvoices } from '../api/endpoints';
 import type { ConsolidatedInvoiceResponse, MappedInvoiceResponse } from '../api/types';
 import InvoiceList from '../components/InvoiceList';
 import type { InvoiceRow } from '../components/InvoiceList';
+import { invoiceDisplayName } from '../utils/invoice';
 
 function IndividualSubmissions({ mobile }: { mobile: boolean }) {
   const { data, isLoading } = useQuery({ queryKey: ['mapped-invoices'], queryFn: listMappedInvoices });
@@ -12,9 +13,10 @@ function IndividualSubmissions({ mobile }: { mobile: boolean }) {
     .map((inv: MappedInvoiceResponse) => ({
       id: inv.id,
       createdAt: inv.createdAt,
-      name: inv.buyerName?.trim() || `Invoice-${(inv.createdAt ?? inv.issueDate ?? '').slice(0, 10) || '—'}#${inv.id}`,
+      name: invoiceDisplayName(inv.invoiceName, inv.id, inv.createdAt ?? inv.issueDate),
       grandTotal: inv.grandTotal,
       status: inv.status,
+      type: 'Individual' as const,
       to: `/mapped-invoices/${inv.id}`,
     }));
 
@@ -34,9 +36,10 @@ function ConsolidatedSubmissions({ mobile }: { mobile: boolean }) {
   const rows: InvoiceRow[] = (data ?? []).map((inv: ConsolidatedInvoiceResponse) => ({
     id: inv.id,
     createdAt: inv.createdAt,
-    name: `Consolidated-${inv.periodStart ?? ''}#${inv.id}`,
+    name: invoiceDisplayName(inv.invoiceName, inv.id, inv.createdAt ?? inv.periodStart),
     grandTotal: inv.grandTotal,
     status: inv.status,
+    type: 'Consolidated' as const,
     to: `/consolidated-invoices/${inv.id}`,
   }));
 

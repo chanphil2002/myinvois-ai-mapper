@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Card, Col, Row, Space, Typography, message } from 'antd';
+import { Button, Card, Col, Input, Row, Space, Typography, message } from 'antd';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import FileUploadDropzone from '../../components/FileUploadDropzone';
@@ -10,10 +10,12 @@ type Method = null | 'manual' | 'upload';
 export default function CreateIndividual() {
   const navigate = useNavigate();
   const [method, setMethod] = useState<Method>(null);
+  const [name, setName] = useState('');
 
   const manualMutation = useMutation({
     mutationFn: () =>
       createManualInvoice({
+        invoiceName: name.trim() || null,
         invoiceTypeCode: '01',
         currencyCode: 'MYR',
         buyerCountryCode: 'MYS',
@@ -95,6 +97,21 @@ export default function CreateIndividual() {
             We'll create a blank draft and open the editor, where you enter the buyer and line items, then confirm
             and submit to MyInvois.
           </Typography.Paragraph>
+          <div style={{ maxWidth: 360, marginBottom: 16 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Invoice name (optional)
+            </Typography.Text>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. March retainer — Acme Sdn Bhd"
+              style={{ marginTop: 4 }}
+              onPressEnter={() => manualMutation.mutate()}
+            />
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              Leave blank to auto-name it (e.g. Invoice-{new Date().toISOString().slice(0, 10)}#…).
+            </Typography.Text>
+          </div>
           <Button type="primary" loading={manualMutation.isPending} onClick={() => manualMutation.mutate()}>
             Start blank invoice
           </Button>
