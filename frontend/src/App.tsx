@@ -24,6 +24,9 @@ const { Header, Content, Sider } = Layout;
 // Primary navigation destinations (sidebar on desktop, bottom tabs on mobile). Pages not listed
 // here (invoice detail, create sub-steps) are drill-downs and show a Back button instead.
 const TAB_ROOTS = ['/', '/create', '/submissions', '/billing', '/settings'];
+// These pages render their own step-up Back button (they have internal steps), so the global
+// layout Back is suppressed to avoid showing two back links.
+const PAGE_MANAGES_BACK = ['/create/individual', '/create/consolidated'];
 
 function AppLayout() {
   const location = useLocation();
@@ -36,7 +39,7 @@ function AppLayout() {
 
   // Keep "Create Invoice" highlighted across the whole create flow (type picker + per-type pages).
   const selectedKey = location.pathname.startsWith('/create') ? '/create' : location.pathname;
-  const showBack = !TAB_ROOTS.includes(location.pathname);
+  const showBack = !TAB_ROOTS.includes(location.pathname) && !PAGE_MANAGES_BACK.includes(location.pathname);
 
   const backButton = showBack && (
     <Button

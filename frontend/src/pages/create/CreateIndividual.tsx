@@ -38,10 +38,24 @@ export default function CreateIndividual() {
     onError: (err) => message.error(err instanceof Error ? err.message : 'Mapping failed'),
   });
 
+  // A single Back that steps up one level (method screen → chooser → type picker).
+  const back = (
+    <Button
+      type="link"
+      style={{ paddingLeft: 0 }}
+      onClick={() => (method === null ? navigate('/create') : setMethod(null))}
+    >
+      ← Back
+    </Button>
+  );
+
   if (method === null) {
     return (
       <div style={{ maxWidth: 820 }}>
-        <Typography.Title level={3}>Individual e-Invoice</Typography.Title>
+        {back}
+        <Typography.Title level={3} style={{ marginTop: 8 }}>
+          Individual e-Invoice
+        </Typography.Title>
         <Typography.Paragraph type="secondary">How do you want to enter the invoice?</Typography.Paragraph>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12}>
@@ -71,9 +85,7 @@ export default function CreateIndividual() {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: 820 }}>
-      <Button type="link" style={{ paddingLeft: 0 }} onClick={() => setMethod(null)}>
-        ← Back
-      </Button>
+      {back}
       {method === 'manual' ? (
         <Card>
           <Typography.Title level={4} style={{ marginTop: 0 }}>
@@ -95,7 +107,11 @@ export default function CreateIndividual() {
           <Typography.Paragraph type="secondary">
             AI mapping will read the file into an individual invoice for you to review.
           </Typography.Paragraph>
-          <FileUploadDropzone uploading={uploadMutation.isPending} onFileSelected={(file) => uploadMutation.mutate(file)} />
+          <FileUploadDropzone
+            uploading={uploadMutation.isPending}
+            uploadingText="Uploading and running AI mapping…"
+            onFileSelected={(file) => uploadMutation.mutate(file)}
+          />
         </Card>
       )}
     </Space>

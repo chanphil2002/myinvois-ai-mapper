@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Button, Card, Col, DatePicker, Input, InputNumber, Row, Space, Table, Typography, message } from 'antd';
+import { useRef, useState } from 'react';
+import { Button, Card, Col, DatePicker, Input, InputNumber, List, Row, Space, Spin, Table, Typography, message } from 'antd';
+import { CheckCircleTwoTone, CloseCircleTwoTone, LoadingOutlined } from '@ant-design/icons';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
@@ -16,6 +17,14 @@ interface Row {
   taxAmount: number;
 }
 
+interface Upload {
+  id: number;
+  name: string;
+  status: 'uploading' | 'done' | 'error';
+  count?: number;
+  error?: string;
+}
+
 const emptyRow = (): Row => ({ description: '', quantity: 1, unitPrice: 0, taxAmount: 0 });
 
 export default function CreateConsolidated() {
@@ -23,6 +32,28 @@ export default function CreateConsolidated() {
   const [method, setMethod] = useState<Method>(null);
   const [period, setPeriod] = useState<[Dayjs, Dayjs] | null>([dayjs().startOf('month'), dayjs().endOf('month')]);
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
+
+  // Batch upload state — files extract independently and accumulate on the server, so the user
+  // can add several at once, or upload some now and come back to add more later.
+  const [uploads, setUploads] = useState<Upload[]>([]);
+  const uidRef = useRef(0);
+
+  const processFile = async (file: File) => {
+    const id = ++uidRef.current;
+    setUploads((u) => [...u, { id, name: file.name, status: 'uploading' }]);
+    try {
+      const doc = await uploadDocument(file);
+      const txns = await extractTransactions(doc.id);
+      setUploads((u) => u.map((x) => (x.id === id ? { ...x, status: 'done', count: txns.length } : x)));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed';
+      setUploads((u) => u.map((x) => (x.id === id ? { ...x, status: 'error', error: msg } : x)));
+      message.error(`${file.name}: ${msg}`);
+    }
+  };
+
+  const anyUploading = uploads.some((u) => u.status === 'uploading');
+  const extractedCount = uploads.filter((u) => u.status === 'done').reduce((s, u) => s + (u.count ?? 0), 0);
 
   const manualMutation = useMutation({
     mutationFn: () => {
@@ -44,25 +75,27 @@ export default function CreateConsolidated() {
     onError: (err) => message.error(err instanceof Error ? err.message : 'Could not create consolidated invoice'),
   });
 
-  const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const doc = await uploadDocument(file);
-      return extractTransactions(doc.id);
-    },
-    onSuccess: (transactions) => {
-      message.success(`Extracted ${transactions.length} transaction(s) — select and group them`);
-      navigate('/consolidate');
-    },
-    onError: (err) => message.error(err instanceof Error ? err.message : 'Transaction extraction failed'),
-  });
-
   const updateRow = (index: number, field: keyof Row, value: unknown) =>
     setRows(rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+
+  // A single Back that steps up one level (method screen → chooser → type picker).
+  const back = (
+    <Button
+      type="link"
+      style={{ paddingLeft: 0 }}
+      onClick={() => (method === null ? navigate('/create') : setMethod(null))}
+    >
+      ← Back
+    </Button>
+  );
 
   if (method === null) {
     return (
       <div style={{ maxWidth: 820 }}>
-        <Typography.Title level={3}>Consolidated e-Invoice</Typography.Title>
+        {back}
+        <Typography.Title level={3} style={{ marginTop: 8 }}>
+          Consolidated e-Invoice
+        </Typography.Title>
         <Typography.Paragraph type="secondary">How do you want to enter the sales?</Typography.Paragraph>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12}>
@@ -78,10 +111,10 @@ export default function CreateConsolidated() {
           <Col xs={24} sm={12}>
             <Card hoverable onClick={() => setMethod('upload')} style={{ height: '100%' }}>
               <Typography.Title level={4} style={{ marginTop: 0 }}>
-                Upload a document
+                Upload documents
               </Typography.Title>
               <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                Upload a file; AI extracts the sale lines for you to group.
+                Upload one or more files; AI extracts the sale lines for you to group.
               </Typography.Paragraph>
             </Card>
           </Col>
@@ -93,17 +126,60 @@ export default function CreateConsolidated() {
   if (method === 'upload') {
     return (
       <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: 820 }}>
-        <Button type="link" style={{ paddingLeft: 0 }} onClick={() => setMethod(null)}>
-          ← Back
-        </Button>
-        <Card>
-          <Typography.Title level={4} style={{ marginTop: 0 }}>
-            Upload a source document
-          </Typography.Title>
-          <Typography.Paragraph type="secondary">
-            AI extracts individual B2C sales; you then select and group them into one consolidated invoice.
-          </Typography.Paragraph>
-          <FileUploadDropzone uploading={uploadMutation.isPending} onFileSelected={(file) => uploadMutation.mutate(file)} />
+        {back}
+        <Card title="Upload source documents">
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+              Add one or more files — all at once, or upload some now and add more later. AI extracts the B2C
+              sales from each; nothing is lost between uploads. When you're ready, continue to group and submit them.
+            </Typography.Paragraph>
+
+            <FileUploadDropzone
+              multiple
+              uploading={anyUploading}
+              hint="Supports .xlsx, .pdf, .png, .jpg — add several at once"
+              onFileSelected={processFile}
+            />
+
+            {uploads.length > 0 && (
+              <List
+                size="small"
+                bordered
+                dataSource={uploads}
+                renderItem={(u) => (
+                  <List.Item>
+                    <Space>
+                      {u.status === 'uploading' && <Spin indicator={<LoadingOutlined spin />} size="small" />}
+                      {u.status === 'done' && <CheckCircleTwoTone twoToneColor="#16a34a" />}
+                      {u.status === 'error' && <CloseCircleTwoTone twoToneColor="#dc2626" />}
+                      <span>{u.name}</span>
+                    </Space>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      {u.status === 'uploading' && 'Extracting…'}
+                      {u.status === 'done' && `${u.count} transaction${u.count === 1 ? '' : 's'}`}
+                      {u.status === 'error' && u.error}
+                    </Typography.Text>
+                  </List.Item>
+                )}
+              />
+            )}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <Button
+                type="primary"
+                disabled={extractedCount === 0 || anyUploading}
+                loading={anyUploading}
+                onClick={() => navigate('/consolidate')}
+              >
+                Continue to grouping →
+              </Button>
+              {extractedCount > 0 && (
+                <Typography.Text type="secondary">
+                  {extractedCount} transaction{extractedCount === 1 ? '' : 's'} extracted so far
+                </Typography.Text>
+              )}
+            </div>
+          </Space>
         </Card>
       </Space>
     );
@@ -157,9 +233,7 @@ export default function CreateConsolidated() {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Button type="link" style={{ paddingLeft: 0 }} onClick={() => setMethod(null)}>
-        ← Back
-      </Button>
+      {back}
       <Card title="Key in a consolidated e-Invoice">
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <div>
