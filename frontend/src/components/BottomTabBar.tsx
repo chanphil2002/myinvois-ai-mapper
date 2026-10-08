@@ -1,19 +1,24 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
   HomeOutlined,
+  HomeFilled,
   PlusCircleOutlined,
+  PlusCircleFilled,
   ProfileOutlined,
-  CreditCardOutlined,
+  ProfileFilled,
+  WalletOutlined,
+  WalletFilled,
   SettingOutlined,
+  SettingFilled,
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 
-const TABS: { key: string; label: string; icon: ReactNode }[] = [
-  { key: '/', label: 'Home', icon: <HomeOutlined /> },
-  { key: '/create', label: 'Create', icon: <PlusCircleOutlined /> },
-  { key: '/submissions', label: 'Submissions', icon: <ProfileOutlined /> },
-  { key: '/billing', label: 'Billing', icon: <CreditCardOutlined /> },
-  { key: '/settings', label: 'Settings', icon: <SettingOutlined /> },
+const TABS: { key: string; label: string; icon: ReactNode; active: ReactNode }[] = [
+  { key: '/', label: 'Home', icon: <HomeOutlined />, active: <HomeFilled /> },
+  { key: '/create', label: 'Create', icon: <PlusCircleOutlined />, active: <PlusCircleFilled /> },
+  { key: '/submissions', label: 'Submissions', icon: <ProfileOutlined />, active: <ProfileFilled /> },
+  { key: '/billing', label: 'Billing', icon: <WalletOutlined />, active: <WalletFilled /> },
+  { key: '/settings', label: 'Settings', icon: <SettingOutlined />, active: <SettingFilled /> },
 ];
 
 /** iOS-style fixed bottom tab bar for primary navigation on mobile. */
@@ -55,7 +60,7 @@ export default function BottomTabBar() {
               lineHeight: 1,
             }}
           >
-            {t.icon}
+            {on ? t.active : t.icon}
             <span style={{ fontSize: 10.5, fontWeight: on ? 600 : 500 }}>{t.label}</span>
           </Link>
         );

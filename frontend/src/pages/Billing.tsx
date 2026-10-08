@@ -3,6 +3,7 @@ import { Button, Card, Col, Row, Space, Table, Tag, Typography, message } from '
 import { CheckCircleTwoTone } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSubscription, subscribePlan } from '../api/endpoints';
+import StatusTag from '../components/StatusTag';
 
 interface Plan {
   id: string;
@@ -140,7 +141,7 @@ export default function Billing() {
             date: current.paidAt ? current.paidAt.slice(0, 10) : '',
             plan: current.planName,
             amount: `RM ${(current.amountCents / 100).toFixed(2)}`,
-            status: 'Paid',
+            status: 'PAID',
           },
         ]
       : [];
@@ -158,7 +159,7 @@ export default function Billing() {
               <Typography.Text strong style={{ fontSize: 18 }}>
                 {current?.planName}
               </Typography.Text>
-              <Tag color="green">Active</Tag>
+              <StatusTag status="ACTIVE" />
             </Space>
             <Typography.Text type="secondary">
               RM {((current?.amountCents ?? 0) / 100).toFixed(2)}/month
@@ -203,7 +204,7 @@ export default function Billing() {
               title: 'Status',
               dataIndex: 'status',
               key: 'status',
-              render: (s: string) => <Tag color="green">{s}</Tag>,
+              render: (s: string) => <StatusTag status={s} />,
             },
           ]}
         />
