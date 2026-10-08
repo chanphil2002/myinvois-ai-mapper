@@ -36,6 +36,19 @@ body,
     min-width: 100%;
   }
 
+  /* Once the header wraps, the fixed 56px min-height + center alignment no longer keeps the
+     title off the top border (it hugs it). Drop the fixed height and give the header real
+     vertical padding so the title and any wrapped action sit evenly inside the card.
+     antd's own `.ant-card .ant-card-head` rule outranks a bare class, so override explicitly. */
+  .ant-card .ant-card-head {
+    min-height: auto !important;
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+  }
+  .ant-card .ant-card-head-title {
+    padding: 0 !important;
+  }
+
   /* Space.Compact field groups (e.g. ID type + number, city/postcode/state) are laid out with
      fixed percentage widths meant for desktop; below this breakpoint they become unreadably
      narrow, so stack them into full-width rows instead. */
