@@ -12,6 +12,7 @@ import java.util.List;
  * backend creates the backing (synthetic) transactions and a DRAFT consolidated invoice in one step.
  */
 public record CreateManualConsolidatedInvoiceRequest(
+        String invoiceName,
         @NotNull LocalDate periodStart,
         @NotNull LocalDate periodEnd,
         @NotEmpty List<LineItem> lineItems

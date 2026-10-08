@@ -6,6 +6,7 @@ import java.util.List;
 
 /** Full replace of the editable fields on a mapped invoice — sent when the user edits the review table. */
 public record UpdateMappedInvoiceRequest(
+        String invoiceName,
         String invoiceTypeCode,
         LocalDate issueDate,
         String currencyCode,

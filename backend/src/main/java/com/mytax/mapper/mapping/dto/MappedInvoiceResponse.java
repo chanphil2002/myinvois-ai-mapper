@@ -35,7 +35,8 @@ public record MappedInvoiceResponse(
         InvoiceStatus status,
         BigDecimal confidenceScore,
         List<LineItemResponse> lineItems,
-        Instant createdAt
+        Instant createdAt,
+        String invoiceName
 ) {
     public record LineItemResponse(
             Long id,

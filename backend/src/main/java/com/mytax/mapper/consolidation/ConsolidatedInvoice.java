@@ -23,6 +23,9 @@ public class ConsolidatedInvoice {
     @Column(name = "period_end", nullable = false)
     private LocalDate periodEnd;
 
+    @Column(name = "invoice_name")
+    private String invoiceName;
+
     @Column(name = "invoice_type_code", nullable = false)
     private String invoiceTypeCode = "01";
 
@@ -80,6 +83,14 @@ public class ConsolidatedInvoice {
 
     public void setPeriodEnd(LocalDate periodEnd) {
         this.periodEnd = periodEnd;
+    }
+
+    public String getInvoiceName() {
+        return invoiceName;
+    }
+
+    public void setInvoiceName(String invoiceName) {
+        this.invoiceName = invoiceName;
     }
 
     public String getInvoiceTypeCode() {
@@ -149,6 +160,11 @@ public class ConsolidatedInvoice {
 
         public Builder periodEnd(LocalDate periodEnd) {
             invoice.periodEnd = periodEnd;
+            return this;
+        }
+
+        public Builder invoiceName(String invoiceName) {
+            invoice.invoiceName = invoiceName;
             return this;
         }
 

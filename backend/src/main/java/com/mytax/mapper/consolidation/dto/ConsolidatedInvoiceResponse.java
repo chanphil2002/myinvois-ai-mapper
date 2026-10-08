@@ -19,6 +19,7 @@ public record ConsolidatedInvoiceResponse(
         BigDecimal grandTotal,
         ConsolidatedInvoiceStatus status,
         List<SalesTransactionResponse> transactions,
-        Instant createdAt
+        Instant createdAt,
+        String invoiceName
 ) {
 }

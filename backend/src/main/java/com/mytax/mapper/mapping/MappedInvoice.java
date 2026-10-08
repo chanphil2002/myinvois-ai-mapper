@@ -20,6 +20,9 @@ public class MappedInvoice {
     @Column(name = "extraction_job_id")
     private Long extractionJobId;
 
+    @Column(name = "invoice_name")
+    private String invoiceName;
+
     @Column(name = "invoice_type_code", nullable = false)
     private String invoiceTypeCode = "01";
 
@@ -155,6 +158,14 @@ public class MappedInvoice {
 
     public void setSupplierTin(String supplierTin) {
         this.supplierTin = supplierTin;
+    }
+
+    public String getInvoiceName() {
+        return invoiceName;
+    }
+
+    public void setInvoiceName(String invoiceName) {
+        this.invoiceName = invoiceName;
     }
 
     public String getSupplierName() {
@@ -356,6 +367,11 @@ public class MappedInvoice {
 
         public Builder supplierName(String supplierName) {
             invoice.supplierName = supplierName;
+            return this;
+        }
+
+        public Builder invoiceName(String invoiceName) {
+            invoice.invoiceName = invoiceName;
             return this;
         }
 

@@ -76,6 +76,7 @@ public class InvoiceReviewService {
     /** Copies all editable fields + line items from the request onto {@code invoice}. Shared by
      *  manual-create and edit so the two never drift. */
     private MappedInvoice applyRequest(MappedInvoice invoice, UpdateMappedInvoiceRequest request) {
+        invoice.setInvoiceName(request.invoiceName());
         invoice.setInvoiceTypeCode(request.invoiceTypeCode());
         invoice.setIssueDate(request.issueDate());
         invoice.setCurrencyCode(request.currencyCode());
@@ -148,6 +149,7 @@ public class InvoiceReviewService {
                 invoice.getBuyerCity(), invoice.getBuyerPostalZone(), invoice.getBuyerStateCode(),
                 invoice.getBuyerCountryCode(), invoice.getBuyerPhone(), invoice.getBuyerEmail(),
                 invoice.getSubtotal(), invoice.getTaxTotal(), invoice.getGrandTotal(), invoice.getDiscountTotal(),
-                invoice.getStatus(), invoice.getConfidenceScore(), items, invoice.getCreatedAt());
+                invoice.getStatus(), invoice.getConfidenceScore(), items, invoice.getCreatedAt(),
+                invoice.getInvoiceName());
     }
 }

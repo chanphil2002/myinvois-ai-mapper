@@ -109,6 +109,7 @@ public class ConsolidationService {
 
         ConsolidatedInvoice invoice = ConsolidatedInvoice.builder()
                 .userId(userId)
+                .invoiceName(request.invoiceName())
                 .periodStart(request.periodStart())
                 .periodEnd(request.periodEnd())
                 .status(ConsolidatedInvoiceStatus.DRAFT)
@@ -207,7 +208,8 @@ public class ConsolidationService {
 
         return new ConsolidatedInvoiceResponse(invoice.getId(), invoice.getPeriodStart(), invoice.getPeriodEnd(),
                 invoice.getInvoiceTypeCode(), invoice.getCurrencyCode(), invoice.getSubtotal(), invoice.getTaxTotal(),
-                invoice.getGrandTotal(), invoice.getStatus(), transactions, invoice.getCreatedAt());
+                invoice.getGrandTotal(), invoice.getStatus(), transactions, invoice.getCreatedAt(),
+                invoice.getInvoiceName());
     }
 
     private SalesTransactionResponse toTransactionResponse(SalesTransaction t) {
