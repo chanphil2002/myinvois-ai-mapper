@@ -1,7 +1,10 @@
 package com.mytax.mapper.mapping;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.mytax.mapper.config.GeminiProperties;
 import com.mytax.mapper.document.Document;
 import com.mytax.mapper.document.XlsxParser;
@@ -50,7 +53,20 @@ public class GeminiMappingService implements MappingEngine {
     // individual-invoice mapping and consolidated-mode transaction extraction below.
     private static final int MAX_ATTEMPTS = 3;
     private static final int MAX_REASONABLE_STRING_LENGTH = 400;
+    // No real invoice figure has this many digits; a longer numeric token means the model
+    // degenerated (e.g. ran a digit off the rails), so we treat it like a runaway string.
+    private static final int MAX_REASONABLE_NUMBER_LENGTH = 40;
     private static final Pattern RUNAWAY_REPEAT = Pattern.compile("(.)\\1{29,}");
+
+    // Jackson caps a single number token at 1000 chars by default (StreamReadConstraints), so a
+    // degenerate 6000-digit number from the model throws during readTree before our own guard can
+    // run and retry. Parse the raw AI response with a relaxed limit, then let findRunawayValue
+    // reject the degenerate output cleanly.
+    private static final ObjectMapper LENIENT_PARSER = JsonMapper.builder(
+            JsonFactory.builder()
+                    .streamReadConstraints(StreamReadConstraints.builder().maxNumberLength(1_000_000).build())
+                    .build()
+    ).build();
 
     private final GeminiProperties properties;
     private final XlsxParser xlsxParser;
@@ -155,11 +171,12 @@ public class GeminiMappingService implements MappingEngine {
 
             String json = extractJsonText(response);
             try {
-                JsonNode parsedJson = objectMapper.readTree(json);
+                JsonNode parsedJson = LENIENT_PARSER.readTree(json);
                 String runaway = findRunawayString(parsedJson);
                 if (runaway != null) {
                     throw new IllegalStateException(
-                            "Gemini produced a runaway/degenerate string value: " + runaway.substring(0, 60) + "...");
+                            "Gemini produced a runaway/degenerate value: "
+                                    + runaway.substring(0, Math.min(60, runaway.length())) + "...");
                 }
                 T value = parser.parse(parsedJson);
                 return new RawExtraction<>(value, response == null ? "{}" : response.toString());
@@ -201,6 +218,11 @@ public class GeminiMappingService implements MappingEngine {
                 return text;
             }
             return null;
+        }
+        if (node.isNumber()) {
+            // A runaway numeric token (e.g. thousands of digits) is degenerate output too.
+            String num = node.asText();
+            return num.length() > MAX_REASONABLE_NUMBER_LENGTH ? num : null;
         }
         if (node.isObject() || node.isArray()) {
             Iterator<JsonNode> children = node.elements();
