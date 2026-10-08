@@ -113,7 +113,7 @@ function AppLayout() {
         <Menu theme="dark" mode="inline" selectedKeys={[selectedKey]} items={items} />
       </Sider>
       <Layout>
-        <Header style={{ background: '#fff', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, padding: '0 20px', borderBottom: '1px solid #eef1f6', boxShadow: '0 1px 2px rgba(16,24,40,0.04)' }}>
+        <Header style={{ background: surface.header, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, padding: '0 20px', borderBottom: `1px solid ${surface.border}`, boxShadow: isDark ? 'none' : '0 1px 2px rgba(16,24,40,0.04)' }}>
           <span>{email}</span>
           <a onClick={logout}>Log out</a>
         </Header>

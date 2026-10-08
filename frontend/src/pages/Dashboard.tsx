@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Key, ReactNode } from 'react';
-import { Card, Col, Modal, Progress, Row, Spin, Table, Tag, Typography, message } from 'antd';
+import { Card, Col, Modal, Progress, Row, Spin, Table, Tag, Typography, message, theme } from 'antd';
 import {
   FileTextOutlined,
   CheckCircleOutlined,
@@ -14,10 +14,11 @@ import { getDocumentFile, getSubscription, listDocuments } from '../api/endpoint
 import type { DocumentResponse } from '../api/types';
 
 const PLAN_CREDITS: Record<string, number> = { beginner: 30, heavy: 500, elite: 1500 };
-const FREE_CREDITS = 10;
+const FREE_DAILY_CREDITS = 2; // Free tier: 2 documents per day.
 const IMAGE_TYPES = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
 
 function StatTile({ title, value, icon, color }: { title: string; value: number; icon: ReactNode; color: string }) {
+  const { token } = theme.useToken();
   return (
     <Card size="small" style={{ height: '100%' }} styles={{ body: { padding: 14 } }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -32,14 +33,22 @@ function StatTile({ title, value, icon, color }: { title: string; value: number;
             justifyContent: 'center',
             fontSize: 18,
             color,
-            background: `${color}14`,
+            background: `${color}22`,
           }}
         >
           {icon}
         </div>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 22, fontWeight: 700, color, lineHeight: 1.1 }}>{value}</div>
-          <div style={{ fontSize: 12, color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div
+            style={{
+              fontSize: 12,
+              color: token.colorTextSecondary,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
             {title}
           </div>
         </div>
@@ -49,6 +58,7 @@ function StatTile({ title, value, icon, color }: { title: string; value: number;
 }
 
 export default function Dashboard() {
+  const { token } = theme.useToken();
   const { data: documents, isLoading } = useQuery({ queryKey: ['documents'], queryFn: listDocuments });
   const { data: subscription } = useQuery({ queryKey: ['subscription'], queryFn: getSubscription });
 
@@ -58,10 +68,17 @@ export default function Dashboard() {
 
   const planId = subscription?.status === 'ACTIVE' ? subscription.plan : null;
   const planName = planId ? subscription?.planName : 'Free';
-  const creditLimit = planId ? (PLAN_CREDITS[planId] ?? FREE_CREDITS) : FREE_CREDITS;
-  const creditsUsed = parsed;
+  const isFree = !planId;
+
+  // Free tier is a daily allowance, so count only today's parses against it.
+  const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
+  const parsedToday = documents?.filter((d) => d.status === 'PARSED' && d.uploadedAt && isToday(d.uploadedAt)).length ?? 0;
+
+  const creditLimit = isFree ? FREE_DAILY_CREDITS : PLAN_CREDITS[planId] ?? FREE_DAILY_CREDITS;
+  const creditsUsed = isFree ? parsedToday : parsed;
   const creditsLeft = Math.max(0, creditLimit - creditsUsed);
   const creditPct = creditLimit > 0 ? Math.round((creditsLeft / creditLimit) * 100) : 0;
+  const periodLabel = isFree ? 'left today' : 'left';
 
   // ---- Document preview ----
   const [preview, setPreview] = useState<{ doc: DocumentResponse; url: string } | null>(null);
@@ -138,14 +155,14 @@ export default function Dashboard() {
             <ThunderboltOutlined style={{ color: '#f59e0b', fontSize: 18 }} />
             <div>
               <Typography.Text strong>AI parsing credits</Typography.Text>
-              <div style={{ fontSize: 12, color: '#64748b' }}>
-                {planName} plan {!planId && <Link to="/billing">· upgrade</Link>}
+              <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
+                {planName} plan {isFree && <Link to="/billing">· upgrade</Link>}
               </div>
             </div>
           </div>
           <Typography.Text style={{ fontSize: 16 }}>
-            <strong style={{ color: creditsLeft === 0 ? '#dc2626' : '#0f172a' }}>{creditsLeft}</strong>
-            <span style={{ color: '#94a3b8' }}> / {creditLimit} left</span>
+            <strong style={{ color: creditsLeft === 0 ? '#dc2626' : token.colorText }}>{creditsLeft}</strong>
+            <span style={{ color: token.colorTextTertiary }}> / {creditLimit} {periodLabel}</span>
           </Typography.Text>
         </div>
         <Progress

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, Col, Form, Input, Modal, Row, Segmented, Select, Space, Typography, message } from 'antd';
+import { Button, Card, Col, Form, Input, Modal, Row, Segmented, Select, Space, Tooltip, Typography, message } from 'antd';
 import { EyeInvisibleOutlined, EyeOutlined, EditOutlined, BulbOutlined, MoonOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -115,17 +115,16 @@ function MyInvoisCredentialsCard() {
   return (
     <Card
       title="API Credentials"
-      size="small"
       style={{ height: '100%' }}
       extra={
         !firstTime && !editing ? (
-          <Space size={4}>
-            <Button type="text" size="small" icon={revealed ? <EyeInvisibleOutlined /> : <EyeOutlined />} onClick={onReveal}>
-              {revealed ? 'Hide' : 'Reveal'}
-            </Button>
-            <Button type="text" size="small" icon={<EditOutlined />} onClick={onEdit}>
-              Edit
-            </Button>
+          <Space size={2}>
+            <Tooltip title={revealed ? 'Hide' : 'Reveal'}>
+              <Button type="text" icon={revealed ? <EyeInvisibleOutlined /> : <EyeOutlined />} onClick={onReveal} />
+            </Tooltip>
+            <Tooltip title="Edit">
+              <Button type="text" icon={<EditOutlined />} onClick={onEdit} />
+            </Tooltip>
           </Space>
         ) : null
       }
@@ -134,7 +133,7 @@ function MyInvoisCredentialsCard() {
         The client_id / client_secret (App Key / App Secret) issued by LHDN for your system.
       </Typography.Paragraph>
 
-      <Form form={form} layout="vertical" onFinish={onFinish} disabled={!editing} className="compact-form">
+      <Form form={form} layout="vertical" onFinish={onFinish} disabled={!editing}>
         <Form.Item name="clientId" label="App Key (client_id)" rules={editing ? [{ required: true }] : []}>
           <Input placeholder="App Key" />
         </Form.Item>
@@ -187,7 +186,7 @@ function MyInvoisCredentialsCard() {
 function AppearanceCard() {
   const { mode, setMode } = useTheme();
   return (
-    <Card title="Appearance" size="small">
+    <Card title="Appearance">
       <Segmented
         value={mode}
         onChange={(v) => setMode(v as 'light' | 'dark')}
@@ -226,39 +225,38 @@ function BusinessProfileCard() {
 
   const onFinish = (values: BusinessProfile) => mutation.mutate(values);
 
-  // Three-across on desktop so the form stays short.
-  const col = { xs: 24, sm: 12, lg: 8 } as const;
+  // Pair short fields two-to-a-row; give long fields (addresses, MSIC description) their own width.
+  const half = { xs: 24, sm: 12 } as const;
+  const third = { xs: 24, sm: 8 } as const;
 
   return (
-    <Card title="Business Profile" size="small" style={{ height: '100%' }}>
-      <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+    <Card title="Business Profile" style={{ height: '100%' }}>
+      <Typography.Paragraph type="secondary" style={{ marginBottom: 20 }}>
         Your own registration details as the supplier on every e-Invoice — set once here, not re-guessed by the
         AI from each uploaded document.
       </Typography.Paragraph>
       <Form
         form={form}
         layout="vertical"
-        size="small"
         onFinish={onFinish}
-        className="compact-form"
         initialValues={{ idType: 'NRIC', countryCode: 'MYS', defaultSubmissionMode: 'INDIVIDUAL' }}
       >
         {/* Kept so the backend still receives a value; the create flow is type-first now. */}
         <Form.Item name="defaultSubmissionMode" hidden>
           <Input />
         </Form.Item>
-        <Row gutter={12}>
-          <Col {...col}>
+        <Row gutter={16}>
+          <Col {...half}>
             <Form.Item name="registrationName" label="Registration name" rules={[{ required: true }]}>
               <Input placeholder="Legal / registered name" />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col {...half}>
             <Form.Item name="tin" label="TIN" rules={[{ required: true }]}>
               <Input placeholder="e.g. IG50974019070" />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col {...half}>
             <Form.Item name="idType" label="ID type" rules={[{ required: true }]}>
               <Select
                 options={[
@@ -270,67 +268,67 @@ function BusinessProfileCard() {
               />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col {...half}>
             <Form.Item name="idValue" label="ID number" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col {...half}>
             <Form.Item name="sstRegistration" label="SST registration">
               <Input placeholder="NA if none" />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col {...half}>
             <Form.Item name="ttxRegistration" label="Tourism tax">
               <Input placeholder="NA if none" />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col {...third}>
             <Form.Item name="msicCode" label="MSIC code">
               <Input placeholder="e.g. 47411" />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col xs={24} sm={16}>
             <Form.Item name="msicDescription" label="MSIC description">
-              <Input placeholder="e.g. Retail sale..." />
+              <Input placeholder="e.g. Retail sale of computers in specialised stores" />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col xs={24}>
             <Form.Item name="addressLine1" label="Address line 1">
               <Input />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col xs={24}>
             <Form.Item name="addressLine2" label="Address line 2">
               <Input />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col {...third}>
             <Form.Item name="city" label="City">
               <Input />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col {...third}>
             <Form.Item name="postalZone" label="Postcode">
               <Input />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col {...third}>
             <Form.Item name="stateCode" label="State">
               <Select options={MALAYSIA_STATE_CODES} showSearch optionFilterProp="label" />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col {...third}>
             <Form.Item name="countryCode" label="Country">
               <Input disabled />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col {...third}>
             <Form.Item name="phone" label="Phone">
               <Input />
             </Form.Item>
           </Col>
-          <Col {...col}>
+          <Col {...third}>
             <Form.Item name="email" label="Email">
               <Input />
             </Form.Item>

@@ -13,20 +13,30 @@ interface Plan {
   tagline: string;
   features: string[];
   popular?: boolean;
+  free?: boolean;
 }
 
 const PLANS: Plan[] = [
   {
+    id: 'free',
+    name: 'Free',
+    price: 'RM 0',
+    period: '',
+    tagline: 'For trying things out',
+    features: ['2 documents / day', 'Individual & consolidated e-invoices', 'Submit to MyInvois'],
+    free: true,
+  },
+  {
     id: 'beginner',
-    name: 'Beginner User',
+    name: 'Beginner',
     price: 'RM 29',
     period: '/month',
     tagline: 'For individuals getting started',
-    features: ['Individual & consolidated e-invoices', 'Submit to MyInvois', 'Email support'],
+    features: ['30 documents / month', 'Individual & consolidated e-invoices', 'Submit to MyInvois', 'Email support'],
   },
   {
     id: 'heavy',
-    name: 'Heavy User',
+    name: 'Heavy',
     price: 'RM 99',
     period: '/month',
     tagline: 'For growing businesses',
@@ -35,7 +45,7 @@ const PLANS: Plan[] = [
   },
   {
     id: 'elite',
-    name: 'Elite User',
+    name: 'Elite',
     price: 'RM 299',
     period: '/month',
     tagline: 'For high-volume senders',
@@ -52,12 +62,13 @@ function PlanCards({
   onChoose: (id: string) => void;
   pendingPlan: string | null;
 }) {
+  const isFreeUser = currentPlan === null;
   return (
     <Row gutter={[16, 16]}>
       {PLANS.map((p) => {
-        const isCurrent = p.id === currentPlan;
+        const isCurrent = p.free ? isFreeUser : p.id === currentPlan;
         return (
-          <Col xs={24} md={8} key={p.id}>
+          <Col xs={24} sm={12} md={6} key={p.id}>
             <Card
               style={{ height: '100%', borderColor: p.popular ? '#3b5bdb' : undefined }}
               title={
@@ -86,11 +97,17 @@ function PlanCards({
               <Button
                 type={p.popular ? 'primary' : 'default'}
                 block
-                disabled={isCurrent}
+                disabled={isCurrent || p.free}
                 loading={pendingPlan === p.id}
-                onClick={() => onChoose(p.id)}
+                onClick={() => !p.free && onChoose(p.id)}
               >
-                {isCurrent ? 'Current plan' : currentPlan ? 'Switch to this plan' : 'Subscribe'}
+                {isCurrent
+                  ? 'Current plan'
+                  : p.free
+                    ? 'Free tier'
+                    : currentPlan
+                      ? 'Switch to this plan'
+                      : 'Subscribe'}
               </Button>
             </Card>
           </Col>
@@ -166,20 +183,21 @@ export default function Billing() {
             </Typography.Text>
           </Space>
         ) : (
-          <>
-            <Typography.Paragraph type="secondary">
-              You're not subscribed yet. Choose a plan to get started — you'll be taken to Billplz to pay.
-            </Typography.Paragraph>
-            <PlanCards currentPlan={currentPlan} onChoose={subscribeMutation.mutate} pendingPlan={pendingPlan} />
-          </>
+          <Space direction="vertical" size="small">
+            <Space>
+              <Typography.Text strong style={{ fontSize: 18 }}>
+                Free
+              </Typography.Text>
+              <Tag color="blue">Current</Tag>
+            </Space>
+            <Typography.Text type="secondary">2 documents / day · upgrade any time for more</Typography.Text>
+          </Space>
         )}
       </Card>
 
-      {currentPlan && (
-        <Card title="Change plan">
-          <PlanCards currentPlan={currentPlan} onChoose={subscribeMutation.mutate} pendingPlan={pendingPlan} />
-        </Card>
-      )}
+      <Card title={currentPlan ? 'Change plan' : 'Plans'}>
+        <PlanCards currentPlan={currentPlan} onChoose={subscribeMutation.mutate} pendingPlan={pendingPlan} />
+      </Card>
 
       <Card title="Payment Method">
         <Typography.Text type="secondary">

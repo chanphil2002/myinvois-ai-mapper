@@ -1,5 +1,5 @@
 import type { Key } from 'react';
-import { Card, Grid, Table, Tabs, Typography } from 'antd';
+import { Card, Grid, Table, Tabs, Typography, theme } from 'antd';
 import { RightOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -25,6 +25,7 @@ interface Row {
 
 /** Mobile: each invoice as a tappable card so there's no horizontal scrolling. */
 function InvoiceCards({ rows }: { rows: Row[] }) {
+  const { token } = theme.useToken();
   if (rows.length === 0) return null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -33,7 +34,7 @@ function InvoiceCards({ rows }: { rows: Row[] }) {
           <Card size="small" hoverable styles={{ body: { padding: 14 } }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 12, color: '#94a3b8' }}>{dateTime(r.createdAt)}</div>
+                <div style={{ fontSize: 12, color: token.colorTextTertiary }}>{dateTime(r.createdAt)}</div>
                 <div
                   style={{
                     fontWeight: 600,
@@ -50,7 +51,7 @@ function InvoiceCards({ rows }: { rows: Row[] }) {
                   <StatusTag status={r.status} />
                 </div>
               </div>
-              <RightOutlined style={{ color: '#cbd5e1' }} />
+              <RightOutlined style={{ color: token.colorTextQuaternary }} />
             </div>
           </Card>
         </Link>

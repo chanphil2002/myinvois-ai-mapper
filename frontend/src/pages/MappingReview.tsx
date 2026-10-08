@@ -145,7 +145,7 @@ export default function MappingReview() {
         </Space>
       </div>
 
-      <Card title="Invoice details" size="small">
+      <Card title="Invoice details">
         <Row gutter={[16, 16]}>
           <Col xs={12} sm={6}>
             {field(
@@ -196,7 +196,6 @@ export default function MappingReview() {
         <Col xs={24} lg={8}>
           <Card
             title="Supplier"
-            size="small"
             style={{ height: '100%' }}
             extra={
               <Typography.Text type="secondary" style={{ fontSize: 11 }}>
@@ -229,7 +228,7 @@ export default function MappingReview() {
         </Col>
 
         <Col xs={24} lg={16}>
-          <Card title="Buyer" size="small" style={{ height: '100%' }}>
+          <Card title="Buyer" style={{ height: '100%' }}>
             <Row gutter={[12, 12]}>
               <Col xs={24} sm={12}>
                 {field(
@@ -366,7 +365,7 @@ export default function MappingReview() {
         </Col>
       </Row>
 
-      <Card title="Line items" size="small">
+      <Card title="Line items">
         <MappingReviewTable lineItems={draft.lineItems} onChange={updateLineItems} disabled={!editable} />
       </Card>
 
