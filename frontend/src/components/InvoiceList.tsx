@@ -25,7 +25,7 @@ function Cards({ rows }: { rows: InvoiceRow[] }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {rows.map((r) => (
         <Link key={r.id} to={r.to} style={{ color: 'inherit' }}>
-          <Card size="small" hoverable styles={{ body: { padding: 14 } }}>
+          <Card size="small" hoverable>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 12, color: token.colorTextTertiary }}>{dateTime(r.createdAt)}</div>

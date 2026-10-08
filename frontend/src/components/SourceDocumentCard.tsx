@@ -89,7 +89,7 @@ export default function SourceDocumentCard({ documentId }: { documentId: number 
   );
 
   return (
-    <Card title="Source" extra={deleteButton} styles={{ body: { padding: 16 } }}>
+    <Card title="Source" extra={deleteButton}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div
           style={{

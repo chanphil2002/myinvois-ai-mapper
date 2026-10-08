@@ -17,7 +17,7 @@ const invoiceName = (inv: MappedInvoiceResponse) =>
 function StatTile({ title, value, icon, color }: { title: string; value: number; icon: ReactNode; color: string }) {
   const { token } = theme.useToken();
   return (
-    <Card size="small" style={{ height: '100%' }} styles={{ body: { padding: 14 } }}>
+    <Card size="small" style={{ height: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div
           style={{
@@ -105,7 +105,7 @@ export default function Dashboard() {
       </Row>
 
       {/* AI parsing credits */}
-      <Card size="small" styles={{ body: { padding: 16 } }}>
+      <Card size="small">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <ThunderboltOutlined style={{ color: '#f59e0b', fontSize: 18 }} />
@@ -129,11 +129,7 @@ export default function Dashboard() {
         />
       </Card>
 
-      <Card
-        title="Recent e-invoices"
-        extra={<Link to="/create">Create an invoice</Link>}
-        styles={{ body: { padding: mobile ? 12 : 24 } }}
-      >
+      <Card title="Recent e-invoices" extra={<Link to="/create">Create an invoice</Link>}>
         <InvoiceList
           rows={recent}
           mobile={mobile}

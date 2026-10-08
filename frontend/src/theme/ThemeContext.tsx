@@ -77,7 +77,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
               itemBorderRadius: 8,
               itemMarginInline: 8,
             },
-            Card: { borderRadiusLG: 14, boxShadowTertiary: '0 1px 3px rgba(16,24,40,0.06)' },
+            Card: {
+              borderRadiusLG: 14,
+              boxShadowTertiary: '0 1px 3px rgba(16,24,40,0.06)',
+              // Consistent, roomy padding for every card's body and header so content never
+              // hugs the border — applies app-wide instead of per-card overrides.
+              bodyPadding: 20,
+              bodyPaddingSM: 16,
+              headerPadding: 20,
+              headerPaddingSM: 16,
+              headerFontSize: 16,
+            },
             Button: { controlHeight: 38, borderRadius: 8, fontWeight: 500 },
             Table: {
               headerBg: isDark ? '#1a2540' : '#f8fafc',

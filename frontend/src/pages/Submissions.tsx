@@ -60,7 +60,7 @@ export default function Submissions() {
       <Typography.Title level={3} style={{ margin: 0 }}>
         Submissions
       </Typography.Title>
-      <Card styles={{ body: { padding: mobile ? 12 : 24 } }}>
+      <Card>
         <Tabs
           items={[
             { key: 'individual', label: 'Individual', children: <IndividualSubmissions mobile={mobile} /> },
