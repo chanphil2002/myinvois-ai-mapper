@@ -109,6 +109,11 @@ public class DocumentService {
                 .toList();
     }
 
+    /** Metadata for a single owned document (including MANUAL ones), so an invoice can show its source. */
+    public DocumentResponse getMeta(Long documentId, Long userId) {
+        return toResponse(getOwned(documentId, userId));
+    }
+
     /**
      * Creates a placeholder document that backs a manually keyed-in invoice or set of
      * transactions (there is no uploaded file). Lets manual entries reuse the document-scoped

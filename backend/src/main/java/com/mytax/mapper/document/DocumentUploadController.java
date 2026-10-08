@@ -31,6 +31,11 @@ public class DocumentUploadController {
         return ApiResponse.ok(documentService.list(CurrentUser.id()));
     }
 
+    @GetMapping("/{id}")
+    public ApiResponse<DocumentResponse> get(@PathVariable Long id) {
+        return ApiResponse.ok(documentService.getMeta(id, CurrentUser.id()));
+    }
+
     @DeleteMapping("/{id}")
     public ApiResponse<Boolean> delete(@PathVariable Long id) {
         documentService.delete(id, CurrentUser.id());

@@ -6,6 +6,7 @@ import StatusTag from '../components/StatusTag';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import MappingReviewTable from '../components/MappingReviewTable';
+import SourceDocumentCard from '../components/SourceDocumentCard';
 import SubmissionStatusBadge from '../components/SubmissionStatusBadge';
 import {
   confirmMappedInvoice,
@@ -144,6 +145,8 @@ export default function MappingReview() {
           )}
         </Space>
       </div>
+
+      <SourceDocumentCard documentId={draft.documentId} />
 
       <Card title="Invoice details">
         <Row gutter={[16, 16]}>

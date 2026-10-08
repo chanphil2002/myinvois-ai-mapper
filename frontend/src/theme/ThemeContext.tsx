@@ -79,7 +79,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             },
             Card: { borderRadiusLG: 14, boxShadowTertiary: '0 1px 3px rgba(16,24,40,0.06)' },
             Button: { controlHeight: 38, borderRadius: 8, fontWeight: 500 },
-            Table: { headerBg: isDark ? '#1a2540' : '#f8fafc', borderRadius: 10 },
+            Table: {
+              headerBg: isDark ? '#1a2540' : '#f8fafc',
+              borderRadius: 10,
+              // Even, roomier cell padding so text never hugs the cell edges — including
+              // size="small" tables, whose 8px default felt cramped.
+              cellPaddingBlock: 14,
+              cellPaddingInline: 16,
+              cellPaddingBlockMD: 12,
+              cellPaddingInlineMD: 16,
+              cellPaddingBlockSM: 12,
+              cellPaddingInlineSM: 14,
+            },
             Statistic: { contentFontSize: 30 },
           },
         }}
