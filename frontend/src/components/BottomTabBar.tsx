@@ -12,6 +12,7 @@ import {
   SettingFilled,
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
+import { useTheme, SURFACE } from '../theme/ThemeContext';
 
 const TABS: { key: string; label: string; icon: ReactNode; active: ReactNode }[] = [
   { key: '/', label: 'Home', icon: <HomeOutlined />, active: <HomeFilled /> },
@@ -24,6 +25,8 @@ const TABS: { key: string; label: string; icon: ReactNode; active: ReactNode }[]
 /** iOS-style fixed bottom tab bar for primary navigation on mobile. */
 export default function BottomTabBar() {
   const { pathname } = useLocation();
+  const { isDark } = useTheme();
+  const surface = isDark ? SURFACE.dark : SURFACE.light;
   const isActive = (key: string) => (key === '/' ? pathname === '/' : pathname.startsWith(key));
 
   return (
@@ -34,10 +37,12 @@ export default function BottomTabBar() {
         right: 0,
         bottom: 0,
         zIndex: 100,
-        background: '#ffffff',
-        borderTop: '1px solid #eef1f6',
-        boxShadow: '0 -1px 8px rgba(16,24,40,0.05)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        background: surface.header,
+        borderTop: `1px solid ${surface.border}`,
+        boxShadow: isDark ? '0 -1px 10px rgba(0,0,0,0.4)' : '0 -1px 8px rgba(16,24,40,0.05)',
+        // Always keep a little breathing room so the home indicator never overlaps the icons,
+        // even on browsers where env(safe-area-inset-bottom) resolves to 0.
+        paddingBottom: 'max(env(safe-area-inset-bottom), 8px)',
         display: 'flex',
       }}
     >
@@ -55,7 +60,7 @@ export default function BottomTabBar() {
               justifyContent: 'center',
               gap: 3,
               padding: '9px 0 7px',
-              color: on ? '#3b5bdb' : '#94a3b8',
+              color: on ? '#3b5bdb' : surface.tabInactive,
               fontSize: 21,
               lineHeight: 1,
             }}

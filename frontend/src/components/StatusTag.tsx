@@ -17,7 +17,28 @@ const COLORS: Record<string, string> = {
   CANCELLED: 'default',
 };
 
+// Human-friendly labels shown to the user (the raw enum names are developer-facing).
+const LABELS: Record<string, string> = {
+  DRAFT: 'Editing',
+  CONFIRMED: 'Reviewing',
+  SUBMITTED: 'Submitted',
+  ACCEPTED: 'Accepted',
+  REJECTED: 'Failed',
+  PENDING: 'Pending',
+  IN_PROGRESS: 'In progress',
+  VALID: 'Valid',
+  INVALID: 'Invalid',
+  PARTIALLY_VALID: 'Partial',
+  PAID: 'Paid',
+  ACTIVE: 'Active',
+  CANCELLED: 'Cancelled',
+};
+
 export default function StatusTag({ status }: { status?: string | null }) {
   if (!status) return null;
-  return <Tag color={COLORS[status] ?? 'default'}>{status}</Tag>;
+  return (
+    <Tag color={COLORS[status] ?? 'default'} style={{ marginInlineEnd: 0 }}>
+      {LABELS[status] ?? status}
+    </Tag>
+  );
 }

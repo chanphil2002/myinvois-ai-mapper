@@ -125,6 +125,7 @@ export interface MappedInvoiceResponse {
   status: InvoiceStatus;
   confidenceScore: number | null;
   lineItems: LineItem[];
+  createdAt: string | null;
 }
 
 export type SubmissionStatus = 'PENDING' | 'IN_PROGRESS' | 'VALID' | 'INVALID' | 'PARTIALLY_VALID';
@@ -173,4 +174,5 @@ export interface ConsolidatedInvoiceResponse {
   grandTotal: number;
   status: ConsolidatedInvoiceStatus;
   transactions: SalesTransactionResponse[];
+  createdAt: string | null;
 }

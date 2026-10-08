@@ -5,6 +5,7 @@ import BrandLogo from './components/BrandLogo';
 import BottomTabBar from './components/BottomTabBar';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { useAuth } from './auth/AuthContext';
+import { useTheme, SURFACE } from './theme/ThemeContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -28,6 +29,8 @@ function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { email, logout } = useAuth();
+  const { isDark } = useTheme();
+  const surface = isDark ? SURFACE.dark : SURFACE.light;
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.lg;
 
@@ -67,8 +70,8 @@ function AppLayout() {
       <Layout style={{ minHeight: '100vh' }}>
         <div
           style={{
-            background: '#fff',
-            borderBottom: '1px solid #eef1f6',
+            background: surface.header,
+            borderBottom: `1px solid ${surface.border}`,
             padding: 'calc(env(safe-area-inset-top) + 10px) 16px 10px',
             display: 'flex',
             alignItems: 'center',
@@ -78,12 +81,12 @@ function AppLayout() {
             zIndex: 50,
           }}
         >
-          <BrandLogo />
+          <BrandLogo dark={isDark} />
           <a onClick={logout} style={{ color: '#3b5bdb', fontWeight: 500 }}>
             Log out
           </a>
         </div>
-        <Content style={{ margin: 16, paddingBottom: 'calc(72px + env(safe-area-inset-bottom))' }}>
+        <Content style={{ margin: 16, paddingBottom: 'calc(76px + env(safe-area-inset-bottom))' }}>
           {backButton}
           {routes}
         </Content>

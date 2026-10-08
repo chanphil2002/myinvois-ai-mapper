@@ -28,8 +28,8 @@ export default function Register() {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-      <Card style={{ width: 420 }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', padding: 16 }}>
+      <Card style={{ width: '100%', maxWidth: 420 }}>
         <Typography.Title level={3}>Create your account</Typography.Title>
         <Form layout="vertical" onFinish={onFinish}>
           <Form.Item name="companyName" label="Company name" rules={[{ required: true }]}>

@@ -1,0 +1,50 @@
+/* Global responsive safety net. Most layout is handled per-page with antd's Row/Col
+   breakpoints, but a few antd internals (Card header, Space.Compact) don't wrap on their
+   own and need a global override to stay usable on narrow screens. */
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+/* Tighter vertical rhythm for dense forms (e.g. the business profile) so they don't
+   eat a screenful of scrolling. */
+.compact-form .ant-form-item {
+  margin-bottom: 12px;
+}
+
+@media (max-width: 576px) {
+  .ant-layout-content {
+    margin: 12px !important;
+  }
+
+  /* Card title + header action button(s) don't wrap by default, so a button next to a long
+     title clips the title instead of dropping to its own line. The title's overflow:hidden
+     makes flexbox treat its minimum width as 0, so it just shrinks instead of ever wrapping —
+     forcing both children to their own full-width line is what actually fixes it. */
+  .ant-card-head-wrapper {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .ant-card-head-title,
+  .ant-card-extra {
+    flex: 1 1 100%;
+    min-width: 100%;
+  }
+
+  /* Space.Compact field groups (e.g. ID type + number, city/postcode/state) are laid out with
+     fixed percentage widths meant for desktop; below this breakpoint they become unreadably
+     narrow, so stack them into full-width rows instead. */
+  .ant-space-compact {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .ant-space-compact > * {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+}
