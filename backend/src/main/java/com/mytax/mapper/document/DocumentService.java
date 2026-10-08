@@ -1,22 +1,35 @@
 package com.mytax.mapper.document;
 
+import com.mytax.mapper.billing.SubscriptionRepository;
+import com.mytax.mapper.billing.SubscriptionStatus;
 import com.mytax.mapper.common.EntityNotFoundException;
+import com.mytax.mapper.common.QuotaExceededException;
 import com.mytax.mapper.document.dto.DocumentResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
 public class DocumentService {
 
+    /** Free tier (no active subscription): how many real documents may be uploaded per day. */
+    private static final int FREE_DAILY_LIMIT = 2;
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Kuala_Lumpur");
+
     private final DocumentRepository documentRepository;
     private final FileStorageService fileStorageService;
+    private final SubscriptionRepository subscriptionRepository;
 
-    public DocumentService(DocumentRepository documentRepository, FileStorageService fileStorageService) {
+    public DocumentService(DocumentRepository documentRepository, FileStorageService fileStorageService,
+                           SubscriptionRepository subscriptionRepository) {
         this.documentRepository = documentRepository;
         this.fileStorageService = fileStorageService;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
     @Transactional
@@ -24,6 +37,8 @@ public class DocumentService {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("Uploaded file is empty");
         }
+
+        enforceFreeTierDailyLimit(userId);
 
         String storagePath = fileStorageService.store(file);
         String fileType = resolveFileType(file.getOriginalFilename(), file.getContentType());
@@ -38,6 +53,27 @@ public class DocumentService {
 
         document = documentRepository.save(document);
         return toResponse(document);
+    }
+
+    /**
+     * Free-tier users (no active subscription) may upload at most {@value #FREE_DAILY_LIMIT}
+     * real documents per calendar day (Malaysia time). Manual entries don't count.
+     */
+    private void enforceFreeTierDailyLimit(Long userId) {
+        boolean subscribed = subscriptionRepository
+                .findFirstByUserIdAndStatusOrderByIdDesc(userId, SubscriptionStatus.ACTIVE)
+                .isPresent();
+        if (subscribed) {
+            return;
+        }
+        Instant startOfDay = LocalDate.now(BUSINESS_ZONE).atStartOfDay(BUSINESS_ZONE).toInstant();
+        long usedToday = documentRepository
+                .countByUserIdAndStatusNotAndUploadedAtAfter(userId, DocumentStatus.MANUAL, startOfDay);
+        if (usedToday >= FREE_DAILY_LIMIT) {
+            throw new QuotaExceededException(
+                    "Free tier limit reached — " + FREE_DAILY_LIMIT + " documents per day. "
+                            + "Upgrade your plan in Billing to upload more.");
+        }
     }
 
     public List<DocumentResponse> list(Long userId) {
