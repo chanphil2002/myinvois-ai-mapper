@@ -374,15 +374,20 @@ export default function MappingReview() {
 
       {submissions && submissions.length > 0 && (
         <Card title="Submission history">
-          <Space direction="vertical">
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             {submissions.map((s) => (
-              <Space key={s.id}>
+              <div key={s.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
                 <SubmissionStatusBadge status={s.status} />
-                <span>{s.myInvoisSubmissionUid}</span>
+                <Typography.Text
+                  type="secondary"
+                  style={{ fontSize: 12, wordBreak: 'break-all', flex: '1 1 140px', minWidth: 0 }}
+                >
+                  {s.myInvoisSubmissionUid}
+                </Typography.Text>
                 <Button size="small" loading={refreshMutation.isPending} onClick={() => refreshMutation.mutate(s.id)}>
                   Refresh status
                 </Button>
-              </Space>
+              </div>
             ))}
           </Space>
         </Card>

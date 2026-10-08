@@ -16,28 +16,49 @@ const invoiceName = (inv: MappedInvoiceResponse) =>
 
 function StatTile({ title, value, icon, color }: { title: string; value: number; icon: ReactNode; color: string }) {
   const { token } = theme.useToken();
+  const screens = Grid.useBreakpoint();
+  // On a phone three tiles share the row, so stack icon/number/label vertically and give the
+  // label the full tile width — otherwise long labels ("In progress") overflow the tiny column.
+  const stacked = !screens.sm;
   return (
     <Card size="small" style={{ height: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: stacked ? 'column' : 'row',
+          alignItems: 'center',
+          textAlign: stacked ? 'center' : 'left',
+          gap: stacked ? 4 : 12,
+        }}
+      >
         <div
           style={{
-            width: 38,
-            height: 38,
+            width: stacked ? 32 : 38,
+            height: stacked ? 32 : 38,
             borderRadius: 10,
             flex: 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 18,
+            fontSize: stacked ? 15 : 18,
             color,
             background: `${color}22`,
           }}
         >
           {icon}
         </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color, lineHeight: 1.1 }}>{value}</div>
-          <div style={{ fontSize: 12, color: token.colorTextSecondary, lineHeight: 1.2 }}>{title}</div>
+        <div style={{ minWidth: 0, maxWidth: '100%' }}>
+          <div style={{ fontSize: stacked ? 20 : 22, fontWeight: 700, color, lineHeight: 1.1 }}>{value}</div>
+          <div
+            style={{
+              fontSize: stacked ? 11 : 12,
+              color: token.colorTextSecondary,
+              lineHeight: 1.2,
+              overflowWrap: 'break-word',
+            }}
+          >
+            {title}
+          </div>
         </div>
       </div>
     </Card>
