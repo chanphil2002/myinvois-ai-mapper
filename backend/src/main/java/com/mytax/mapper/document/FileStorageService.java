@@ -50,4 +50,16 @@ public class FileStorageService {
             throw new IllegalStateException("Failed to read stored file: " + storagePath, e);
         }
     }
+
+    /** Best-effort removal of a stored file; missing files and placeholders are ignored. */
+    public void delete(String storagePath) {
+        if (storagePath == null || storagePath.isBlank() || "manual".equals(storagePath)) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(Paths.get(storagePath));
+        } catch (IOException | RuntimeException e) {
+            // The row is going away regardless; a leftover file on disk is not worth failing the request.
+        }
+    }
 }

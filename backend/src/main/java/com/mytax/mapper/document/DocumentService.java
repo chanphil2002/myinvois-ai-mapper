@@ -4,7 +4,15 @@ import com.mytax.mapper.billing.SubscriptionRepository;
 import com.mytax.mapper.billing.SubscriptionStatus;
 import com.mytax.mapper.common.EntityNotFoundException;
 import com.mytax.mapper.common.QuotaExceededException;
+import com.mytax.mapper.consolidation.ConsolidatedInvoiceTransactionRepository;
 import com.mytax.mapper.document.dto.DocumentResponse;
+import com.mytax.mapper.mapping.ExtractionJobRepository;
+import com.mytax.mapper.mapping.MappedInvoice;
+import com.mytax.mapper.mapping.MappedInvoiceLineItemRepository;
+import com.mytax.mapper.mapping.MappedInvoiceRepository;
+import com.mytax.mapper.mapping.SalesTransaction;
+import com.mytax.mapper.mapping.SalesTransactionRepository;
+import com.mytax.mapper.invoice.SubmissionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,12 +32,30 @@ public class DocumentService {
     private final DocumentRepository documentRepository;
     private final FileStorageService fileStorageService;
     private final SubscriptionRepository subscriptionRepository;
+    private final MappedInvoiceRepository mappedInvoiceRepository;
+    private final MappedInvoiceLineItemRepository lineItemRepository;
+    private final SubmissionRepository submissionRepository;
+    private final SalesTransactionRepository salesTransactionRepository;
+    private final ConsolidatedInvoiceTransactionRepository consolidatedLinkRepository;
+    private final ExtractionJobRepository extractionJobRepository;
 
     public DocumentService(DocumentRepository documentRepository, FileStorageService fileStorageService,
-                           SubscriptionRepository subscriptionRepository) {
+                           SubscriptionRepository subscriptionRepository,
+                           MappedInvoiceRepository mappedInvoiceRepository,
+                           MappedInvoiceLineItemRepository lineItemRepository,
+                           SubmissionRepository submissionRepository,
+                           SalesTransactionRepository salesTransactionRepository,
+                           ConsolidatedInvoiceTransactionRepository consolidatedLinkRepository,
+                           ExtractionJobRepository extractionJobRepository) {
         this.documentRepository = documentRepository;
         this.fileStorageService = fileStorageService;
         this.subscriptionRepository = subscriptionRepository;
+        this.mappedInvoiceRepository = mappedInvoiceRepository;
+        this.lineItemRepository = lineItemRepository;
+        this.submissionRepository = submissionRepository;
+        this.salesTransactionRepository = salesTransactionRepository;
+        this.consolidatedLinkRepository = consolidatedLinkRepository;
+        this.extractionJobRepository = extractionJobRepository;
     }
 
     @Transactional
@@ -98,6 +124,43 @@ public class DocumentService {
                 .status(DocumentStatus.MANUAL)
                 .build();
         return documentRepository.save(document);
+    }
+
+    /**
+     * Deletes a document and everything derived from it (mapped invoices + line items, extracted
+     * sales transactions, extraction jobs, and the stored file). Refuses when the derived data has
+     * already left the app — an invoice submitted to MyInvois, or a transaction rolled into a
+     * consolidated invoice — so audit/submission records are never silently discarded.
+     */
+    @Transactional
+    public void delete(Long documentId, Long userId) {
+        Document document = getOwned(documentId, userId);
+
+        List<MappedInvoice> invoices = mappedInvoiceRepository.findByDocumentId(documentId);
+        for (MappedInvoice invoice : invoices) {
+            if (!submissionRepository.findByMappedInvoiceId(invoice.getId()).isEmpty()) {
+                throw new IllegalArgumentException(
+                        "This document has an invoice that was submitted to MyInvois, so it can't be deleted.");
+            }
+        }
+
+        List<SalesTransaction> transactions = salesTransactionRepository.findByDocumentIdOrderByTransactionDate(documentId);
+        for (SalesTransaction tx : transactions) {
+            if (consolidatedLinkRepository.existsBySalesTransactionId(tx.getId())) {
+                throw new IllegalArgumentException(
+                        "This document's transactions are part of a consolidated invoice, so it can't be deleted.");
+            }
+        }
+
+        for (MappedInvoice invoice : invoices) {
+            lineItemRepository.deleteAll(lineItemRepository.findByMappedInvoiceIdOrderByLineNo(invoice.getId()));
+        }
+        mappedInvoiceRepository.deleteAll(invoices);
+        salesTransactionRepository.deleteAll(transactions);
+        extractionJobRepository.deleteByDocumentId(documentId);
+
+        documentRepository.delete(document);
+        fileStorageService.delete(document.getStoragePath());
     }
 
     public Document getOwned(Long documentId, Long userId) {

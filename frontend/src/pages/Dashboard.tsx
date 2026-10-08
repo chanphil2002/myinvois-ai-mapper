@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import type { Key, ReactNode } from 'react';
-import { Card, Col, Modal, Progress, Row, Spin, Table, Tag, Typography, message, theme } from 'antd';
+import { Button, Card, Col, Modal, Popconfirm, Progress, Row, Space, Spin, Table, Tag, Typography, message, theme } from 'antd';
 import {
   FileTextOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   ThunderboltOutlined,
   EyeOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { getDocumentFile, getSubscription, listDocuments } from '../api/endpoints';
+import { deleteDocument, getDocumentFile, getSubscription, listDocuments } from '../api/endpoints';
 import type { DocumentResponse } from '../api/types';
 
 const PLAN_CREDITS: Record<string, number> = { beginner: 30, heavy: 500, elite: 1500 };
@@ -59,8 +60,18 @@ function StatTile({ title, value, icon, color }: { title: string; value: number;
 
 export default function Dashboard() {
   const { token } = theme.useToken();
+  const queryClient = useQueryClient();
   const { data: documents, isLoading } = useQuery({ queryKey: ['documents'], queryFn: listDocuments });
   const { data: subscription } = useQuery({ queryKey: ['subscription'], queryFn: getSubscription });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteDocument,
+    onSuccess: () => {
+      message.success('Document deleted');
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+    onError: (err) => message.error(err instanceof Error ? err.message : 'Could not delete document'),
+  });
 
   const total = documents?.length ?? 0;
   const parsed = documents?.filter((d) => d.status === 'PARSED').length ?? 0;
@@ -116,12 +127,23 @@ export default function Dashboard() {
     },
     {
       title: '',
-      key: 'view',
-      width: 90,
+      key: 'actions',
+      width: 120,
       render: (_: unknown, record: DocumentResponse) => (
-        <a onClick={() => openPreview(record)}>
-          <EyeOutlined /> View
-        </a>
+        <Space size={4}>
+          <a onClick={() => openPreview(record)}>
+            <EyeOutlined /> View
+          </a>
+          <Popconfirm
+            title="Delete this document?"
+            description="This also removes any invoices or transactions derived from it."
+            okText="Delete"
+            okButtonProps={{ danger: true, loading: deleteMutation.isPending }}
+            onConfirm={() => deleteMutation.mutate(record.id)}
+          >
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
       ),
     },
   ];

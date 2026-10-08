@@ -31,6 +31,12 @@ public class DocumentUploadController {
         return ApiResponse.ok(documentService.list(CurrentUser.id()));
     }
 
+    @DeleteMapping("/{id}")
+    public ApiResponse<Boolean> delete(@PathVariable Long id) {
+        documentService.delete(id, CurrentUser.id());
+        return ApiResponse.ok(Boolean.TRUE);
+    }
+
     /** Streams the stored file (image/pdf/xlsx) for inline preview or download. */
     @GetMapping("/{id}/file")
     public ResponseEntity<byte[]> file(@PathVariable Long id) {

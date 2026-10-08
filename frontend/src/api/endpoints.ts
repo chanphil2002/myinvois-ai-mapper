@@ -68,6 +68,10 @@ export function listDocuments(): Promise<DocumentResponse[]> {
   return unwrap(apiClient.get<ApiResponse<DocumentResponse[]>>('/api/documents'));
 }
 
+export function deleteDocument(id: number): Promise<boolean> {
+  return unwrap(apiClient.delete<ApiResponse<boolean>>(`/api/documents/${id}`));
+}
+
 export function runMapping(documentId: number): Promise<MappedInvoiceResponse> {
   return unwrap(apiClient.post<ApiResponse<MappedInvoiceResponse>>(`/api/documents/${documentId}/mapping`));
 }
