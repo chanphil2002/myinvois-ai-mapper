@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "ios:add": "cap add ios",
-    "ios:sync": "npm run build && cap sync ios && xattr -cr ios",
+    "ios:sync": "npm run build && cap sync ios && xattr -cr ios/App/App",
+    "ios:dev": "CAP_DEV_URL=${CAP_DEV_URL:-http://localhost:5173} cap sync ios && xattr -cr ios/App/App",
     "ios:assets": "capacitor-assets generate --ios",
     "ios:open": "cap open ios"
   },

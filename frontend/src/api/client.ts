@@ -1,10 +1,17 @@
 import axios, { AxiosError } from 'axios';
 
-// Defaults to whatever host the page itself was loaded from (so this works unmodified whether
-// you're on localhost or hitting the dev machine's LAN IP from a phone) rather than a hardcoded
-// address, which goes stale the moment DHCP reassigns the machine's IP. VITE_API_BASE_URL can
-// still override this if the backend ever runs on a different host/port than the frontend.
-const defaultApiBaseUrl = `${window.location.protocol}//${window.location.hostname}:8080`;
+// How we find the backend, in priority order:
+//  1. VITE_API_BASE_URL — set at build time to point at a real/deployed backend (required for a
+//     native build running on a physical device, e.g. VITE_API_BASE_URL=https://api.yourdomain.com).
+//  2. When served over http(s) (browser / Vite dev server, incl. LAN IP from a phone): reuse the
+//     page's own host on :8080, so it tracks whatever address the app was loaded from.
+//  3. Native standalone build (Capacitor serves the bundled UI from capacitor://localhost, which
+//     has no usable host): fall back to http://localhost:8080 — on the iOS Simulator that reaches
+//     the Mac's backend. On a real device, set VITE_API_BASE_URL instead.
+const isHttp = window.location.protocol === 'http:' || window.location.protocol === 'https:';
+const defaultApiBaseUrl = isHttp
+  ? `${window.location.protocol}//${window.location.hostname}:8080`
+  : 'http://localhost:8080';
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? defaultApiBaseUrl,
