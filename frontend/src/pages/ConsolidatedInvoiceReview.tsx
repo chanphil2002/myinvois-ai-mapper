@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom';
-import { Alert, Button, Card, Col, Row, Space, Table, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Col, Row, Space, Table, Typography, message } from 'antd';
+import StatusTag from '../components/StatusTag';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import SubmissionStatusBadge from '../components/SubmissionStatusBadge';
 import {
@@ -83,7 +84,7 @@ export default function ConsolidatedInvoiceReview() {
         title={
           <Space>
             <span>Consolidated Invoice #{invoice.id}</span>
-            <Tag>{invoice.status}</Tag>
+            <StatusTag status={invoice.status} />
           </Space>
         }
         extra={

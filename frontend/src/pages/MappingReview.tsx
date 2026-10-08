@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Button, Card, Col, DatePicker, Input, InputNumber, Row, Select, Space, Tag, Typography, message } from 'antd';
+import { Button, Card, Col, DatePicker, Input, InputNumber, Row, Select, Space, Typography, message } from 'antd';
+import StatusTag from '../components/StatusTag';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import MappingReviewTable from '../components/MappingReviewTable';
@@ -103,7 +104,7 @@ export default function MappingReview() {
         title={
           <Space>
             <span>Mapped Invoice #{draft.id}</span>
-            <Tag>{draft.status}</Tag>
+            <StatusTag status={draft.status} />
           </Space>
         }
         extra={
@@ -126,8 +127,8 @@ export default function MappingReview() {
           </Space>
         }
       >
-        <Row gutter={16}>
-          <Col span={8}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={8}>
             <Typography.Text type="secondary">Issue date</Typography.Text>
             <DatePicker
               style={{ width: '100%' }}
@@ -136,7 +137,7 @@ export default function MappingReview() {
               onChange={(d) => updateField('issueDate', d ? d.format('YYYY-MM-DD') : null)}
             />
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={8}>
             <Typography.Text type="secondary">Currency</Typography.Text>
             <Input
               disabled={!editable}
@@ -144,7 +145,7 @@ export default function MappingReview() {
               onChange={(e) => updateField('currencyCode', e.target.value)}
             />
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={8}>
             <Typography.Text type="secondary">Invoice type code</Typography.Text>
             <Input
               disabled={!editable}
@@ -153,8 +154,8 @@ export default function MappingReview() {
             />
           </Col>
         </Row>
-        <Row gutter={16} style={{ marginTop: 16 }}>
-          <Col span={8}>
+        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+          <Col xs={24} sm={8}>
             <Typography.Text type="secondary">Discount total</Typography.Text>
             <InputNumber
               style={{ width: '100%' }}
@@ -164,8 +165,8 @@ export default function MappingReview() {
             />
           </Col>
         </Row>
-        <Row gutter={16} style={{ marginTop: 16 }}>
-          <Col span={12}>
+        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+          <Col xs={24} sm={12}>
             <Typography.Text strong>Supplier</Typography.Text>
             <Typography.Paragraph type="secondary" style={{ marginBottom: 4 }}>
               Cross-check only — the actual submission uses your Business Profile from Settings.
@@ -185,7 +186,7 @@ export default function MappingReview() {
               style={{ marginTop: 8 }}
             />
           </Col>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Typography.Text strong>Buyer</Typography.Text>
             <Input
               placeholder="TIN"
