@@ -29,19 +29,22 @@ public class TransactionExtractionService {
     private final ExtractionJobSupport extractionJobSupport;
     private final SalesTransactionRepository salesTransactionRepository;
     private final ConsolidationEligibilityService eligibilityService;
+    private final com.mytax.mapper.usage.UsageService usageService;
 
     public TransactionExtractionService(DocumentService documentService,
                                          FileStorageService fileStorageService,
                                          MappingEngine mappingEngine,
                                          ExtractionJobSupport extractionJobSupport,
                                          SalesTransactionRepository salesTransactionRepository,
-                                         ConsolidationEligibilityService eligibilityService) {
+                                         ConsolidationEligibilityService eligibilityService,
+                                         com.mytax.mapper.usage.UsageService usageService) {
         this.documentService = documentService;
         this.fileStorageService = fileStorageService;
         this.mappingEngine = mappingEngine;
         this.extractionJobSupport = extractionJobSupport;
         this.salesTransactionRepository = salesTransactionRepository;
         this.eligibilityService = eligibilityService;
+        this.usageService = usageService;
     }
 
     @Transactional
@@ -56,6 +59,7 @@ public class TransactionExtractionService {
 
             extractionJobSupport.complete(job, result.modelName(), result.rawResponseJson());
             document.setStatus(DocumentStatus.PARSED);
+            usageService.record(userId, "EXTRACTION", documentId);
 
             List<SalesTransaction> transactions = persistDrafts(document, job.getId(), result.drafts());
             return transactions.stream().map(this::toResponse).toList();

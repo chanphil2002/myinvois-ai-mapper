@@ -21,19 +21,22 @@ public class MappingService {
     private final ExtractionJobSupport extractionJobSupport;
     private final MappedInvoiceRepository mappedInvoiceRepository;
     private final MappedInvoiceLineItemRepository lineItemRepository;
+    private final com.mytax.mapper.usage.UsageService usageService;
 
     public MappingService(DocumentService documentService,
                            FileStorageService fileStorageService,
                            MappingEngine mappingEngine,
                            ExtractionJobSupport extractionJobSupport,
                            MappedInvoiceRepository mappedInvoiceRepository,
-                           MappedInvoiceLineItemRepository lineItemRepository) {
+                           MappedInvoiceLineItemRepository lineItemRepository,
+                           com.mytax.mapper.usage.UsageService usageService) {
         this.documentService = documentService;
         this.fileStorageService = fileStorageService;
         this.mappingEngine = mappingEngine;
         this.extractionJobSupport = extractionJobSupport;
         this.mappedInvoiceRepository = mappedInvoiceRepository;
         this.lineItemRepository = lineItemRepository;
+        this.usageService = usageService;
     }
 
     @Transactional
@@ -48,6 +51,7 @@ public class MappingService {
 
             extractionJobSupport.complete(job, result.modelName(), result.rawResponseJson());
             document.setStatus(DocumentStatus.PARSED);
+            usageService.record(userId, "MAPPING", documentId);
 
             MappedInvoice mappedInvoice = persistDraft(document, job.getId(), result.draft());
             return toResponse(mappedInvoice, lineItemRepository.findByMappedInvoiceIdOrderByLineNo(mappedInvoice.getId()));
