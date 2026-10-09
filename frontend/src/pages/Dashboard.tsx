@@ -7,6 +7,7 @@ import { getUsage, listConsolidatedInvoices, listMappedInvoices } from '../api/e
 import InvoiceList from '../components/InvoiceList';
 import type { InvoiceRow } from '../components/InvoiceList';
 import { invoiceDisplayName } from '../utils/invoice';
+import { useUpload } from '../upload/UploadContext';
 
 function StatTile({ title, value, icon, color }: { title: string; value: number; icon: ReactNode; color: string }) {
   const { token } = theme.useToken();
@@ -62,6 +63,7 @@ function StatTile({ title, value, icon, color }: { title: string; value: number;
 export default function Dashboard() {
   const { token } = theme.useToken();
   const navigate = useNavigate();
+  const { jobs } = useUpload();
   const screens = Grid.useBreakpoint();
   const mobile = !screens.md;
   const { data: individual, isLoading: loadingInd } = useQuery({ queryKey: ['mapped-invoices'], queryFn: listMappedInvoices });
@@ -103,9 +105,25 @@ export default function Dashboard() {
   const creditPct = creditLimit > 0 ? Math.round((creditsLeft / creditLimit) * 100) : 0;
   const periodLabel = `left ${usage?.periodLabel ?? ''}`.trim();
 
-  const recent: InvoiceRow[] = [...allRows]
-    .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '') || b.id - a.id)
-    .slice(0, 6);
+  // Uploads still processing show as non-clickable "Parsing…" placeholder rows at the top,
+  // until the real invoice lands (the banner also tracks them).
+  const pendingRows: InvoiceRow[] = jobs
+    .filter((j) => j.status === 'running')
+    .map((j) => ({
+      id: -1,
+      createdAt: new Date().toISOString(),
+      name: j.label,
+      grandTotal: null,
+      status: 'PARSING',
+      type: 'Individual' as const,
+      to: `#pending-${j.id}`,
+      pending: true,
+    }));
+
+  const recent: InvoiceRow[] = [
+    ...pendingRows,
+    ...[...allRows].sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '') || b.id - a.id).slice(0, 6),
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

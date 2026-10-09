@@ -1,6 +1,6 @@
 import type { Key } from 'react';
-import { Card, Table, Tag, Typography, theme } from 'antd';
-import { RightOutlined } from '@ant-design/icons';
+import { Card, Spin, Table, Tag, Typography, theme } from 'antd';
+import { LoadingOutlined, RightOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import StatusTag from './StatusTag';
@@ -15,6 +15,8 @@ export interface InvoiceRow {
   status: string;
   type: InvoiceType;
   to: string;
+  /** A not-yet-created invoice that's still uploading/parsing — shown as a non-clickable placeholder. */
+  pending?: boolean;
 }
 
 const money = (v: number | null | undefined) =>
@@ -28,36 +30,44 @@ function TypeTag({ type }: { type: InvoiceType }) {
 /** Mobile: each invoice as a tappable card so there's no horizontal scrolling. */
 function Cards({ rows, showType }: { rows: InvoiceRow[]; showType: boolean }) {
   const { token } = theme.useToken();
+  const inner = (r: InvoiceRow) => (
+    <Card size="small" hoverable={!r.pending}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 12, color: token.colorTextTertiary }}>{dateTime(r.createdAt)}</div>
+          <div
+            style={{
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              margin: '2px 0 6px',
+            }}
+          >
+            {r.pending && <Spin indicator={<LoadingOutlined spin />} size="small" style={{ marginRight: 6 }} />}
+            {r.name}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 600 }}>{money(r.grandTotal)}</span>
+            <StatusTag status={r.status} />
+            {showType && !r.pending && <TypeTag type={r.type} />}
+          </div>
+        </div>
+        {!r.pending && <RightOutlined style={{ color: token.colorTextQuaternary }} />}
+      </div>
+    </Card>
+  );
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {rows.map((r) => (
-        <Link key={r.to} to={r.to} style={{ color: 'inherit' }}>
-          <Card size="small" hoverable>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 12, color: token.colorTextTertiary }}>{dateTime(r.createdAt)}</div>
-                <div
-                  style={{
-                    fontWeight: 600,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    margin: '2px 0 6px',
-                  }}
-                >
-                  {r.name}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 600 }}>{money(r.grandTotal)}</span>
-                  <StatusTag status={r.status} />
-                  {showType && <TypeTag type={r.type} />}
-                </div>
-              </div>
-              <RightOutlined style={{ color: token.colorTextQuaternary }} />
-            </div>
-          </Card>
-        </Link>
-      ))}
+      {rows.map((r) =>
+        r.pending ? (
+          <div key={r.to}>{inner(r)}</div>
+        ) : (
+          <Link key={r.to} to={r.to} style={{ color: 'inherit' }}>
+            {inner(r)}
+          </Link>
+        ),
+      )}
     </div>
   );
 }
@@ -85,11 +95,17 @@ function DesktopTable({
       dataIndex: 'name',
       key: 'name',
       ellipsis: true,
-      render: (v: string, r: InvoiceRow) => (
-        <Link to={r.to} style={{ fontWeight: 600 }}>
-          {v}
-        </Link>
-      ),
+      render: (v: string, r: InvoiceRow) =>
+        r.pending ? (
+          <span style={{ fontWeight: 600 }}>
+            <Spin indicator={<LoadingOutlined spin />} size="small" style={{ marginRight: 6 }} />
+            {v}
+          </span>
+        ) : (
+          <Link to={r.to} style={{ fontWeight: 600 }}>
+            {v}
+          </Link>
+        ),
     },
     ...(showType
       ? [
@@ -103,7 +119,7 @@ function DesktopTable({
               { text: 'Consolidated', value: 'Consolidated' },
             ],
             onFilter: (value: boolean | Key, record: InvoiceRow) => record.type === value,
-            render: (type: InvoiceType) => <TypeTag type={type} />,
+            render: (type: InvoiceType, r: InvoiceRow) => (r.pending ? null : <TypeTag type={type} />),
           },
         ]
       : []),

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Button, Card, Col, DatePicker, Input, InputNumber, Row, Select, Space, Typography, message } from 'antd';
 import StatusTag from '../components/StatusTag';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ import SourceDocumentCard from '../components/SourceDocumentCard';
 import SubmissionStatusBadge from '../components/SubmissionStatusBadge';
 import {
   confirmMappedInvoice,
+  getBusinessProfile,
   getMappedInvoice,
   listSubmissions,
   refreshSubmission,
@@ -36,6 +37,9 @@ export default function MappingReview() {
     queryFn: () => listSubmissions(mappedInvoiceId),
     enabled: invoice?.status === 'SUBMITTED' || invoice?.status === 'ACCEPTED' || invoice?.status === 'REJECTED',
   });
+
+  // The supplier on every submission is always the account's own Business Profile, shown read-only below.
+  const { data: profile } = useQuery({ queryKey: ['business-profile'], queryFn: getBusinessProfile, retry: false });
 
   useEffect(() => {
     if (invoice) {
@@ -207,44 +211,8 @@ export default function MappingReview() {
         </Row>
       </Card>
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={8}>
-          <Card
-            title="Supplier"
-            style={{ height: '100%' }}
-            extra={
-              <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                Cross-check only
-              </Typography.Text>
-            }
-          >
-            <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 12 }}>
-              The actual submission uses your Business Profile from Settings.
-            </Typography.Paragraph>
-            <Space direction="vertical" size={12} style={{ width: '100%' }}>
-              {field(
-                'TIN',
-                <Input
-                  disabled={!editable}
-                  value={draft.supplierTin ?? ''}
-                  onChange={(e) => updateField('supplierTin', e.target.value)}
-                />,
-              )}
-              {field(
-                'Name',
-                <Input
-                  disabled={!editable}
-                  value={draft.supplierName ?? ''}
-                  onChange={(e) => updateField('supplierName', e.target.value)}
-                />,
-              )}
-            </Space>
-          </Card>
-        </Col>
-
-        <Col xs={24} lg={16}>
-          <Card title="Buyer" style={{ height: '100%' }}>
-            <Row gutter={[12, 12]}>
+      <Card title="Buyer">
+        <Row gutter={[12, 12]}>
               <Col xs={24} sm={12}>
                 {field(
                   'TIN',
@@ -376,9 +344,7 @@ export default function MappingReview() {
                 )}
               </Col>
             </Row>
-          </Card>
-        </Col>
-      </Row>
+      </Card>
 
       <Card title="Line items">
         <MappingReviewTable lineItems={draft.lineItems} onChange={updateLineItems} disabled={!editable} />
@@ -404,6 +370,29 @@ export default function MappingReview() {
           </Space>
         </Card>
       )}
+
+      {/* Supplier is always the account's own Business Profile — read-only, shown last. */}
+      <Card title="Supplier" extra={<Link to="/settings">Edit in Settings</Link>}>
+        <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 16 }}>
+          The supplier on this e-Invoice is always your registered Business Profile — not read from the document.
+        </Typography.Paragraph>
+        {profile ? (
+          <Row gutter={[16, 12]}>
+            <Col xs={24} sm={12} lg={8}>{field('Registration name', <Typography.Text>{profile.registrationName || '—'}</Typography.Text>)}</Col>
+            <Col xs={24} sm={12} lg={8}>{field('TIN', <Typography.Text>{profile.tin || '—'}</Typography.Text>)}</Col>
+            <Col xs={24} sm={12} lg={8}>{field('Identification', <Typography.Text>{[profile.idType, profile.idValue].filter(Boolean).join(' ') || '—'}</Typography.Text>)}</Col>
+            <Col xs={24} sm={12} lg={8}>{field('SST registration', <Typography.Text>{profile.sstRegistration || '—'}</Typography.Text>)}</Col>
+            <Col xs={24} sm={12} lg={8}>{field('MSIC code', <Typography.Text>{profile.msicCode || '—'}</Typography.Text>)}</Col>
+            <Col xs={24} sm={12} lg={8}>{field('Phone', <Typography.Text>{profile.phone || '—'}</Typography.Text>)}</Col>
+            <Col xs={24}>{field('Address', <Typography.Text>{[profile.addressLine1, profile.addressLine2, profile.city, profile.postalZone, profile.stateCode, profile.countryCode].filter(Boolean).join(', ') || '—'}</Typography.Text>)}</Col>
+            <Col xs={24} sm={12} lg={8}>{field('Email', <Typography.Text>{profile.email || '—'}</Typography.Text>)}</Col>
+          </Row>
+        ) : (
+          <Typography.Text type="secondary">
+            No business profile yet — set it up in <Link to="/settings">Settings</Link> before submitting.
+          </Typography.Text>
+        )}
+      </Card>
     </Space>
   );
 }

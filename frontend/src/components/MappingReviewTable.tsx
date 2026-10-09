@@ -1,11 +1,19 @@
-import { Table, InputNumber, Input, Button, Space } from 'antd';
+import { Table, InputNumber, Input, Button, Select, Space } from 'antd';
 import type { LineItem } from '../api/types';
 import { useTheme } from '../theme/ThemeContext';
+import { CLASSIFICATION_CODES, UOM_CODES } from '../constants/myinvoisCodes';
+import type { CodeOption } from '../constants/myinvoisCodes';
 
 interface Props {
   lineItems: LineItem[];
   onChange: (lineItems: LineItem[]) => void;
   disabled: boolean;
+}
+
+// Always show the current value even if it isn't one of the known codes (e.g. an unusual AI result).
+function optionsWith(base: CodeOption[], value: string | null | undefined): CodeOption[] {
+  if (value && !base.some((o) => o.value === value)) return [{ value, label: value }, ...base];
+  return base;
 }
 
 // Confidence tints that stay readable in both themes (light pastels vs. low-alpha overlays).
@@ -98,24 +106,34 @@ export default function MappingReviewTable({ lineItems, onChange, disabled }: Pr
     {
       title: 'Classification Code',
       key: 'classificationCode',
-      width: 160,
+      width: 260,
       render: (_: unknown, record: LineItem, index: number) => (
-        <Input
-          value={record.classificationCode ?? ''}
+        <Select
+          showSearch
+          style={{ width: '100%' }}
+          placeholder="Select classification"
           disabled={disabled}
-          onChange={(e) => updateField(index, 'classificationCode', e.target.value)}
+          value={record.classificationCode || undefined}
+          options={optionsWith(CLASSIFICATION_CODES, record.classificationCode)}
+          optionFilterProp="label"
+          onChange={(v) => updateField(index, 'classificationCode', v)}
         />
       ),
     },
     {
-      title: 'Unit',
+      title: 'Unit (UOM)',
       key: 'unitCode',
-      width: 90,
+      width: 180,
       render: (_: unknown, record: LineItem, index: number) => (
-        <Input
-          value={record.unitCode ?? ''}
+        <Select
+          showSearch
+          style={{ width: '100%' }}
+          placeholder="Unit"
           disabled={disabled}
-          onChange={(e) => updateField(index, 'unitCode', e.target.value)}
+          value={record.unitCode || undefined}
+          options={optionsWith(UOM_CODES, record.unitCode)}
+          optionFilterProp="label"
+          onChange={(v) => updateField(index, 'unitCode', v)}
         />
       ),
     },
