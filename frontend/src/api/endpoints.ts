@@ -13,6 +13,7 @@ import type {
   SubmissionResponse,
   SubscribeResponse,
   SubscriptionResponse,
+  UsageResponse,
 } from './types';
 
 export function register(payload: {
@@ -66,6 +67,14 @@ export function uploadDocument(file: File): Promise<DocumentResponse> {
 
 export function listDocuments(): Promise<DocumentResponse[]> {
   return unwrap(apiClient.get<ApiResponse<DocumentResponse[]>>('/api/documents'));
+}
+
+export function getUsage(): Promise<UsageResponse> {
+  return unwrap(apiClient.get<ApiResponse<UsageResponse>>('/api/usage'));
+}
+
+export function submitSupport(payload: { subject: string; body: string }): Promise<boolean> {
+  return unwrap(apiClient.post<ApiResponse<boolean>>('/api/support', payload));
 }
 
 export function getDocument(id: number): Promise<DocumentResponse> {

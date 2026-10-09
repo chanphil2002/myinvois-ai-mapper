@@ -60,6 +60,16 @@ export interface SubscribeResponse {
   billId: string;
 }
 
+export interface UsageResponse {
+  plan: string;
+  planName: string;
+  free: boolean;
+  used: number;
+  limit: number;
+  remaining: number;
+  periodLabel: string;
+}
+
 export interface ManualConsolidatedLineItem {
   transactionDate?: string | null;
   description: string;

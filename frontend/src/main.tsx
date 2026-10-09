@@ -6,6 +6,7 @@ import { App as AntApp } from 'antd';
 import App from './App';
 import { AuthProvider } from './auth/AuthContext';
 import { ThemeProvider } from './theme/ThemeContext';
+import { UploadProvider } from './upload/UploadContext';
 import './index.css';
 
 const queryClient = new QueryClient();
@@ -25,7 +26,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
             <AuthProvider>
-              <App />
+              <UploadProvider>
+                <App />
+              </UploadProvider>
             </AuthProvider>
           </BrowserRouter>
         </QueryClientProvider>

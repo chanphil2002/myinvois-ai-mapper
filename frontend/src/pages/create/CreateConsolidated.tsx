@@ -1,12 +1,12 @@
-import { useRef, useState } from 'react';
-import { Button, Card, Col, DatePicker, Input, InputNumber, List, Row, Space, Spin, Table, Typography, message } from 'antd';
-import { CheckCircleTwoTone, CloseCircleTwoTone, LoadingOutlined } from '@ant-design/icons';
+import { useState } from 'react';
+import { Button, Card, Col, DatePicker, Input, InputNumber, Row, Space, Table, Typography, message } from 'antd';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
 import FileUploadDropzone from '../../components/FileUploadDropzone';
 import { createManualConsolidatedInvoice, extractTransactions, uploadDocument } from '../../api/endpoints';
 import type { ManualConsolidatedLineItem } from '../../api/types';
+import { useUpload } from '../../upload/UploadContext';
 
 type Method = null | 'manual' | 'upload';
 
@@ -17,44 +17,30 @@ interface Row {
   taxAmount: number;
 }
 
-interface Upload {
-  id: number;
-  name: string;
-  status: 'uploading' | 'done' | 'error';
-  count?: number;
-  error?: string;
-}
-
 const emptyRow = (): Row => ({ description: '', quantity: 1, unitPrice: 0, taxAmount: 0 });
 
 export default function CreateConsolidated() {
   const navigate = useNavigate();
+  const { startJob } = useUpload();
   const [method, setMethod] = useState<Method>(null);
   const [name, setName] = useState('');
   const [period, setPeriod] = useState<[Dayjs, Dayjs] | null>([dayjs().startOf('month'), dayjs().endOf('month')]);
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
 
-  // Batch upload state — files extract independently and accumulate on the server, so the user
-  // can add several at once, or upload some now and come back to add more later.
-  const [uploads, setUploads] = useState<Upload[]>([]);
-  const uidRef = useRef(0);
-
-  const processFile = async (file: File) => {
-    const id = ++uidRef.current;
-    setUploads((u) => [...u, { id, name: file.name, status: 'uploading' }]);
-    try {
-      const doc = await uploadDocument(file);
-      const txns = await extractTransactions(doc.id);
-      setUploads((u) => u.map((x) => (x.id === id ? { ...x, status: 'done', count: txns.length } : x)));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed';
-      setUploads((u) => u.map((x) => (x.id === id ? { ...x, status: 'error', error: msg } : x)));
-      message.error(`${file.name}: ${msg}`);
-    }
+  // Each file uploads + extracts in the background (tracked by the banner) and its transactions
+  // accumulate on the server, so you can add several at once or come back and add more later.
+  const [addedCount, setAddedCount] = useState(0);
+  const startExtract = (file: File) => {
+    setAddedCount((n) => n + 1);
+    startJob({
+      label: `Extracting ${file.name}`,
+      run: async () => {
+        const doc = await uploadDocument(file);
+        await extractTransactions(doc.id);
+        return { link: { to: '/consolidate', text: 'Group transactions' } };
+      },
+    });
   };
-
-  const anyUploading = uploads.some((u) => u.status === 'uploading');
-  const extractedCount = uploads.filter((u) => u.status === 'done').reduce((s, u) => s + (u.count ?? 0), 0);
 
   const manualMutation = useMutation({
     mutationFn: () => {
@@ -132,52 +118,25 @@ export default function CreateConsolidated() {
         <Card title="Upload source documents">
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-              Add one or more files — all at once, or upload some now and add more later. AI extracts the B2C
-              sales from each; nothing is lost between uploads. When you're ready, continue to group and submit them.
+              Add one or more files — all at once, or upload some now and add more later. Each file uploads and
+              extracts B2C sales <strong>in the background</strong> (tracked by the banner), so you can keep working.
+              Nothing is lost between uploads; continue to grouping whenever you're ready.
             </Typography.Paragraph>
 
             <FileUploadDropzone
               multiple
-              uploading={anyUploading}
+              uploading={false}
               hint="Supports .xlsx, .pdf, .png, .jpg — add several at once"
-              onFileSelected={processFile}
+              onFileSelected={startExtract}
             />
 
-            {uploads.length > 0 && (
-              <List
-                size="small"
-                bordered
-                dataSource={uploads}
-                renderItem={(u) => (
-                  <List.Item>
-                    <Space>
-                      {u.status === 'uploading' && <Spin indicator={<LoadingOutlined spin />} size="small" />}
-                      {u.status === 'done' && <CheckCircleTwoTone twoToneColor="#16a34a" />}
-                      {u.status === 'error' && <CloseCircleTwoTone twoToneColor="#dc2626" />}
-                      <span>{u.name}</span>
-                    </Space>
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      {u.status === 'uploading' && 'Extracting…'}
-                      {u.status === 'done' && `${u.count} transaction${u.count === 1 ? '' : 's'}`}
-                      {u.status === 'error' && u.error}
-                    </Typography.Text>
-                  </List.Item>
-                )}
-              />
-            )}
-
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <Button
-                type="primary"
-                disabled={extractedCount === 0 || anyUploading}
-                loading={anyUploading}
-                onClick={() => navigate('/consolidate')}
-              >
+              <Button type="primary" disabled={addedCount === 0} onClick={() => navigate('/consolidate')}>
                 Continue to grouping →
               </Button>
-              {extractedCount > 0 && (
+              {addedCount > 0 && (
                 <Typography.Text type="secondary">
-                  {extractedCount} transaction{extractedCount === 1 ? '' : 's'} extracted so far
+                  {addedCount} file{addedCount === 1 ? '' : 's'} sent for extraction
                 </Typography.Text>
               )}
             </div>

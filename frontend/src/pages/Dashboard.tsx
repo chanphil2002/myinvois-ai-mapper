@@ -3,13 +3,10 @@ import { Button, Card, Col, Grid, Progress, Row, Typography, theme } from 'antd'
 import { FileTextOutlined, CheckCircleOutlined, ThunderboltOutlined, PlusOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { getSubscription, listConsolidatedInvoices, listDocuments, listMappedInvoices } from '../api/endpoints';
+import { getUsage, listConsolidatedInvoices, listMappedInvoices } from '../api/endpoints';
 import InvoiceList from '../components/InvoiceList';
 import type { InvoiceRow } from '../components/InvoiceList';
 import { invoiceDisplayName } from '../utils/invoice';
-
-const PLAN_CREDITS: Record<string, number> = { beginner: 30, heavy: 500, elite: 1500 };
-const FREE_DAILY_CREDITS = 2; // Free tier: 2 documents per day.
 
 function StatTile({ title, value, icon, color }: { title: string; value: number; icon: ReactNode; color: string }) {
   const { token } = theme.useToken();
@@ -67,13 +64,10 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const screens = Grid.useBreakpoint();
   const mobile = !screens.md;
-  const { data: documents } = useQuery({ queryKey: ['documents'], queryFn: listDocuments });
   const { data: individual, isLoading: loadingInd } = useQuery({ queryKey: ['mapped-invoices'], queryFn: listMappedInvoices });
   const { data: consolidated, isLoading: loadingCon } = useQuery({ queryKey: ['consolidated-invoices'], queryFn: listConsolidatedInvoices });
-  const { data: subscription } = useQuery({ queryKey: ['subscription'], queryFn: getSubscription });
+  const { data: usage } = useQuery({ queryKey: ['usage'], queryFn: getUsage });
   const isLoading = loadingInd || loadingCon;
-
-  const parsed = documents?.filter((d) => d.status === 'PARSED').length ?? 0;
 
   // Unified list across both invoice types, so the home shows every e-invoice with its type.
   const allRows: InvoiceRow[] = [
@@ -101,18 +95,13 @@ export default function Dashboard() {
   const inProgress = allRows.filter((i) => i.status === 'CONFIRMED' || i.status === 'SUBMITTED').length;
   const accepted = allRows.filter((i) => i.status === 'ACCEPTED').length;
 
-  const planId = subscription?.status === 'ACTIVE' ? subscription.plan : null;
-  const planName = planId ? subscription?.planName : 'Free';
-  const isFree = !planId;
-
-  const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
-  const parsedToday = documents?.filter((d) => d.status === 'PARSED' && d.uploadedAt && isToday(d.uploadedAt)).length ?? 0;
-
-  const creditLimit = isFree ? FREE_DAILY_CREDITS : PLAN_CREDITS[planId] ?? FREE_DAILY_CREDITS;
-  const creditsUsed = isFree ? parsedToday : parsed;
-  const creditsLeft = Math.max(0, creditLimit - creditsUsed);
+  // Usage/credits are tracked server-side (deducted on each real parse) — the client just displays them.
+  const planName = usage?.planName ?? 'Free';
+  const isFree = usage?.free ?? true;
+  const creditLimit = usage?.limit ?? 0;
+  const creditsLeft = usage?.remaining ?? 0;
   const creditPct = creditLimit > 0 ? Math.round((creditsLeft / creditLimit) * 100) : 0;
-  const periodLabel = isFree ? 'left today' : 'left';
+  const periodLabel = `left ${usage?.periodLabel ?? ''}`.trim();
 
   const recent: InvoiceRow[] = [...allRows]
     .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '') || b.id - a.id)

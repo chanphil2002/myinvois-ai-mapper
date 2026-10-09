@@ -6,6 +6,8 @@ import BottomTabBar from './components/BottomTabBar';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { useAuth } from './auth/AuthContext';
 import { useTheme, SURFACE } from './theme/ThemeContext';
+import { UploadBanner } from './upload/UploadContext';
+import Support from './pages/Support';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -23,7 +25,7 @@ const { Header, Content, Sider } = Layout;
 
 // Primary navigation destinations (sidebar on desktop, bottom tabs on mobile). Pages not listed
 // here (invoice detail, create sub-steps) are drill-downs and show a Back button instead.
-const TAB_ROOTS = ['/', '/create', '/submissions', '/billing', '/settings'];
+const TAB_ROOTS = ['/', '/create', '/submissions', '/billing', '/settings', '/support'];
 // These pages render their own step-up Back button (they have internal steps), so the global
 // layout Back is suppressed to avoid showing two back links.
 const PAGE_MANAGES_BACK = ['/create/individual', '/create/consolidated'];
@@ -64,6 +66,7 @@ function AppLayout() {
       <Route path="/consolidated-invoices/:id" element={<ConsolidatedInvoiceReview />} />
       <Route path="/billing" element={<Billing />} />
       <Route path="/settings" element={<Settings />} />
+      <Route path="/support" element={<Support />} />
     </Routes>
   );
 
@@ -94,6 +97,7 @@ function AppLayout() {
           {routes}
         </Content>
         <BottomTabBar />
+        <UploadBanner />
       </Layout>
     );
   }
@@ -105,6 +109,7 @@ function AppLayout() {
     { key: '/submissions', label: <Link to="/submissions">Submissions</Link> },
     { key: '/billing', label: <Link to="/billing">Billing</Link> },
     { key: '/settings', label: <Link to="/settings">MyInvois Settings</Link> },
+    { key: '/support', label: <Link to="/support">Contact Us</Link> },
   ];
 
   return (
@@ -121,12 +126,13 @@ function AppLayout() {
           <a onClick={logout}>Log out</a>
         </Header>
         <Content style={{ margin: 24 }}>
-          <div style={{ maxWidth: 1080 }}>
+          <div style={{ maxWidth: 1080, margin: '0 auto' }}>
             {backButton}
             {routes}
           </div>
         </Content>
       </Layout>
+      <UploadBanner />
     </Layout>
   );
 }

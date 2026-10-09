@@ -10,6 +10,8 @@ import {
   WalletFilled,
   SettingOutlined,
   SettingFilled,
+  QuestionCircleOutlined,
+  QuestionCircleFilled,
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 import { useTheme, SURFACE } from '../theme/ThemeContext';
@@ -20,6 +22,7 @@ const TABS: { key: string; label: string; icon: ReactNode; active: ReactNode }[]
   { key: '/submissions', label: 'Submissions', icon: <ProfileOutlined />, active: <ProfileFilled /> },
   { key: '/billing', label: 'Billing', icon: <WalletOutlined />, active: <WalletFilled /> },
   { key: '/settings', label: 'Settings', icon: <SettingOutlined />, active: <SettingFilled /> },
+  { key: '/support', label: 'Support', icon: <QuestionCircleOutlined />, active: <QuestionCircleFilled /> },
 ];
 
 /** iOS-style fixed bottom tab bar for primary navigation on mobile. */
@@ -59,14 +62,14 @@ export default function BottomTabBar() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 3,
-              padding: '9px 0 7px',
+              padding: '9px 2px 7px',
               color: on ? '#3b5bdb' : surface.tabInactive,
-              fontSize: 21,
+              fontSize: 19,
               lineHeight: 1,
             }}
           >
             {on ? t.active : t.icon}
-            <span style={{ fontSize: 10.5, fontWeight: on ? 600 : 500 }}>{t.label}</span>
+            <span style={{ fontSize: 9.5, fontWeight: on ? 600 : 500, whiteSpace: 'nowrap' }}>{t.label}</span>
           </Link>
         );
       })}

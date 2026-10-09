@@ -4,11 +4,13 @@ import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import FileUploadDropzone from '../../components/FileUploadDropzone';
 import { createManualInvoice, runMapping, uploadDocument } from '../../api/endpoints';
+import { useUpload } from '../../upload/UploadContext';
 
 type Method = null | 'manual' | 'upload';
 
 export default function CreateIndividual() {
   const navigate = useNavigate();
+  const { startJob } = useUpload();
   const [method, setMethod] = useState<Method>(null);
   const [name, setName] = useState('');
 
@@ -28,17 +30,19 @@ export default function CreateIndividual() {
     onError: (err) => message.error(err instanceof Error ? err.message : 'Could not create invoice'),
   });
 
-  const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const doc = await uploadDocument(file);
-      return runMapping(doc.id);
-    },
-    onSuccess: (invoice) => {
-      message.success('AI mapping complete — review the results');
-      navigate(`/mapped-invoices/${invoice.id}`);
-    },
-    onError: (err) => message.error(err instanceof Error ? err.message : 'Mapping failed'),
-  });
+  // Upload + AI mapping run in the background so you can keep browsing; a banner tracks progress.
+  const startUpload = (file: File) => {
+    startJob({
+      label: `Parsing ${file.name}`,
+      run: async () => {
+        const doc = await uploadDocument(file);
+        const invoice = await runMapping(doc.id);
+        return { link: { to: `/mapped-invoices/${invoice.id}`, text: 'Review invoice' } };
+      },
+    });
+    message.info('Uploading in the background — you can keep working. Track it from the banner.');
+    navigate('/');
+  };
 
   // A single Back that steps up one level (method screen → chooser → type picker).
   const back = (
@@ -124,11 +128,7 @@ export default function CreateIndividual() {
           <Typography.Paragraph type="secondary">
             AI mapping will read the file into an individual invoice for you to review.
           </Typography.Paragraph>
-          <FileUploadDropzone
-            uploading={uploadMutation.isPending}
-            uploadingText="Uploading and running AI mapping…"
-            onFileSelected={(file) => uploadMutation.mutate(file)}
-          />
+          <FileUploadDropzone uploading={false} onFileSelected={startUpload} />
         </Card>
       )}
     </Space>
