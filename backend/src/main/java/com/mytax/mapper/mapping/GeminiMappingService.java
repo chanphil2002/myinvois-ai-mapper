@@ -68,6 +68,35 @@ public class GeminiMappingService implements MappingEngine {
                     .build()
     ).build();
 
+    // Appended to both prompts so the model assigns a valid MyInvois classification code and a
+    // UN/ECE unit-of-measurement code to every line item (rather than free text).
+    private static final String LINE_ITEM_CODING = """
+
+
+            For EACH line item you MUST also set two MyInvois codes:
+            1) classificationCode — the 3-digit LHDN e-Invoice classification that best fits the item, from: \
+            001 Breastfeeding equipment; 002 Child care/kindergarten fees; 003 Computer/smartphone/tablet; \
+            004 Consolidated e-Invoice; 005 Construction materials; 006 Disbursement; 007 Donation; \
+            008 e-Commerce e-Invoice to buyer; 009 e-Commerce self-billed; 010 Education fees; \
+            011 Goods on consignment (Consignor); 012 Goods on consignment (Consignee); 013 Gym membership; \
+            014 Insurance education/medical; 015 Insurance takaful/life; 016 Interest/financing; \
+            017 Internet subscription; 018 Land and building; 019 Medical exam learning disabilities; \
+            020 Medical exam/vaccination; 021 Medical serious diseases; 022 Others; 023 Petroleum operations; \
+            024 Private retirement/annuity; 025 Motor vehicle; 026 Books/journals/newspapers subscription; \
+            027 Reimbursement; 028 Rental of motor vehicle; 029 EV charging facilities; 030 Repair and maintenance; \
+            031 Research and development; 032 Foreign income; 033 Self-billed betting/gaming; \
+            034 Self-billed import of goods; 035 Self-billed import of services; 036 Self-billed others; \
+            037 Self-billed monetary payment to agents; 038 Sports equipment/facilities/fees; \
+            039 Supporting equipment for disabled; 040 Voluntary provident fund; 041 Dental; 042 Fertility; \
+            043 Nursing/daycare/residential care; 044 Vouchers/gift cards/loyalty points; \
+            045 Self-billed non-monetary payment to agents. Pick the single best match; use 022 (Others) when unsure.
+            2) unitCode — the unit of measurement as a UN/ECE Rec.20 code used by MyInvois, e.g. C62 (unit/one), \
+            H87 (piece), EA (each), SET (set), NPR (pair), DZN (dozen), KGM (kilogram), GRM (gram), TNE (tonne), \
+            LTR (litre), MLT (millilitre), MTR (metre), CMT (centimetre), MTK (square metre), MTQ (cubic metre), \
+            HUR (hour), DAY (day), MON (month), ANN (year), XBX (box), XCT (carton), XPK (package), XBG (bag), \
+            XBO (bottle), XRO (roll). Always output a CODE (not free text like "unit" or "pcs"); default to C62 \
+            for a plain count with no unit shown.""";
+
     private final GeminiProperties properties;
     private final XlsxParser xlsxParser;
     private final RestClient restClient;
@@ -299,8 +328,7 @@ public class GeminiMappingService implements MappingEngine {
                 buyerIdValue when the document actually shows that ID. Extract buyer address into buyerAddressLine1/2, \
                 buyerCity, buyerPostalZone (postcode), buyerStateCode (a Malaysian state name if written, e.g. \
                 "Selangor" — leave as free text, do not guess a numeric code), buyerCountryCode (ISO 3-letter, default \
-                "MYS" for Malaysia), buyerPhone, buyerEmail. For each line item, unitCode is a short unit description \
-                if stated (e.g. "unit", "kg", "box") — default to "unit" if quantity is a plain count with no unit shown.""";
+                "MYS" for Malaysia), buyerPhone, buyerEmail.""" + LINE_ITEM_CODING;
     }
 
     private String transactionSystemPrompt() {
@@ -323,10 +351,9 @@ public class GeminiMappingService implements MappingEngine {
 
                 Do not perform any arithmetic — do not multiply, apply percentages, or sum values, even if it \
                 looks straightforward (e.g. quantity × unit price). Only report a number if it is written \
-                literally in the source document; omit a field rather than computing it. unitCode is a short \
-                unit description if stated (e.g. "unit", "kg", "box") — default to "unit" if quantity is a \
-                plain count with no unit shown. Include a confidenceScore between 0 and 1 per transaction \
-                reflecting how certain you are it was read correctly.""";
+                literally in the source document; omit a field rather than computing it. Include a \
+                confidenceScore between 0 and 1 per transaction reflecting how certain you are it was read \
+                correctly.""" + LINE_ITEM_CODING;
     }
 
     private Map<String, Object> responseSchema() {
