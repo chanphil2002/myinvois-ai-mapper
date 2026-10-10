@@ -28,11 +28,10 @@ export default function CreateConsolidated() {
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
 
   // Each file uploads + extracts in the background (tracked by the banner) and its transactions
-  // accumulate on the server, so you can add several at once or come back and add more later.
-  const [addedCount, setAddedCount] = useState(0);
+  // accumulate on the server; we redirect to Submissions where it shows as a parsing placeholder.
   const startExtract = (file: File) => {
-    setAddedCount((n) => n + 1);
     startJob({
+      kind: 'consolidated',
       label: `Extracting ${file.name}`,
       run: async () => {
         const doc = await uploadDocument(file);
@@ -40,6 +39,7 @@ export default function CreateConsolidated() {
         return { link: { to: '/consolidate', text: 'Group transactions' } };
       },
     });
+    navigate('/submissions?tab=consolidated');
   };
 
   const manualMutation = useMutation({
@@ -118,9 +118,9 @@ export default function CreateConsolidated() {
         <Card title="Upload source documents">
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-              Add one or more files — all at once, or upload some now and add more later. Each file uploads and
-              extracts B2C sales <strong>in the background</strong> (tracked by the banner), so you can keep working.
-              Nothing is lost between uploads; continue to grouping whenever you're ready.
+              Pick one or more files. Each uploads and extracts its B2C sales <strong>in the background</strong>, and
+              we'll take you to Submissions where it shows as a parsing placeholder — then you group the extracted
+              transactions into a consolidated invoice.
             </Typography.Paragraph>
 
             <FileUploadDropzone
@@ -129,17 +129,6 @@ export default function CreateConsolidated() {
               hint="Supports .xlsx, .pdf, .png, .jpg — add several at once"
               onFileSelected={startExtract}
             />
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <Button type="primary" disabled={addedCount === 0} onClick={() => navigate('/consolidate')}>
-                Continue to grouping →
-              </Button>
-              {addedCount > 0 && (
-                <Typography.Text type="secondary">
-                  {addedCount} file{addedCount === 1 ? '' : 's'} sent for extraction
-                </Typography.Text>
-              )}
-            </div>
           </Space>
         </Card>
       </Space>

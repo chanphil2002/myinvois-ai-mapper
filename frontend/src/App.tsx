@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Grid, Layout, Menu } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { Button, Grid, Layout, Menu, Tooltip } from 'antd';
+import { ArrowLeftOutlined, BulbOutlined, MoonOutlined } from '@ant-design/icons';
 import BrandLogo from './components/BrandLogo';
 import BottomTabBar from './components/BottomTabBar';
 import { ProtectedRoute } from './auth/ProtectedRoute';
@@ -8,6 +8,7 @@ import { useAuth } from './auth/AuthContext';
 import { useTheme, SURFACE } from './theme/ThemeContext';
 import { UploadBanner } from './upload/UploadContext';
 import Support from './pages/Support';
+import ParsingInvoice from './pages/ParsingInvoice';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -34,8 +35,20 @@ function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { email, logout } = useAuth();
-  const { isDark } = useTheme();
+  const { isDark, toggle } = useTheme();
   const surface = isDark ? SURFACE.dark : SURFACE.light;
+
+  const themeToggle = (
+    <Tooltip title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
+      <Button
+        type="text"
+        shape="circle"
+        aria-label="Toggle theme"
+        icon={isDark ? <BulbOutlined /> : <MoonOutlined />}
+        onClick={toggle}
+      />
+    </Tooltip>
+  );
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.lg;
 
@@ -61,6 +74,7 @@ function AppLayout() {
       <Route path="/create/individual" element={<CreateIndividual />} />
       <Route path="/create/consolidated" element={<CreateConsolidated />} />
       <Route path="/mapped-invoices/:id" element={<MappingReview />} />
+      <Route path="/parsing/:jobId" element={<ParsingInvoice />} />
       <Route path="/submissions" element={<Submissions />} />
       <Route path="/consolidate" element={<ConsolidationBuilder />} />
       <Route path="/consolidated-invoices/:id" element={<ConsolidatedInvoiceReview />} />
@@ -88,9 +102,12 @@ function AppLayout() {
           }}
         >
           <BrandLogo dark={isDark} />
-          <a onClick={logout} style={{ color: '#3b5bdb', fontWeight: 500 }}>
-            Log out
-          </a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {themeToggle}
+            <a onClick={logout} style={{ color: '#3b5bdb', fontWeight: 500 }}>
+              Log out
+            </a>
+          </div>
         </div>
         <Content style={{ margin: 16, paddingBottom: 'calc(76px + env(safe-area-inset-bottom))' }}>
           {backButton}
@@ -122,6 +139,7 @@ function AppLayout() {
       </Sider>
       <Layout>
         <Header style={{ background: surface.header, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, padding: '0 20px', borderBottom: `1px solid ${surface.border}`, boxShadow: isDark ? 'none' : '0 1px 2px rgba(16,24,40,0.04)' }}>
+          {themeToggle}
           <span>{email}</span>
           <a onClick={logout}>Log out</a>
         </Header>

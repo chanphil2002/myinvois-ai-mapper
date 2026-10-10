@@ -30,44 +30,37 @@ function TypeTag({ type }: { type: InvoiceType }) {
 /** Mobile: each invoice as a tappable card so there's no horizontal scrolling. */
 function Cards({ rows, showType }: { rows: InvoiceRow[]; showType: boolean }) {
   const { token } = theme.useToken();
-  const inner = (r: InvoiceRow) => (
-    <Card size="small" hoverable={!r.pending}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 12, color: token.colorTextTertiary }}>{dateTime(r.createdAt)}</div>
-          <div
-            style={{
-              fontWeight: 600,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              margin: '2px 0 6px',
-            }}
-          >
-            {r.pending && <Spin indicator={<LoadingOutlined spin />} size="small" style={{ marginRight: 6 }} />}
-            {r.name}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 600 }}>{money(r.grandTotal)}</span>
-            <StatusTag status={r.status} />
-            {showType && !r.pending && <TypeTag type={r.type} />}
-          </div>
-        </div>
-        {!r.pending && <RightOutlined style={{ color: token.colorTextQuaternary }} />}
-      </div>
-    </Card>
-  );
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {rows.map((r) =>
-        r.pending ? (
-          <div key={r.to}>{inner(r)}</div>
-        ) : (
-          <Link key={r.to} to={r.to} style={{ color: 'inherit' }}>
-            {inner(r)}
-          </Link>
-        ),
-      )}
+      {rows.map((r) => (
+        <Link key={r.to} to={r.to} style={{ color: 'inherit' }}>
+          <Card size="small" hoverable>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 12, color: token.colorTextTertiary }}>{dateTime(r.createdAt)}</div>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    margin: '2px 0 6px',
+                  }}
+                >
+                  {r.pending && <Spin indicator={<LoadingOutlined spin />} size="small" style={{ marginRight: 6 }} />}
+                  {r.name}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 600 }}>{money(r.grandTotal)}</span>
+                  <StatusTag status={r.status} />
+                  {showType && !r.pending && <TypeTag type={r.type} />}
+                </div>
+              </div>
+              <RightOutlined style={{ color: token.colorTextQuaternary }} />
+            </div>
+          </Card>
+        </Link>
+      ))}
     </div>
   );
 }
@@ -95,17 +88,12 @@ function DesktopTable({
       dataIndex: 'name',
       key: 'name',
       ellipsis: true,
-      render: (v: string, r: InvoiceRow) =>
-        r.pending ? (
-          <span style={{ fontWeight: 600 }}>
-            <Spin indicator={<LoadingOutlined spin />} size="small" style={{ marginRight: 6 }} />
-            {v}
-          </span>
-        ) : (
-          <Link to={r.to} style={{ fontWeight: 600 }}>
-            {v}
-          </Link>
-        ),
+      render: (v: string, r: InvoiceRow) => (
+        <Link to={r.to} style={{ fontWeight: 600 }}>
+          {r.pending && <Spin indicator={<LoadingOutlined spin />} size="small" style={{ marginRight: 6 }} />}
+          {v}
+        </Link>
+      ),
     },
     ...(showType
       ? [

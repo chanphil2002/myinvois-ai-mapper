@@ -115,8 +115,8 @@ export default function Dashboard() {
       name: j.label,
       grandTotal: null,
       status: 'PARSING',
-      type: 'Individual' as const,
-      to: `#pending-${j.id}`,
+      type: j.kind === 'consolidated' ? ('Consolidated' as const) : ('Individual' as const),
+      to: `/parsing/${j.id}`,
       pending: true,
     }));
 

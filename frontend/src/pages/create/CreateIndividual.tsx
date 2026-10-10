@@ -33,6 +33,7 @@ export default function CreateIndividual() {
   // Upload + AI mapping run in the background so you can keep browsing; a banner tracks progress.
   const startUpload = (file: File) => {
     startJob({
+      kind: 'individual',
       label: `Parsing ${file.name}`,
       run: async () => {
         const doc = await uploadDocument(file);
@@ -40,8 +41,8 @@ export default function CreateIndividual() {
         return { link: { to: `/mapped-invoices/${invoice.id}`, text: 'Review invoice' } };
       },
     });
-    message.info('Uploading in the background — you can keep working. Track it from the banner.');
-    navigate('/');
+    message.info('Uploading — your new invoice is parsing in the background.');
+    navigate('/submissions');
   };
 
   // A single Back that steps up one level (method screen → chooser → type picker).

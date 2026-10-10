@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, Col, Form, Input, Modal, Row, Segmented, Select, Space, Tooltip, Typography, message } from 'antd';
-import { EyeInvisibleOutlined, EyeOutlined, EditOutlined, BulbOutlined, MoonOutlined } from '@ant-design/icons';
+import { Button, Card, Col, Form, Input, Modal, Row, Select, Space, Tooltip, Typography, message } from 'antd';
+import { EyeInvisibleOutlined, EyeOutlined, EditOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getBusinessProfile,
@@ -11,7 +11,6 @@ import {
 } from '../api/endpoints';
 import type { BusinessProfile, MyInvoisEnvironment, RevealedCredentialResponse } from '../api/types';
 import { MALAYSIA_STATE_CODES } from '../constants/malaysiaStates';
-import { useTheme } from '../theme/ThemeContext';
 
 const SECRET_MASK = '••••••••••••';
 const maskKey = (v: string) => (v.length > 6 ? `${v.slice(0, 3)}••••${v.slice(-2)}` : '••••');
@@ -179,23 +178,6 @@ function MyInvoisCredentialsCard() {
           onPressEnter={() => revealMutation.mutate()}
         />
       </Modal>
-    </Card>
-  );
-}
-
-function AppearanceCard() {
-  const { mode, setMode } = useTheme();
-  return (
-    <Card title="Appearance">
-      <Segmented
-        value={mode}
-        onChange={(v) => setMode(v as 'light' | 'dark')}
-        options={[
-          { label: 'Light', value: 'light', icon: <BulbOutlined /> },
-          { label: 'Dark', value: 'dark', icon: <MoonOutlined /> },
-        ]}
-        block
-      />
     </Card>
   );
 }
@@ -369,21 +351,14 @@ function BusinessProfileCard() {
 
 export default function Settings() {
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      {/* Credentials and Business Profile stretch to the same height. */}
-      <Row gutter={[16, 16]} align="stretch">
-        <Col xs={24} lg={9}>
-          <MyInvoisCredentialsCard />
-        </Col>
-        <Col xs={24} lg={15}>
-          <BusinessProfileCard />
-        </Col>
-      </Row>
-      <Row>
-        <Col xs={24} lg={9}>
-          <AppearanceCard />
-        </Col>
-      </Row>
-    </Space>
+    // Credentials and Business Profile stretch to the same height.
+    <Row gutter={[16, 16]} align="stretch">
+      <Col xs={24} lg={9}>
+        <MyInvoisCredentialsCard />
+      </Col>
+      <Col xs={24} lg={15}>
+        <BusinessProfileCard />
+      </Col>
+    </Row>
   );
 }
