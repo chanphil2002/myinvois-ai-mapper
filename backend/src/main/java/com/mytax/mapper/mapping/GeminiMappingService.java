@@ -163,7 +163,11 @@ public class GeminiMappingService implements MappingEngine {
                 "generation_config", Map.of(
                         "response_mime_type", "application/json",
                         "response_schema", schema,
-                        "max_output_tokens", 8192,
+                        // Large consolidated documents (many transactions) can produce long JSON;
+                        // 8192 truncated it mid-string ("unexpected end-of-input"). 32768 gives ample
+                        // headroom (~hundreds of transactions) without the very long generations the
+                        // model can produce near the absolute max on degenerate input.
+                        "max_output_tokens", 32768,
                         // Dynamic thinking budget — matches Google's recommended default and was the
                         // most reliable option in testing (fixed budgets, including 0, still degenerated).
                         "thinking_config", Map.of("thinking_budget", -1)
