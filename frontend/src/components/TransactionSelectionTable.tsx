@@ -1,5 +1,6 @@
 import { Table, Tag } from 'antd';
 import type { SalesTransactionResponse } from '../api/types';
+import { tablePagination } from '../utils/pagination';
 import { useTheme } from '../theme/ThemeContext';
 import { confidenceTint } from '../theme/palette';
 
@@ -57,12 +58,15 @@ export default function TransactionSelectionTable({ transactions, selectedIds, o
       loading={loading}
       dataSource={transactions}
       columns={columns}
-      pagination={false}
+      pagination={tablePagination(transactions.length)}
       size="small"
       scroll={{ x: 'max-content' }}
       rowSelection={{
         selectedRowKeys: selectedIds,
         onChange: (keys) => onSelectionChange(keys as number[]),
+        // Header checkbox only covers the visible page; these let you act on every page at once.
+        selections: [Table.SELECTION_ALL, Table.SELECTION_INVERT, Table.SELECTION_NONE],
+        preserveSelectedRowKeys: true,
       }}
     />
   );

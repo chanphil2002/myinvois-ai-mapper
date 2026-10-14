@@ -3,6 +3,7 @@ import { Alert, Button, Card, DatePicker, Input, Space, Typography, message } fr
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
+import Page from '../../components/Page';
 import ConsolidatedSteps from '../../components/ConsolidatedSteps';
 import DueByHint from '../../components/DueByHint';
 import { createConsolidatedDraft } from '../../api/endpoints';
@@ -34,20 +35,16 @@ export default function CreateConsolidated() {
   });
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: 820 }}>
-      <Button type="link" style={{ paddingLeft: 0, alignSelf: 'flex-start' }} onClick={() => navigate('/create')}>
-        ← Back
-      </Button>
-      <div>
-        <Typography.Title level={3} style={{ marginTop: 0 }}>
-          Consolidated e-Invoice
-        </Typography.Title>
-        <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          Combine many small B2C sales (customers with no named buyer) into one invoice for a period — typically one per
-          month.
-        </Typography.Paragraph>
-      </div>
-
+    <Page
+      title="Consolidated e-Invoice"
+      maxWidth={820}
+      back={
+        <Button type="link" size="small" style={{ paddingLeft: 0 }} onClick={() => navigate('/create')}>
+          ← Back
+        </Button>
+      }
+      subtitle="Combine many small B2C sales (customers with no named buyer) into one invoice for a period — typically one per month."
+    >
       <ConsolidatedSteps current={0} />
 
       <Card title="Name and period">
@@ -91,6 +88,6 @@ export default function CreateConsolidated() {
           </Space>
         </Space>
       </Card>
-    </Space>
+    </Page>
   );
 }

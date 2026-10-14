@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
-import { Card, Col, Row, Typography } from 'antd';
-import { FileTextOutlined, AppstoreOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { Col, Row } from 'antd';
+import Page from '../../components/Page';
+import OptionCard from '../../components/OptionCard';
+import { FileTextOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../theme/ThemeContext';
 
@@ -41,42 +43,21 @@ export default function CreateInvoice() {
   ];
 
   return (
-    <div style={{ maxWidth: 820 }}>
-      <Typography.Title level={3}>Create an e-Invoice</Typography.Title>
-      <Typography.Paragraph type="secondary">Choose what kind of e-invoice you want to create.</Typography.Paragraph>
+    <Page title="Create an e-Invoice" subtitle="Choose what kind of e-invoice you want to create." maxWidth={820}>
       <Row gutter={[16, 16]}>
         {options.map((o) => (
           <Col xs={24} sm={12} key={o.key}>
-            <Card hoverable onClick={() => navigate(o.to)} style={{ height: '100%' }}>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 22,
-                  color: o.color,
-                  background: o.soft,
-                  marginBottom: 14,
-                }}
-              >
-                {o.icon}
-              </div>
-              <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 6 }}>
-                {o.title}
-              </Typography.Title>
-              <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
-                {o.description}
-              </Typography.Paragraph>
-              <Typography.Text style={{ color: o.color, fontWeight: 500 }}>
-                Continue <ArrowRightOutlined style={{ fontSize: 12 }} />
-              </Typography.Text>
-            </Card>
+            <OptionCard
+              title={o.title}
+              description={o.description}
+              icon={o.icon}
+              color={o.color}
+              soft={o.soft}
+              onClick={() => navigate(o.to)}
+            />
           </Col>
         ))}
       </Row>
-    </div>
+    </Page>
   );
 }

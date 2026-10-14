@@ -10,6 +10,7 @@ import {
   saveCredentials,
 } from '../api/endpoints';
 import type { BusinessProfile, MyInvoisEnvironment, RevealedCredentialResponse } from '../api/types';
+import Page from '../components/Page';
 import { MALAYSIA_STATE_CODES } from '../constants/malaysiaStates';
 
 const SECRET_MASK = '••••••••••••';
@@ -351,14 +352,16 @@ function BusinessProfileCard() {
 
 export default function Settings() {
   return (
-    // Credentials and Business Profile stretch to the same height.
-    <Row gutter={[16, 16]} align="stretch">
-      <Col xs={24} lg={9}>
-        <MyInvoisCredentialsCard />
-      </Col>
-      <Col xs={24} lg={15}>
-        <BusinessProfileCard />
-      </Col>
-    </Row>
+    <Page title="MyInvois Settings" subtitle="Your LHDN API credentials and the supplier details printed on every e-invoice.">
+      {/* Credentials and Business Profile stretch to the same height. */}
+      <Row gutter={[16, 16]} align="stretch">
+        <Col xs={24} lg={9}>
+          <MyInvoisCredentialsCard />
+        </Col>
+        <Col xs={24} lg={15}>
+          <BusinessProfileCard />
+        </Col>
+      </Row>
+    </Page>
   );
 }

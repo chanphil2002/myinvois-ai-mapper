@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { Button, Card, Col, Input, Row, Space, Typography, message } from 'antd';
+import { Button, Card, Col, Input, Row, Typography, message } from 'antd';
+import { CloudUploadOutlined, EditOutlined } from '@ant-design/icons';
+import Page from '../../components/Page';
+import OptionCard from '../../components/OptionCard';
+import { useTheme } from '../../theme/ThemeContext';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import FileUploadDropzone from '../../components/FileUploadDropzone';
@@ -11,6 +15,7 @@ type Method = null | 'manual' | 'upload';
 export default function CreateIndividual() {
   const navigate = useNavigate();
   const { startJob } = useUpload();
+  const { palette: p } = useTheme();
   const [method, setMethod] = useState<Method>(null);
   const [name, setName] = useState('');
 
@@ -49,6 +54,7 @@ export default function CreateIndividual() {
   const back = (
     <Button
       type="link"
+      size="small"
       style={{ paddingLeft: 0 }}
       onClick={() => (method === null ? navigate('/create') : setMethod(null))}
     >
@@ -58,46 +64,37 @@ export default function CreateIndividual() {
 
   if (method === null) {
     return (
-      <div style={{ maxWidth: 820 }}>
-        {back}
-        <Typography.Title level={3} style={{ marginTop: 8 }}>
-          Individual e-Invoice
-        </Typography.Title>
-        <Typography.Paragraph type="secondary">How do you want to enter the invoice?</Typography.Paragraph>
+      <Page title="Individual e-Invoice" subtitle="How do you want to enter the invoice?" back={back} maxWidth={820}>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12}>
-            <Card hoverable onClick={() => setMethod('manual')} style={{ height: '100%' }}>
-              <Typography.Title level={4} style={{ marginTop: 0 }}>
-                Key in manually
-              </Typography.Title>
-              <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                Fill in the invoice and its line items yourself.
-              </Typography.Paragraph>
-            </Card>
+            <OptionCard
+              title="Key in manually"
+              description="Fill in the invoice and its line items yourself."
+              icon={<EditOutlined />}
+              color={p.info}
+              soft={p.infoSoft}
+              onClick={() => setMethod('manual')}
+            />
           </Col>
           <Col xs={24} sm={12}>
-            <Card hoverable onClick={() => setMethod('upload')} style={{ height: '100%' }}>
-              <Typography.Title level={4} style={{ marginTop: 0 }}>
-                Upload a document
-              </Typography.Title>
-              <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                Upload a file and let AI mapping fill in the invoice for you.
-              </Typography.Paragraph>
-            </Card>
+            <OptionCard
+              title="Upload a document"
+              description="Upload a file and let AI mapping fill in the invoice for you."
+              icon={<CloudUploadOutlined />}
+              color={p.link}
+              soft={p.primarySoft}
+              onClick={() => setMethod('upload')}
+            />
           </Col>
         </Row>
-      </div>
+      </Page>
     );
   }
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: 820 }}>
-      {back}
+    <Page title="Individual e-Invoice" back={back} maxWidth={820}>
       {method === 'manual' ? (
-        <Card>
-          <Typography.Title level={4} style={{ marginTop: 0 }}>
-            Key in an individual invoice
-          </Typography.Title>
+        <Card title="Key in an individual invoice">
           <Typography.Paragraph type="secondary">
             We'll create a blank draft and open the editor, where you enter the buyer and line items, then confirm
             and submit to MyInvois.
@@ -122,16 +119,13 @@ export default function CreateIndividual() {
           </Button>
         </Card>
       ) : (
-        <Card>
-          <Typography.Title level={4} style={{ marginTop: 0 }}>
-            Upload a source document
-          </Typography.Title>
+        <Card title="Upload a source document">
           <Typography.Paragraph type="secondary">
             AI mapping will read the file into an individual invoice for you to review.
           </Typography.Paragraph>
           <FileUploadDropzone uploading={false} onFileSelected={startUpload} />
         </Card>
       )}
-    </Space>
+    </Page>
   );
 }

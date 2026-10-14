@@ -4,6 +4,7 @@ import { CheckCircleTwoTone } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSubscription, subscribePlan } from '../api/endpoints';
 import StatusTag from '../components/StatusTag';
+import Page from '../components/Page';
 import { useTheme } from '../theme/ThemeContext';
 
 interface Plan {
@@ -166,10 +167,7 @@ export default function Billing() {
       : [];
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Typography.Title level={3} style={{ marginBottom: 0 }}>
-        Billing
-      </Typography.Title>
+    <Page title="Billing" subtitle="Your plan, AI parsing credits and payment history.">
 
       <Card title="Current Plan">
         {currentPlan ? (
@@ -229,6 +227,6 @@ export default function Billing() {
           ]}
         />
       </Card>
-    </Space>
+    </Page>
   );
 }

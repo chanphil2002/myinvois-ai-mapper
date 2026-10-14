@@ -10,6 +10,7 @@ import {
 } from '../api/endpoints';
 import type { ConsolidatedInvoiceResponse, MappedInvoiceResponse } from '../api/types';
 import InvoiceList from '../components/InvoiceList';
+import Page from '../components/Page';
 import type { InvoiceRow } from '../components/InvoiceList';
 import { invoiceDisplayName } from '../utils/invoice';
 import { useUpload } from '../upload/UploadContext';
@@ -139,10 +140,7 @@ export default function Submissions() {
   const activeKey = params.get('tab') === 'consolidated' ? 'consolidated' : 'individual';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Typography.Title level={3} style={{ margin: 0 }}>
-        Submissions
-      </Typography.Title>
+    <Page title="Submissions" subtitle="Every e-invoice you've created, by type.">
       <Card styles={{ body: { padding: mobile ? 12 : 24 } }}>
         <Tabs
           activeKey={activeKey}
@@ -153,6 +151,6 @@ export default function Submissions() {
           ]}
         />
       </Card>
-    </div>
+    </Page>
   );
 }

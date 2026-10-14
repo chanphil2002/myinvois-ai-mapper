@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { getUsage, listConsolidatedInvoices, listMappedInvoices } from '../api/endpoints';
 import InvoiceList from '../components/InvoiceList';
+import Page from '../components/Page';
 import type { InvoiceRow } from '../components/InvoiceList';
 import { invoiceDisplayName } from '../utils/invoice';
 import { useUpload } from '../upload/UploadContext';
@@ -128,10 +129,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Typography.Title level={3} style={{ margin: 0 }}>
-        Dashboard
-      </Typography.Title>
+    <Page title="Dashboard">
 
       {/* Invoice-centric stat row */}
       <Row gutter={[12, 12]}>
@@ -190,6 +188,6 @@ export default function Dashboard() {
           emptyText="No e-invoices yet — create one from Create. Each invoice keeps its source file (or manual entry) inside it."
         />
       </Card>
-    </div>
+    </Page>
   );
 }

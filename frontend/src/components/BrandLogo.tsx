@@ -1,26 +1,26 @@
-import { FileDoneOutlined } from '@ant-design/icons';
-
 /** The MyTax brand mark + wordmark. `dark` for use on the dark sidebar. */
 export default function BrandLogo({ dark = false, size = 'md' }: { dark?: boolean; size?: 'md' | 'lg' }) {
   const box = size === 'lg' ? 46 : 34;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      {/* The mark sits on a white tile so its navy strokes stay visible on the dark sidebar. */}
       <div
         style={{
           width: box,
           height: box,
-          borderRadius: 11,
-          background: 'linear-gradient(135deg, #10b981 0%, #065f46 100%)',
+          borderRadius: 10,
+          background: '#ffffff',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#fff',
-          fontSize: size === 'lg' ? 22 : 17,
           flex: 'none',
-          boxShadow: '0 4px 12px rgba(4,120,87,0.30)',
+          padding: size === 'lg' ? 5 : 4,
+          boxSizing: 'border-box',
+          boxShadow: dark ? 'none' : '0 1px 3px rgba(28,28,26,0.12)',
+          border: dark ? 'none' : '1px solid #e5e5e1',
         }}
       >
-        <FileDoneOutlined />
+        <img src="/logo-mark.png" alt="MyTax" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
       </div>
       <div style={{ lineHeight: 1.15 }}>
         <div

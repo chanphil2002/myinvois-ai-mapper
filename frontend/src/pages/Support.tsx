@@ -2,6 +2,7 @@ import { Button, Card, Form, Input, Space, Typography, message } from 'antd';
 import { MailOutlined } from '@ant-design/icons';
 import { useMutation } from '@tanstack/react-query';
 import { submitSupport } from '../api/endpoints';
+import Page from '../components/Page';
 import { useAuth } from '../auth/AuthContext';
 
 const SUPPORT_EMAIL = 'chanphil2002@gmail.com';
@@ -30,17 +31,18 @@ export default function Support() {
     )}`;
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', width: '100%' }}>
-      <Typography.Title level={3} style={{ marginTop: 0 }}>
-        Contact Us
-      </Typography.Title>
-      <Typography.Paragraph type="secondary">
-        Ran into a problem or have a question? Send us a message and we'll get back to you
-        {email ? ` at ${email}` : ''}. You can also email us directly at{' '}
-        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
-      </Typography.Paragraph>
-
-      <Card>
+    <Page
+      title="Contact Us"
+      maxWidth={640}
+      subtitle={
+        <>
+          Ran into a problem or have a question? Send us a message and we'll get back to you
+          {email ? ` at ${email}` : ''}. You can also email us directly at{' '}
+          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
+        </>
+      }
+    >
+      <Card title="Send us a message">
         <Form form={form} layout="vertical" onFinish={(v) => mutation.mutate(v)}>
           <Form.Item name="subject" label="Subject" rules={[{ required: true, message: 'Please add a subject' }]}>
             <Input placeholder="e.g. Upload keeps failing" />
@@ -64,6 +66,6 @@ export default function Support() {
           </Space>
         </Form>
       </Card>
-    </div>
+    </Page>
   );
 }

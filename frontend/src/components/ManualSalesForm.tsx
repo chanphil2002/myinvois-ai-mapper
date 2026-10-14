@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Button, Col, DatePicker, Input, InputNumber, Modal, Row, Select, Space, Typography, Upload, message, theme } from 'antd';
+import { Alert, Button, Col, DatePicker, Input, InputNumber, Modal, Pagination, Row, Select, Space, Typography, Upload, message, theme } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import type { ManualConsolidatedLineItem } from '../api/types';
 import { CLASSIFICATION_CODES, UOM_CODES } from '../constants/myinvoisCodes';
@@ -46,9 +46,22 @@ export default function ManualSalesForm({ periodEnd, submitText, loading, onSubm
   const [importOpen, setImportOpen] = useState(false);
   const [csvText, setCsvText] = useState('');
   const [parsed, setParsed] = useState<ParseResult | null>(null);
+  // Large CSV imports would render hundreds of cards, so the form pages through them.
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const update = (i: number, patch: Partial<Line>) => setLines(lines.map((l, j) => (j === i ? { ...l, ...patch } : l)));
-  const remove = (i: number) => setLines(lines.length === 1 ? [blank(defaultDate)] : lines.filter((_, j) => j !== i));
+  const remove = (i: number) => {
+    const next = lines.length === 1 ? [blank(defaultDate)] : lines.filter((_, j) => j !== i);
+    setLines(next);
+    setPage((pg) => Math.min(pg, Math.max(1, Math.ceil(next.length / pageSize))));
+  };
+  const addLine = () => {
+    const next = [...lines, blank(defaultDate)];
+    setLines(next);
+    setPage(Math.ceil(next.length / pageSize));
+  };
+  const start = (page - 1) * pageSize;
 
   const invalid = (l: Line) => touched(l) && l.description.trim() === '';
   const filled = lines.filter((l) => l.description.trim() !== '');
@@ -70,6 +83,7 @@ export default function ManualSalesForm({ periodEnd, submitText, loading, onSubm
     );
     setLines([blank(defaultDate)]);
     setShowErrors(false);
+    setPage(1);
   };
 
   const closeImport = () => {
@@ -91,6 +105,7 @@ export default function ManualSalesForm({ periodEnd, submitText, loading, onSubm
     }));
     // Replace the untouched starter row instead of leaving an empty card above the imported ones.
     setLines([...lines.filter(touched), ...added]);
+    setPage(1);
     if (added.some((a) => a.unitCode || a.classificationCode)) setShowMore(true);
     message.success(`${added.length} sale${added.length === 1 ? '' : 's'} imported — review, then add to invoice`);
     closeImport();
@@ -104,7 +119,8 @@ export default function ManualSalesForm({ periodEnd, submitText, loading, onSubm
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-      {lines.map((l, i) => {
+      {lines.slice(start, start + pageSize).map((l, k) => {
+        const i = start + k;
         const bad = showErrors && invalid(l);
         return (
           <div
@@ -177,8 +193,30 @@ export default function ManualSalesForm({ periodEnd, submitText, loading, onSubm
           </div>
         );
       })}
+      {lines.length > pageSize || page > 1 ? (
+        <Pagination
+          size="small"
+          align="end"
+          current={page}
+          pageSize={pageSize}
+          total={lines.length}
+          showSizeChanger
+          pageSizeOptions={[10, 25, 50]}
+          showTotal={(t, [from, to]) => `Sales ${from}–${to} of ${t}`}
+          onChange={(pg, size) => {
+            setPage(size !== pageSize ? 1 : pg);
+            setPageSize(size);
+          }}
+        />
+      ) : null}
+      {showErrors && lines.some(invalid) && (
+        <Typography.Text type="danger">
+          Some sales are missing a description
+          {lines.length > pageSize ? ` (rows ${lines.map((l, i) => (invalid(l) ? i + 1 : 0)).filter(Boolean).slice(0, 5).join(', ')}${lines.filter(invalid).length > 5 ? '…' : ''})` : ''}.
+        </Typography.Text>
+      )}
       <Space wrap>
-        <Button type="dashed" onClick={() => setLines([...lines, blank(defaultDate)])}>
+        <Button type="dashed" onClick={addLine}>
           + Add another sale
         </Button>
         <Button onClick={() => setImportOpen(true)}>Paste / import CSV</Button>

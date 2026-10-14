@@ -6,6 +6,8 @@ import dayjs, { Dayjs } from 'dayjs';
 import StatusTag from '../components/StatusTag';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import SubmissionStatusBadge from '../components/SubmissionStatusBadge';
+import Page from '../components/Page';
+import { tablePagination } from '../utils/pagination';
 import ConsolidatedSteps from '../components/ConsolidatedSteps';
 import DueByHint from '../components/DueByHint';
 import ManualSalesForm from '../components/ManualSalesForm';
@@ -273,18 +275,11 @@ export default function ConsolidatedInvoiceReview() {
   ];
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <ConsolidatedSteps current={step} />
-
-      <Card
-        title={
-          <Space wrap>
-            <span>{title}</span>
-            <StatusTag status={invoice.status} />
-          </Space>
-        }
-        extra={
-          <Space>
+    <Page
+      title={title}
+      tag={<StatusTag status={invoice.status} />}
+      extra={
+        <>
             {invoice.status === 'DRAFT' && (
               <Button
                 type="primary"
@@ -300,9 +295,12 @@ export default function ConsolidatedInvoiceReview() {
                 Submit to MyInvois
               </Button>
             )}
-          </Space>
-        }
-      >
+        </>
+      }
+    >
+      <ConsolidatedSteps current={step} />
+
+      <Card title="Invoice details">
         {isDraft ? (
           <DetailsEditor invoice={invoice} onSaved={invalidate} />
         ) : (
@@ -433,7 +431,7 @@ export default function ConsolidatedInvoiceReview() {
             rowKey="id"
             dataSource={invoice.transactions}
             columns={columns}
-            pagination={false}
+            pagination={tablePagination(invoice.transactions.length)}
             size="small"
             scroll={{ x: 'max-content' }}
           />
@@ -462,6 +460,6 @@ export default function ConsolidatedInvoiceReview() {
           </Space>
         </Card>
       )}
-    </Space>
+    </Page>
   );
 }

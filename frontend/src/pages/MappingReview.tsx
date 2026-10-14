@@ -19,7 +19,8 @@ import {
 } from '../api/endpoints';
 import type { LineItem, MappedInvoiceResponse } from '../api/types';
 import { MALAYSIA_STATE_CODES, matchStateCode } from '../constants/malaysiaStates';
-import { defaultInvoiceName } from '../utils/invoice';
+import { defaultInvoiceName, invoiceDisplayName } from '../utils/invoice';
+import Page from '../components/Page';
 
 export default function MappingReview() {
   const { id } = useParams();
@@ -115,24 +116,11 @@ export default function MappingReview() {
   );
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      {/* Header bar: title, status and the primary actions */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          flexWrap: 'wrap',
-        }}
-      >
-        <Space align="center">
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            Invoice #{draft.id}
-          </Typography.Title>
-          <StatusTag status={draft.status} />
-        </Space>
-        <Space wrap>
+    <Page
+      title={invoiceDisplayName(draft.invoiceName, draft.id, draft.createdAt ?? draft.issueDate)}
+      tag={<StatusTag status={draft.status} />}
+      extra={
+        <>
           {editable && (
             <Button onClick={() => saveMutation.mutate(draft)} loading={saveMutation.isPending}>
               Save changes
@@ -148,9 +136,9 @@ export default function MappingReview() {
               Submit to MyInvois
             </Button>
           )}
-        </Space>
-      </div>
-
+        </>
+      }
+    >
       <SourceDocumentCard documentId={draft.documentId} />
 
       <Card title="Invoice details">
@@ -393,6 +381,6 @@ export default function MappingReview() {
           </Typography.Text>
         )}
       </Card>
-    </Space>
+    </Page>
   );
 }
