@@ -23,7 +23,8 @@ public record CreateManualConsolidatedInvoiceRequest(
             BigDecimal quantity,
             BigDecimal unitPrice,
             BigDecimal taxAmount,
-            String unitCode
+            String unitCode,
+            String classificationCode
     ) {
     }
 }

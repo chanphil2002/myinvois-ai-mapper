@@ -7,6 +7,7 @@ import StatusTag from '../components/StatusTag';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import SubmissionStatusBadge from '../components/SubmissionStatusBadge';
 import ConsolidatedSteps from '../components/ConsolidatedSteps';
+import DueByHint from '../components/DueByHint';
 import ManualSalesForm from '../components/ManualSalesForm';
 import FileUploadDropzone from '../components/FileUploadDropzone';
 import TransactionSelectionTable from '../components/TransactionSelectionTable';
@@ -244,6 +245,7 @@ export default function ConsolidatedInvoiceReview() {
     { title: 'Qty', dataIndex: 'quantity', key: 'quantity', width: 70 },
     { title: 'Unit Price', dataIndex: 'unitPrice', key: 'unitPrice', width: 100 },
     { title: 'Tax', dataIndex: 'taxAmount', key: 'taxAmount', width: 90 },
+    { title: 'Unit', dataIndex: 'unitCode', key: 'unitCode', width: 70, render: (v: string | null) => v ?? '—' },
     {
       title: 'Buyer',
       key: 'buyer',
@@ -336,6 +338,8 @@ export default function ConsolidatedInvoiceReview() {
           </Col>
         </Row>
       </Card>
+
+      {(invoice.status === 'DRAFT' || invoice.status === 'CONFIRMED') && <DueByHint periodEnd={invoice.periodEnd} />}
 
       {running.map((j) => (
         <Alert key={j.id} type="info" showIcon icon={<LoadingOutlined />} message={j.label} description="Extracting sales — they’ll appear below automatically. You can keep adding files or browse elsewhere." />

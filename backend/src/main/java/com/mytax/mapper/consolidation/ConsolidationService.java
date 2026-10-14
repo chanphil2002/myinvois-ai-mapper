@@ -190,7 +190,9 @@ public class ConsolidationService {
                     .quantity(line.quantity() != null ? line.quantity() : BigDecimal.ONE)
                     .unitPrice(line.unitPrice() != null ? line.unitPrice() : BigDecimal.ZERO)
                     .taxAmount(line.taxAmount() != null ? line.taxAmount() : BigDecimal.ZERO)
-                    .unitCode(line.unitCode() != null ? line.unitCode() : "C62")
+                    .unitCode(line.unitCode() != null && !line.unitCode().isBlank() ? line.unitCode() : "C62")
+                    .classificationCode(line.classificationCode() != null && !line.classificationCode().isBlank()
+                            ? line.classificationCode() : null)
                     .eligibleForConsolidation(true)
                     .status(SalesTransactionStatus.PENDING)
                     .build();

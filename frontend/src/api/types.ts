@@ -77,6 +77,7 @@ export interface ManualConsolidatedLineItem {
   unitPrice: number;
   taxAmount: number;
   unitCode?: string | null;
+  classificationCode?: string | null;
 }
 
 export interface CreateManualConsolidatedInvoicePayload {

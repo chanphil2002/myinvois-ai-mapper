@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
 import ConsolidatedSteps from '../../components/ConsolidatedSteps';
+import DueByHint from '../../components/DueByHint';
 import { createConsolidatedDraft } from '../../api/endpoints';
 
 /**
@@ -43,7 +44,7 @@ export default function CreateConsolidated() {
         </Typography.Title>
         <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
           Combine many small B2C sales (customers with no named buyer) into one invoice for a period — typically one per
-          month. Check LHDN’s current guidance for the submission deadline.
+          month.
         </Typography.Paragraph>
       </div>
 
@@ -73,6 +74,7 @@ export default function CreateConsolidated() {
               style={{ marginTop: 4 }}
             />
           </div>
+          {period && <DueByHint periodEnd={period[1].format('YYYY-MM-DD')} />}
           <Alert
             type="info"
             showIcon
