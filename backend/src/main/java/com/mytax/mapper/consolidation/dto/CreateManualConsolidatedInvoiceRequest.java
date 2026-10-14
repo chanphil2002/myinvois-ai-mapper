@@ -24,7 +24,9 @@ public record CreateManualConsolidatedInvoiceRequest(
             BigDecimal unitPrice,
             BigDecimal taxAmount,
             String unitCode,
-            String classificationCode
+            String classificationCode,
+            /** Set when the line is a reviewed AI-extracted transaction: update that row instead of creating one. */
+            Long sourceTransactionId
     ) {
     }
 }

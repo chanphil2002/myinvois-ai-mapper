@@ -38,6 +38,9 @@ app:
   myinvois:
     id-server-base-url: ${MYINVOIS_ID_SERVER_BASE_URL:https://preprod-identity.myinvois.hasil.gov.my}
     api-base-url: ${MYINVOIS_API_BASE_URL:https://preprod-api.myinvois.hasil.gov.my}
+    # Production. Override via env vars if LHDN issues different hosts for your account.
+    prod-id-server-base-url: ${MYINVOIS_PROD_ID_SERVER_BASE_URL:https://api.myinvois.hasil.gov.my}
+    prod-api-base-url: ${MYINVOIS_PROD_API_BASE_URL:https://api.myinvois.hasil.gov.my}
   anthropic:
     api-key: ${ANTHROPIC_API_KEY:}
     model: ${ANTHROPIC_MODEL:claude-sonnet-5}

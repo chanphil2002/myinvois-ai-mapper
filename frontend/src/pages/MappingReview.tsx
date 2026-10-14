@@ -21,6 +21,7 @@ import type { LineItem, MappedInvoiceResponse } from '../api/types';
 import { MALAYSIA_STATE_CODES, matchStateCode } from '../constants/malaysiaStates';
 import { defaultInvoiceName, invoiceDisplayName } from '../utils/invoice';
 import Page from '../components/Page';
+import EnvironmentTag from '../components/EnvironmentTag';
 
 export default function MappingReview() {
   const { id } = useParams();
@@ -344,6 +345,7 @@ export default function MappingReview() {
             {submissions.map((s) => (
               <div key={s.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
                 <SubmissionStatusBadge status={s.status} />
+                <EnvironmentTag environment={s.environment} />
                 <Typography.Text
                   type="secondary"
                   style={{ fontSize: 12, wordBreak: 'break-all', flex: '1 1 140px', minWidth: 0 }}

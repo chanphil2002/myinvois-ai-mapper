@@ -147,8 +147,21 @@ public class ConsolidationService {
                                                        List<CreateManualConsolidatedInvoiceRequest.LineItem> lines) {
         ConsolidatedInvoice invoice = getOwned(id, userId);
         requireDraft(invoice, "edited");
-        List<Long> created = createManualTransactions(userId, lines, invoice.getPeriodEnd());
-        return attach(id, userId, created);
+        // Reviewed AI rows update their already-extracted transaction (so it doesn't linger as a
+        // duplicate in "earlier extractions"); everything else is created as a manual entry.
+        List<Long> ids = new java.util.ArrayList<>();
+        List<CreateManualConsolidatedInvoiceRequest.LineItem> newLines = new java.util.ArrayList<>();
+        for (CreateManualConsolidatedInvoiceRequest.LineItem line : lines) {
+            if (line.sourceTransactionId() != null) {
+                ids.add(applyReviewedLine(userId, line, invoice.getPeriodEnd()));
+            } else {
+                newLines.add(line);
+            }
+        }
+        if (!newLines.isEmpty()) {
+            ids.addAll(createManualTransactions(userId, newLines, invoice.getPeriodEnd()));
+        }
+        return attach(id, userId, ids);
     }
 
     @Transactional
@@ -159,6 +172,25 @@ public class ConsolidationService {
         remaining.remove(transactionId);
         replaceTransactions(invoice, userId, remaining);
         return toResponse(invoice);
+    }
+
+    private Long applyReviewedLine(Long userId, CreateManualConsolidatedInvoiceRequest.LineItem line,
+                                   java.time.LocalDate defaultDate) {
+        SalesTransaction t = salesTransactionRepository.findById(line.sourceTransactionId())
+                .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + line.sourceTransactionId()));
+        documentService.getOwned(t.getDocumentId(), userId);
+        if (t.getStatus() != SalesTransactionStatus.PENDING) {
+            throw new IllegalStateException("Transaction " + t.getId() + " is already in a consolidated invoice");
+        }
+        t.setTransactionDate(line.transactionDate() != null ? line.transactionDate() : defaultDate);
+        t.setDescription(line.description());
+        t.setQuantity(line.quantity() != null ? line.quantity() : BigDecimal.ONE);
+        t.setUnitPrice(line.unitPrice() != null ? line.unitPrice() : BigDecimal.ZERO);
+        t.setTaxAmount(line.taxAmount() != null ? line.taxAmount() : BigDecimal.ZERO);
+        t.setUnitCode(line.unitCode() != null && !line.unitCode().isBlank() ? line.unitCode() : "C62");
+        t.setClassificationCode(line.classificationCode() != null && !line.classificationCode().isBlank()
+                ? line.classificationCode() : null);
+        return salesTransactionRepository.save(t).getId();
     }
 
     private List<Long> currentTransactionIds(ConsolidatedInvoice invoice) {

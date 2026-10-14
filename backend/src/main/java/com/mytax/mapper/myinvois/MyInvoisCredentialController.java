@@ -3,7 +3,8 @@ package com.mytax.mapper.myinvois;
 import com.mytax.mapper.auth.CurrentUser;
 import com.mytax.mapper.common.ApiResponse;
 import com.mytax.mapper.myinvois.dto.CredentialRequest;
-import com.mytax.mapper.myinvois.dto.CredentialResponse;
+import com.mytax.mapper.myinvois.dto.CredentialsOverviewResponse;
+import com.mytax.mapper.myinvois.dto.SetActiveEnvironmentRequest;
 import com.mytax.mapper.myinvois.dto.RevealCredentialRequest;
 import com.mytax.mapper.myinvois.dto.RevealedCredentialResponse;
 import jakarta.validation.Valid;
@@ -20,17 +21,22 @@ public class MyInvoisCredentialController {
     }
 
     @PutMapping
-    public ApiResponse<CredentialResponse> save(@Valid @RequestBody CredentialRequest request) {
+    public ApiResponse<CredentialsOverviewResponse> save(@Valid @RequestBody CredentialRequest request) {
         return ApiResponse.ok(credentialService.save(CurrentUser.id(), request));
     }
 
     @GetMapping
-    public ApiResponse<CredentialResponse> get() {
-        return ApiResponse.ok(credentialService.get(CurrentUser.id()));
+    public ApiResponse<CredentialsOverviewResponse> get() {
+        return ApiResponse.ok(credentialService.overview(CurrentUser.id()));
+    }
+
+    @PutMapping("/active")
+    public ApiResponse<CredentialsOverviewResponse> setActive(@Valid @RequestBody SetActiveEnvironmentRequest request) {
+        return ApiResponse.ok(credentialService.setActive(CurrentUser.id(), request.environment()));
     }
 
     @PostMapping("/reveal")
     public ApiResponse<RevealedCredentialResponse> reveal(@Valid @RequestBody RevealCredentialRequest request) {
-        return ApiResponse.ok(credentialService.reveal(CurrentUser.id(), request.password()));
+        return ApiResponse.ok(credentialService.reveal(CurrentUser.id(), request.password(), request.environment()));
     }
 }

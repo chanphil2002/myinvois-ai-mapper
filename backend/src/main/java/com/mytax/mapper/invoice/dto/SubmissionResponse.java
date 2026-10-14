@@ -13,6 +13,7 @@ public record SubmissionResponse(
         SubmissionStatus status,
         Instant submittedAt,
         Instant statusUpdatedAt,
-        String errorMessage
+        String errorMessage,
+        com.mytax.mapper.myinvois.MyInvoisEnvironment environment
 ) {
 }

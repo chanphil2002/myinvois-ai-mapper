@@ -25,6 +25,12 @@ public class User {
 
     private String role = "OWNER";
 
+    /** Which MyInvois environment submissions go to (credentials are stored per environment). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "myinvois_environment", nullable = false)
+    private com.mytax.mapper.myinvois.MyInvoisEnvironment myinvoisEnvironment =
+            com.mytax.mapper.myinvois.MyInvoisEnvironment.SANDBOX;
+
     @Column(name = "created_at", nullable = false, updatable = false, insertable = false)
     private Instant createdAt;
 
@@ -85,6 +91,14 @@ public class User {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public com.mytax.mapper.myinvois.MyInvoisEnvironment getMyinvoisEnvironment() {
+        return myinvoisEnvironment;
+    }
+
+    public void setMyinvoisEnvironment(com.mytax.mapper.myinvois.MyInvoisEnvironment myinvoisEnvironment) {
+        this.myinvoisEnvironment = myinvoisEnvironment;
     }
 
     public static final class Builder {

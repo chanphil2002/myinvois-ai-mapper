@@ -24,7 +24,7 @@ public class MyInvoisAuthService {
     private final MyInvoisProperties properties;
     private final MyInvoisCredentialService credentialService;
     private final RestClient restClient;
-    private final Map<Long, CachedToken> tokenCache = new ConcurrentHashMap<>();
+    private final Map<String, CachedToken> tokenCache = new ConcurrentHashMap<>();
 
     public MyInvoisAuthService(MyInvoisProperties properties, MyInvoisCredentialService credentialService) {
         this.properties = properties;
@@ -32,16 +32,17 @@ public class MyInvoisAuthService {
         this.restClient = RestClient.create();
     }
 
-    public String getAccessToken(Long userId) {
-        CachedToken cached = tokenCache.get(userId);
+    public String getAccessToken(Long userId, MyInvoisEnvironment environment) {
+        String key = userId + ":" + environment;
+        CachedToken cached = tokenCache.get(key);
         if (cached != null && cached.expiresAt().isAfter(Instant.now().plusSeconds(30))) {
             return cached.accessToken();
         }
-        return fetchAndCacheToken(userId);
+        return fetchAndCacheToken(userId, environment, key);
     }
 
-    private String fetchAndCacheToken(Long userId) {
-        MyInvoisCredential credential = credentialService.getDecryptedForUse(userId);
+    private String fetchAndCacheToken(Long userId, MyInvoisEnvironment environment, String key) {
+        MyInvoisCredential credential = credentialService.getDecryptedForUse(userId, environment);
         String clientSecret = credentialService.decryptSecret(credential);
 
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
@@ -51,7 +52,7 @@ public class MyInvoisAuthService {
         form.add("scope", "InvoicingAPI");
 
         TokenResponse response = restClient.post()
-                .uri(properties.getIdServerBaseUrl() + "/connect/token")
+                .uri(properties.idServerBaseUrl(environment) + "/connect/token")
                 .headers(h -> h.setContentType(MediaType.APPLICATION_FORM_URLENCODED))
                 .body(form)
                 .retrieve()
@@ -62,7 +63,7 @@ public class MyInvoisAuthService {
         }
 
         Instant expiresAt = Instant.now().plusSeconds(response.expiresInSeconds());
-        tokenCache.put(userId, new CachedToken(response.accessToken(), expiresAt));
+        tokenCache.put(key, new CachedToken(response.accessToken(), expiresAt));
         return response.accessToken();
     }
 

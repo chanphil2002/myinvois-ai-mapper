@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Button, Col, DatePicker, Input, InputNumber, Modal, Pagination, Row, Select, Space, Tooltip, Typography, Upload, message, theme } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
@@ -15,7 +15,32 @@ interface Line {
   taxAmount: number;
   unitCode: string | null;
   classificationCode: string | null;
+  /** Set for rows extracted by AI: the already-stored transaction this row confirms. */
+  sourceTransactionId?: number;
+  /** Rows filled by AI get the "AI" corner label until they're added. */
+  ai?: boolean;
+  /** File the row came from (shown on AI rows). */
+  source?: string;
 }
+
+/** A row arriving from an upload, for the user to review before it's added to the invoice. */
+export interface IncomingSale {
+  date: string | null;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  taxAmount: number;
+  unitCode: string | null;
+  classificationCode: string | null;
+  sourceTransactionId?: number;
+  ai?: boolean;
+  source?: string;
+}
+
+// Unsaved rows per form (keyed by storageKey) and the upload batches already merged in. Module-level
+// so rows waiting for review survive navigating away from the invoice and back within the session.
+const savedLines = new Map<string, Line[]>();
+const mergedBatches = new Set<string>();
 
 const blank = (date: Dayjs | null): Line => ({
   date,
@@ -34,14 +59,59 @@ interface Props {
   periodEnd: string;
   submitText: string;
   loading?: boolean;
-  onSubmit: (lines: ManualConsolidatedLineItem[]) => void;
+  /** Rows are cleared only after this resolves, so a failed save never loses what was typed. */
+  onSubmit: (lines: ManualConsolidatedLineItem[]) => Promise<unknown>;
+  /** Keeps unsaved rows across remounts (e.g. one key per draft invoice). */
+  storageKey?: string;
+  /** Upload results to merge in for review; each batch is merged once (by key). */
+  incoming?: { key: string; sales: IncomingSale[] }[];
+  /** Called after a batch is merged (e.g. to switch to this tab). */
+  onIncoming?: (count: number) => void;
 }
 
 /** Card-per-sale entry form (works on phones, no horizontal scroll) with inline validation. */
-export default function ManualSalesForm({ periodEnd, submitText, loading, onSubmit }: Props) {
+export default function ManualSalesForm({
+  periodEnd,
+  submitText,
+  loading,
+  onSubmit,
+  storageKey,
+  incoming,
+  onIncoming,
+}: Props) {
   const { token } = theme.useToken();
   const defaultDate = dayjs(periodEnd);
-  const [lines, setLines] = useState<Line[]>([blank(defaultDate)]);
+  const [lines, setLines] = useState<Line[]>(() => (storageKey && savedLines.get(storageKey)) || [blank(defaultDate)]);
+
+  useEffect(() => {
+    if (storageKey) savedLines.set(storageKey, lines);
+  }, [storageKey, lines]);
+
+  // Merge newly finished uploads into the form so the user reviews them before they're added.
+  useEffect(() => {
+    const fresh = (incoming ?? []).filter((b) => !mergedBatches.has(b.key));
+    if (fresh.length === 0) return;
+    fresh.forEach((b) => mergedBatches.add(b.key));
+    const added: Line[] = fresh.flatMap((b) =>
+      b.sales.map((x) => ({
+        date: x.date ? dayjs(x.date) : defaultDate,
+        description: x.description,
+        quantity: x.quantity,
+        unitPrice: x.unitPrice,
+        taxAmount: x.taxAmount,
+        unitCode: x.unitCode,
+        classificationCode: x.classificationCode,
+        sourceTransactionId: x.sourceTransactionId,
+        ai: x.ai,
+        source: x.source,
+      })),
+    );
+    if (added.length === 0) return;
+    setLines((prev) => [...prev.filter(touched), ...added]);
+    setPage(1);
+    onIncoming?.(added.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming]);
   const [showErrors, setShowErrors] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [csvText, setCsvText] = useState('');
@@ -67,24 +137,31 @@ export default function ManualSalesForm({ periodEnd, submitText, loading, onSubm
   const filled = lines.filter((l) => l.description.trim() !== '');
   const total = filled.reduce((sum, l) => sum + l.quantity * l.unitPrice + l.taxAmount, 0);
 
-  const submit = () => {
+  const submit = async () => {
     setShowErrors(true);
     if (lines.some(invalid) || filled.length === 0) return;
-    onSubmit(
-      filled.map((l) => ({
+    try {
+      await onSubmit(
+        filled.map((l) => ({
         transactionDate: l.date ? l.date.format('YYYY-MM-DD') : null,
         description: l.description.trim(),
         quantity: l.quantity,
         unitPrice: l.unitPrice,
         taxAmount: l.taxAmount,
-        unitCode: l.unitCode,
-        classificationCode: l.classificationCode,
-      })),
-    );
+          unitCode: l.unitCode,
+          classificationCode: l.classificationCode,
+          sourceTransactionId: l.sourceTransactionId ?? null,
+        })),
+      );
+    } catch {
+      return; // keep the rows so nothing is lost; the caller shows the error
+    }
     setLines([blank(defaultDate)]);
     setShowErrors(false);
     setPage(1);
   };
+
+  const aiCount = lines.filter((l) => l.ai).length;
 
   const closeImport = () => {
     setImportOpen(false);
@@ -118,11 +195,30 @@ export default function ManualSalesForm({ periodEnd, submitText, loading, onSubm
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      {aiCount > 0 && (
+        <Alert
+          type="info"
+          showIcon
+          message={`${aiCount} sale${aiCount === 1 ? '' : 's'} read by AI — please check before adding`}
+          description="Rows marked AI were extracted from your uploads. Correct anything that's wrong, remove what doesn't belong, then click “Add to invoice”."
+        />
+      )}
       {lines.slice(start, start + pageSize).map((l, k) => {
         const i = start + k;
         const bad = showErrors && invalid(l);
         return (
-          <div key={i} style={{ border: `1px solid ${token.colorBorderSecondary}`, borderRadius: 10, padding: 12 }}>
+          <div
+            key={i}
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              border: `1px solid ${token.colorBorderSecondary}`,
+              borderRadius: 10,
+              padding: 12,
+              paddingLeft: l.ai ? 30 : 12,
+            }}
+          >
+            {l.ai && <AiCorner source={l.source} />}
             {/* Row 1: what & when (+ remove). Row 2: every amount/code field side by side. */}
             <Row gutter={[10, 8]} align="bottom">
               <Col xs={24} md={15}>
@@ -289,5 +385,35 @@ export default function ManualSalesForm({ periodEnd, submitText, loading, onSubm
         </Button>
       </div>
     </Space>
+  );
+}
+
+/** Diagonal "AI" ribbon in a card's top-left corner, marking values filled in by AI extraction. */
+function AiCorner({ source }: { source?: string }) {
+  const { token } = theme.useToken();
+  return (
+    <Tooltip title={source ? `Extracted by AI from ${source}` : 'Extracted by AI'}>
+      <div
+        aria-label="Extracted by AI"
+        style={{
+          position: 'absolute',
+          top: 11,
+          left: -26,
+          width: 84,
+          transform: 'rotate(-45deg)',
+          textAlign: 'center',
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: 1.5,
+          lineHeight: '18px',
+          color: token.colorPrimary,
+          background: token.colorPrimaryBg,
+          pointerEvents: 'auto',
+          userSelect: 'none',
+        }}
+      >
+        AI
+      </div>
+    </Tooltip>
   );
 }

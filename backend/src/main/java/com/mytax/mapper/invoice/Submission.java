@@ -31,6 +31,12 @@ public class Submission {
     @Enumerated(EnumType.STRING)
     private SubmissionStatus status = SubmissionStatus.PENDING;
 
+    /** LHDN environment this was submitted to — refreshes must query the same one. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "environment", nullable = false)
+    private com.mytax.mapper.myinvois.MyInvoisEnvironment environment =
+            com.mytax.mapper.myinvois.MyInvoisEnvironment.SANDBOX;
+
     @Column(name = "submitted_at")
     private Instant submittedAt;
 
@@ -120,6 +126,14 @@ public class Submission {
         this.responsePayload = responsePayload;
     }
 
+    public com.mytax.mapper.myinvois.MyInvoisEnvironment getEnvironment() {
+        return environment;
+    }
+
+    public void setEnvironment(com.mytax.mapper.myinvois.MyInvoisEnvironment environment) {
+        this.environment = environment;
+    }
+
     public static final class Builder {
         private final Submission submission = new Submission();
 
@@ -140,6 +154,11 @@ public class Submission {
 
         public Builder myInvoisDocumentUuid(String myInvoisDocumentUuid) {
             submission.myInvoisDocumentUuid = myInvoisDocumentUuid;
+            return this;
+        }
+
+        public Builder environment(com.mytax.mapper.myinvois.MyInvoisEnvironment environment) {
+            submission.environment = environment;
             return this;
         }
 

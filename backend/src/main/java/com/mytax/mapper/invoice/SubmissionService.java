@@ -14,6 +14,8 @@ import com.mytax.mapper.mapping.MappedInvoiceLineItem;
 import com.mytax.mapper.mapping.MappedInvoiceLineItemRepository;
 import com.mytax.mapper.mapping.MappedInvoiceRepository;
 import com.mytax.mapper.myinvois.MyInvoisAuthService;
+import com.mytax.mapper.myinvois.MyInvoisCredentialService;
+import com.mytax.mapper.myinvois.MyInvoisEnvironment;
 import com.mytax.mapper.myinvois.MyInvoisSubmissionClient;
 import com.mytax.mapper.myinvois.dto.DocumentSubmissionItem;
 import com.mytax.mapper.myinvois.dto.SubmissionStatusResponse;
@@ -48,6 +50,7 @@ public class SubmissionService {
     private final ConsolidatedInvoiceRepository consolidatedInvoiceRepository;
     private final SubmissionRepository submissionRepository;
     private final ObjectMapper objectMapper;
+    private final MyInvoisCredentialService credentialService;
 
     public SubmissionService(InvoiceReviewService invoiceReviewService,
                               ConsolidationService consolidationService,
@@ -59,7 +62,8 @@ public class SubmissionService {
                               MappedInvoiceLineItemRepository lineItemRepository,
                               ConsolidatedInvoiceRepository consolidatedInvoiceRepository,
                               SubmissionRepository submissionRepository,
-                              ObjectMapper objectMapper) {
+                              ObjectMapper objectMapper,
+                              MyInvoisCredentialService credentialService) {
         this.invoiceReviewService = invoiceReviewService;
         this.consolidationService = consolidationService;
         this.ublDocumentBuilder = ublDocumentBuilder;
@@ -71,6 +75,7 @@ public class SubmissionService {
         this.consolidatedInvoiceRepository = consolidatedInvoiceRepository;
         this.submissionRepository = submissionRepository;
         this.objectMapper = objectMapper;
+        this.credentialService = credentialService;
     }
 
     @Transactional
@@ -93,10 +98,12 @@ public class SubmissionService {
                     new String(Base64.getDecoder().decode(built.base64Document()), StandardCharsets.UTF_8));
         }
 
-        SubmitDocumentsResponse response = submitBuiltDocument(userId, built);
+        MyInvoisEnvironment environment = activeEnvironment(userId);
+        SubmitDocumentsResponse response = submitBuiltDocument(userId, environment, built);
 
         Submission submission = Submission.builder()
                 .mappedInvoiceId(invoice.getId())
+                .environment(environment)
                 .myInvoisSubmissionUid(response.submissionUid())
                 .myInvoisDocumentUuid(acceptedDocumentUuid(response))
                 .status(SubmissionStatus.PENDING)
@@ -113,12 +120,12 @@ public class SubmissionService {
 
     /** Shared with {@code ConsolidatedSubmissionService} — the MyInvois call itself doesn't care
      *  whether the built document represents one invoice or a consolidated aggregate. */
-    public SubmitDocumentsResponse submitBuiltDocument(Long userId, BuiltDocument built) {
-        String accessToken = myInvoisAuthService.getAccessToken(userId);
+    public SubmitDocumentsResponse submitBuiltDocument(Long userId, MyInvoisEnvironment environment, BuiltDocument built) {
+        String accessToken = myInvoisAuthService.getAccessToken(userId, environment);
         SubmitDocumentsRequest request = new SubmitDocumentsRequest(List.of(
                 new DocumentSubmissionItem("JSON", built.sha256Hash(), built.codeNumber(), built.base64Document())
         ));
-        return myInvoisSubmissionClient.submitDocuments(accessToken, request);
+        return myInvoisSubmissionClient.submitDocuments(environment, accessToken, request);
     }
 
     @Transactional
@@ -134,8 +141,11 @@ public class SubmissionService {
             consolidatedInvoice = consolidationService.getOwned(submission.getConsolidatedInvoiceId(), userId);
         }
 
-        String accessToken = myInvoisAuthService.getAccessToken(userId);
-        SubmissionStatusResponse status = myInvoisSubmissionClient.getSubmissionStatus(accessToken, submission.getMyInvoisSubmissionUid());
+        // Query the environment it was submitted to, not whichever one is active now.
+        MyInvoisEnvironment environment = submission.getEnvironment();
+        String accessToken = myInvoisAuthService.getAccessToken(userId, environment);
+        SubmissionStatusResponse status = myInvoisSubmissionClient.getSubmissionStatus(
+                environment, accessToken, submission.getMyInvoisSubmissionUid());
 
         submission.setStatus(mapStatus(status.overallStatus()));
         submission.setStatusUpdatedAt(Instant.now());
@@ -150,7 +160,7 @@ public class SubmissionService {
         if (submission.getStatus() == SubmissionStatus.INVALID && submission.getMyInvoisDocumentUuid() != null) {
             try {
                 String details = myInvoisSubmissionClient.getDocumentDetails(
-                        accessToken, submission.getMyInvoisDocumentUuid());
+                        environment, accessToken, submission.getMyInvoisDocumentUuid());
                 if (details != null && !details.isBlank()) {
                     payloadJson = details;
                 }
@@ -348,10 +358,16 @@ public class SubmissionService {
         return b != null && !b.isBlank() ? b : null;
     }
 
+    /** Where new submissions go — the user's active MyInvois environment. */
+    public MyInvoisEnvironment activeEnvironment(Long userId) {
+        return credentialService.activeEnvironment(userId);
+    }
+
     public SubmissionResponse toResponse(Submission submission) {
         return new SubmissionResponse(submission.getId(), submission.getMappedInvoiceId(),
                 submission.getConsolidatedInvoiceId(), submission.getMyInvoisSubmissionUid(),
                 submission.getMyInvoisDocumentUuid(), submission.getStatus(), submission.getSubmittedAt(),
-                submission.getStatusUpdatedAt(), extractErrorMessage(submission.getResponsePayload()));
+                submission.getStatusUpdatedAt(), extractErrorMessage(submission.getResponsePayload()),
+                submission.getEnvironment());
     }
 }

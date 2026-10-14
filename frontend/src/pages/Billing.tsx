@@ -73,7 +73,15 @@ function PlanCards({
         return (
           <Col xs={24} sm={12} md={6} key={p.id}>
             <Card
-              style={{ height: '100%', borderColor: p.popular ? palette.primary : undefined }}
+              // Column flex so the action button can be pinned to the card's bottom edge, keeping
+              // every plan's button on the same line regardless of how many features it lists.
+              style={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                borderColor: p.popular ? palette.primary : undefined,
+              }}
+              styles={{ body: { flex: 1, display: 'flex', flexDirection: 'column' } }}
               title={
                 <Space>
                   {p.name}
@@ -98,6 +106,7 @@ function PlanCards({
                 ))}
               </Space>
               <Button
+                style={{ marginTop: 'auto' }}
                 type={p.popular ? 'primary' : 'default'}
                 block
                 disabled={isCurrent || p.free}

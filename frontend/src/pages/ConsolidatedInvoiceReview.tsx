@@ -7,10 +7,12 @@ import StatusTag from '../components/StatusTag';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import SubmissionStatusBadge from '../components/SubmissionStatusBadge';
 import Page from '../components/Page';
+import EnvironmentTag from '../components/EnvironmentTag';
 import { tablePagination } from '../utils/pagination';
 import ConsolidatedSteps from '../components/ConsolidatedSteps';
 import DueByHint from '../components/DueByHint';
 import ManualSalesForm from '../components/ManualSalesForm';
+import type { IncomingSale } from '../components/ManualSalesForm';
 import FileUploadDropzone from '../components/FileUploadDropzone';
 import TransactionSelectionTable from '../components/TransactionSelectionTable';
 import {
@@ -201,68 +203,56 @@ export default function ConsolidatedInvoiceReview() {
     onError: onErr('Could not adjust the period'),
   });
 
-  // Each file runs in the background and lands in THIS draft. Files dropped together share a
-  // group, so the banner shows one "n of m" card instead of one card per file.
+  // Each file runs in the background. Its sales are NOT added straight away: they land in the
+  // "Key in" form (AI rows labelled) for the user to check and confirm with "Add to invoice".
+  // Files dropped together share a group, so the banner shows one "n of m" card.
   const uploadFile = (file: File) => {
     const group = `draft-${consolidatedInvoiceId}`;
-    const link = { to: `/consolidated-invoices/${consolidatedInvoiceId}`, text: 'View draft' };
-    const refresh = () => queryClient.invalidateQueries({ queryKey: ['consolidated-invoice', consolidatedInvoiceId] });
-
-    // A CSV whose header names our columns (date, description, qty, …) is imported directly —
-    // instant, exact and free. Any other CSV (e.g. a raw marketplace export) goes to the AI.
-    if (/\.(csv|tsv|txt)$/i.test(file.name)) {
-      startJob({
-        kind: 'consolidated',
-        label: `Importing ${file.name}`,
-        draftId: consolidatedInvoiceId,
-        group,
-        run: async () => {
-          const parsed = parseSalesText(await file.text());
-          if (parsed.headerMatched && parsed.sales.length > 0) {
-            await queueAttach(() =>
-              addConsolidatedLines(
-                consolidatedInvoiceId,
-                parsed.sales.map((x) => ({
-                  transactionDate: x.date,
-                  description: x.description,
-                  quantity: x.quantity,
-                  unitPrice: x.unitPrice,
-                  taxAmount: x.taxAmount,
-                  unitCode: x.unitCode,
-                  classificationCode: x.classificationCode,
-                })),
-              ),
-            );
-            refresh();
-            const skipped = parsed.warnings.length ? ` · ${parsed.warnings.length} note(s)` : '';
-            return { link, summary: `${parsed.sales.length} sales imported from ${file.name}${skipped}` };
-          }
-          const doc = await uploadDocument(file);
-          const txs = await extractTransactions(doc.id);
-          if (txs.length > 0) await queueAttach(() => attachTransactions(consolidatedInvoiceId, txs.map((t) => t.id)));
-          refresh();
-          return { link, summary: `${txs.length} sales extracted by AI from ${file.name}` };
-        },
-      });
-      return;
-    }
+    const link = { to: `/consolidated-invoices/${consolidatedInvoiceId}`, text: 'Review sales' };
+    const isText = /\.(csv|tsv|txt)$/i.test(file.name);
 
     startJob({
       kind: 'consolidated',
-      label: `Extracting ${file.name}`,
+      label: `${isText ? 'Importing' : 'Extracting'} ${file.name}`,
       draftId: consolidatedInvoiceId,
       group,
       run: async () => {
+        // A CSV whose header names our columns is read in the browser — exact and free.
+        if (isText) {
+          const parsed = parseSalesText(await file.text());
+          if (parsed.headerMatched && parsed.sales.length > 0) {
+            const sales: IncomingSale[] = parsed.sales.map((x) => ({ ...x, source: file.name }));
+            return { link, result: sales, summary: `${sales.length} sales ready to review from ${file.name}` };
+          }
+        }
+        // Everything else (receipts, PDFs, spreadsheets, other CSVs) is read by AI.
         const doc = await uploadDocument(file);
         const txs = await extractTransactions(doc.id);
-        if (txs.length > 0) {
-          await queueAttach(() => attachTransactions(consolidatedInvoiceId, txs.map((t) => t.id)));
-        }
-        refresh();
-        return { link, summary: `${txs.length} sale${txs.length === 1 ? '' : 's'} from ${file.name}` };
+        const sales: IncomingSale[] = txs.map((t) => ({
+          date: t.transactionDate,
+          description: t.description ?? '',
+          quantity: Number(t.quantity),
+          unitPrice: Number(t.unitPrice),
+          taxAmount: Number(t.taxAmount),
+          unitCode: t.unitCode,
+          classificationCode: t.classificationCode,
+          sourceTransactionId: t.id,
+          ai: true,
+          source: file.name,
+        }));
+        return {
+          link,
+          result: sales,
+          summary: `${sales.length} sale${sales.length === 1 ? '' : 's'} ready to review from ${file.name}`,
+        };
       },
     });
   };
+
+  // Finished uploads for this draft, fed to the Key in form for review.
+  const incoming = jobs
+    .filter((j) => j.draftId === consolidatedInvoiceId && j.status === 'done' && Array.isArray(j.result))
+    .map((j) => ({ key: j.id, sales: j.result as IncomingSale[] }));
 
   if (isLoading || !invoice) {
     return <Typography.Text>Loading...</Typography.Text>;
@@ -395,7 +385,7 @@ export default function ConsolidatedInvoiceReview() {
               ? `Processing files — ${draftJobs.length - running.length} of ${draftJobs.length} done`
               : running[0].label
           }
-          description={`${running.map((j) => j.label.replace(/^(Extracting|Importing)\s+/, '')).join(', ')} — sales appear below automatically. You can keep adding files or browse elsewhere.`}
+          description={`${running.map((j) => j.label.replace(/^(Extracting|Importing)\s+/, '')).join(', ')} — the sales will appear under Key in for you to check before they're added. You can keep adding files or browse elsewhere.`}
         />
       )}
       {failed.length > 0 && (
@@ -439,12 +429,20 @@ export default function ConsolidatedInvoiceReview() {
               {
                 key: 'manual',
                 label: 'Key in',
+                // Always mounted: finished uploads merge into this form even while another tab is open.
+                forceRender: true,
                 children: (
                   <ManualSalesForm
                     periodEnd={invoice.periodEnd}
                     submitText="Add to invoice"
                     loading={addLines.isPending}
-                    onSubmit={(lines) => addLines.mutate(lines)}
+                    onSubmit={(lines) => addLines.mutateAsync(lines)}
+                    storageKey={`draft-${consolidatedInvoiceId}`}
+                    incoming={incoming}
+                    onIncoming={(n) => {
+                      setAddTab('manual');
+                      message.info(`${n} sale${n === 1 ? '' : 's'} ready to review in Key in`);
+                    }}
                   />
                 ),
               },
@@ -454,8 +452,8 @@ export default function ConsolidatedInvoiceReview() {
                 children: (
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                      Pick several files at once, or come back and add more later. AI extracts the sales and adds them to
-                      this invoice — remove any that don’t belong. A CSV with our column headers (date, description,
+                      Pick several files at once, or come back and add more later. AI extracts the sales into the Key in
+                      tab, where you check and confirm them before they're added to this invoice. A CSV with our column headers (date, description,
                       qty, unit price, tax) is imported directly without using AI credits.
                     </Typography.Paragraph>
                     <FileUploadDropzone
@@ -519,13 +517,19 @@ export default function ConsolidatedInvoiceReview() {
           <Space direction="vertical" style={{ width: '100%' }}>
             {submissions.map((s) => (
               <Space key={s.id} direction="vertical" size={4} style={{ width: '100%' }}>
-                <Space>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
                   <SubmissionStatusBadge status={s.status} />
-                  <span>{s.myInvoisSubmissionUid}</span>
+                  <EnvironmentTag environment={s.environment} />
+                  <Typography.Text
+                    type="secondary"
+                    style={{ fontSize: 12, wordBreak: 'break-all', flex: '1 1 140px', minWidth: 0 }}
+                  >
+                    {s.myInvoisSubmissionUid}
+                  </Typography.Text>
                   <Button size="small" loading={refreshMutation.isPending} onClick={() => refreshMutation.mutate(s.id)}>
                     Refresh status
                   </Button>
-                </Space>
+                </div>
                 {s.errorMessage && <Alert type="error" message={s.errorMessage} showIcon />}
               </Space>
             ))}

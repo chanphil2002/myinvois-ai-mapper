@@ -75,10 +75,12 @@ public class ConsolidatedSubmissionService {
         List<SalesTransaction> transactions = salesTransactionRepository.findByIdIn(transactionIds);
 
         BuiltDocument built = ublDocumentBuilder.build(supplier, invoice, transactions);
-        SubmitDocumentsResponse response = submissionService.submitBuiltDocument(userId, built);
+        com.mytax.mapper.myinvois.MyInvoisEnvironment environment = submissionService.activeEnvironment(userId);
+        SubmitDocumentsResponse response = submissionService.submitBuiltDocument(userId, environment, built);
 
         Submission submission = Submission.builder()
                 .consolidatedInvoiceId(invoice.getId())
+                .environment(environment)
                 .myInvoisSubmissionUid(response.submissionUid())
                 .status(SubmissionStatus.PENDING)
                 .submittedAt(Instant.now())

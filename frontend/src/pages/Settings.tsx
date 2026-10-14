@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, Col, Form, Input, Modal, Row, Select, Space, Tooltip, Typography, message } from 'antd';
+import { Button, Card, Col, Form, Input, Modal, Row, Segmented, Select, Space, Tabs, Tag, Tooltip, Typography, message } from 'antd';
 import { EyeInvisibleOutlined, EyeOutlined, EditOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -8,8 +8,10 @@ import {
   revealCredentials,
   saveBusinessProfile,
   saveCredentials,
+  setActiveEnvironment,
 } from '../api/endpoints';
-import type { BusinessProfile, MyInvoisEnvironment, RevealedCredentialResponse } from '../api/types';
+import type { BusinessProfile, CredentialResponse, MyInvoisEnvironment, RevealedCredentialResponse } from '../api/types';
+import { useTheme } from '../theme/ThemeContext';
 import Page from '../components/Page';
 import { MALAYSIA_STATE_CODES } from '../constants/malaysiaStates';
 
@@ -19,57 +21,58 @@ const maskKey = (v: string) => (v.length > 6 ? `${v.slice(0, 3)}••••${v.
 interface CredentialForm {
   clientId: string;
   clientSecret: string;
-  environment: MyInvoisEnvironment;
 }
 
-function MyInvoisCredentialsCard() {
+const ENV_LABEL: Record<MyInvoisEnvironment, string> = { SANDBOX: 'Sandbox', PRODUCTION: 'Production' };
+
+/** One environment's App Key / Secret: masked by default, password-gated reveal and edit. */
+function EnvironmentCredentials({
+  environment,
+  existing,
+  loading,
+}: {
+  environment: MyInvoisEnvironment;
+  existing: CredentialResponse | null;
+  loading: boolean;
+}) {
   const queryClient = useQueryClient();
   const [form] = Form.useForm<CredentialForm>();
-  const { data: existing, isLoading } = useQuery({
-    queryKey: ['myinvois-credentials'],
-    queryFn: getCredentials,
-    retry: false,
-  });
-
   const [editing, setEditing] = useState(false);
   const [revealed, setRevealed] = useState<RevealedCredentialResponse | null>(null);
   const [pw, setPw] = useState('');
   const [pwIntent, setPwIntent] = useState<'reveal' | 'edit' | null>(null);
 
-  // Populate the (read-only) display fields from either the revealed values or the masked ones.
   const showDisplay = (r: RevealedCredentialResponse | null) => {
     form.setFieldsValue({
       clientId: r ? r.clientId : existing ? maskKey(existing.clientId) : '',
       clientSecret: r ? r.clientSecret : existing ? SECRET_MASK : '',
-      environment: r?.environment ?? existing?.environment ?? 'SANDBOX',
     });
   };
 
   useEffect(() => {
-    if (isLoading) return;
+    if (loading) return;
     if (!existing) {
-      // First-time setup: open the form straight away.
       setEditing(true);
-      form.setFieldsValue({ environment: 'SANDBOX' });
+      form.resetFields();
     } else if (!editing) {
       showDisplay(revealed);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existing, isLoading]);
+  }, [existing, loading]);
 
   const saveMutation = useMutation({
-    mutationFn: saveCredentials,
-    onSuccess: (_res, vars) => {
-      message.success('MyInvois credentials saved');
-      setRevealed({ clientId: vars.clientId, clientSecret: vars.clientSecret, environment: vars.environment });
+    mutationFn: (values: CredentialForm) => saveCredentials({ ...values, environment }),
+    onSuccess: (data, vars) => {
+      message.success(`${ENV_LABEL[environment]} credentials saved`);
+      setRevealed({ clientId: vars.clientId, clientSecret: vars.clientSecret, environment });
       setEditing(false);
-      queryClient.invalidateQueries({ queryKey: ['myinvois-credentials'] });
+      queryClient.setQueryData(['myinvois-credentials'], data);
     },
     onError: (err) => message.error(err instanceof Error ? err.message : 'Failed to save credentials'),
   });
 
   const revealMutation = useMutation({
-    mutationFn: () => revealCredentials({ password: pw }),
+    mutationFn: () => revealCredentials({ password: pw, environment }),
     onSuccess: (data) => {
       setRevealed(data);
       const intent = pwIntent;
@@ -108,16 +111,17 @@ function MyInvoisCredentialsCard() {
     showDisplay(revealed);
   };
 
-  const onFinish = (values: CredentialForm) => saveMutation.mutate(values);
-
-  const firstTime = !isLoading && !existing;
+  const firstTime = !loading && !existing;
 
   return (
-    <Card
-      title="API Credentials"
-      style={{ height: '100%' }}
-      extra={
-        !firstTime && !editing ? (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          {firstTime
+            ? `Not set up yet — paste the ${ENV_LABEL[environment].toLowerCase()} App Key and Secret issued by LHDN.`
+            : `${ENV_LABEL[environment]} App Key and Secret issued by LHDN.`}
+        </Typography.Text>
+        {!firstTime && !editing && (
           <Space size={2}>
             <Tooltip title={revealed ? 'Hide' : 'Reveal'}>
               <Button type="text" icon={revealed ? <EyeInvisibleOutlined /> : <EyeOutlined />} onClick={onReveal} />
@@ -126,32 +130,20 @@ function MyInvoisCredentialsCard() {
               <Button type="text" icon={<EditOutlined />} onClick={onEdit} />
             </Tooltip>
           </Space>
-        ) : null
-      }
-    >
-      <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
-        The client_id / client_secret (App Key / App Secret) issued by LHDN for your system.
-      </Typography.Paragraph>
+        )}
+      </div>
 
-      <Form form={form} layout="vertical" onFinish={onFinish} disabled={!editing}>
+      <Form form={form} layout="vertical" onFinish={(v) => saveMutation.mutate(v)} disabled={!editing}>
         <Form.Item name="clientId" label="App Key (client_id)" rules={editing ? [{ required: true }] : []}>
           <Input placeholder="App Key" />
         </Form.Item>
         <Form.Item name="clientSecret" label="App Secret (client_secret)" rules={editing ? [{ required: true }] : []}>
           <Input placeholder="App Secret" />
         </Form.Item>
-        <Form.Item name="environment" label="Environment" rules={editing ? [{ required: true }] : []}>
-          <Select
-            options={[
-              { value: 'SANDBOX', label: 'Sandbox (preprod)' },
-              { value: 'PRODUCTION', label: 'Production' },
-            ]}
-          />
-        </Form.Item>
         {editing && (
           <Space>
             <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
-              Save credentials
+              Save {ENV_LABEL[environment].toLowerCase()} credentials
             </Button>
             {!firstTime && <Button onClick={onCancel}>Cancel</Button>}
           </Space>
@@ -170,7 +162,8 @@ function MyInvoisCredentialsCard() {
         }}
       >
         <Typography.Paragraph type="secondary">
-          Re-enter your account password to {pwIntent === 'edit' ? 'edit your' : 'view the stored'} credentials.
+          Re-enter your account password to {pwIntent === 'edit' ? 'edit your' : 'view the stored'}{' '}
+          {ENV_LABEL[environment].toLowerCase()} credentials.
         </Typography.Paragraph>
         <Input.Password
           value={pw}
@@ -179,6 +172,100 @@ function MyInvoisCredentialsCard() {
           onPressEnter={() => revealMutation.mutate()}
         />
       </Modal>
+    </>
+  );
+}
+
+/**
+ * Sandbox and production credentials side by side (LHDN issues them separately), plus the switch
+ * for which environment new submissions go to.
+ */
+function MyInvoisCredentialsCard() {
+  const queryClient = useQueryClient();
+  const { palette } = useTheme();
+  const { data, isLoading } = useQuery({ queryKey: ['myinvois-credentials'], queryFn: getCredentials, retry: false });
+  const active = data?.activeEnvironment ?? 'SANDBOX';
+  const [tab, setTab] = useState<MyInvoisEnvironment | null>(null);
+
+  const activate = useMutation({
+    mutationFn: setActiveEnvironment,
+    onSuccess: (res) => {
+      queryClient.setQueryData(['myinvois-credentials'], res);
+      message.success(`New submissions now go to ${ENV_LABEL[res.activeEnvironment]}`);
+    },
+    onError: (err) => message.error(err instanceof Error ? err.message : 'Could not switch environment'),
+  });
+
+  const onSwitch = (env: MyInvoisEnvironment) => {
+    if (env === active) return;
+    if (env === 'PRODUCTION') {
+      Modal.confirm({
+        title: 'Submit to Production?',
+        content:
+          'New e-invoices will be sent to LHDN’s live MyInvois system and become legally issued documents. Invoices already submitted keep their original environment.',
+        okText: 'Switch to Production',
+        okButtonProps: { danger: true },
+        onOk: () => activate.mutateAsync('PRODUCTION'),
+      });
+    } else {
+      activate.mutate(env);
+    }
+  };
+
+  const envs: MyInvoisEnvironment[] = ['SANDBOX', 'PRODUCTION'];
+  const credFor = (env: MyInvoisEnvironment) => (env === 'SANDBOX' ? data?.sandbox : data?.production) ?? null;
+
+  return (
+    <Card title="API Credentials" style={{ height: '100%' }}>
+      <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+        Submit new invoices to
+      </Typography.Text>
+      <Segmented
+        block
+        value={active}
+        onChange={(v) => onSwitch(v as MyInvoisEnvironment)}
+        options={envs.map((env) => ({
+          value: env,
+          disabled: !credFor(env) || activate.isPending,
+          label: (
+            <Tooltip title={credFor(env) ? undefined : `Add ${ENV_LABEL[env].toLowerCase()} credentials first`}>
+              <span>{ENV_LABEL[env]}</span>
+            </Tooltip>
+          ),
+        }))}
+      />
+      <Typography.Text
+        style={{ fontSize: 12, display: 'block', marginTop: 6, color: active === 'PRODUCTION' ? palette.warning : palette.textSecondary }}
+      >
+        {active === 'PRODUCTION'
+          ? 'Live: submissions are real e-invoices issued to LHDN.'
+          : 'Testing: submissions go to LHDN’s preprod sandbox.'}
+      </Typography.Text>
+
+      <Tabs
+        style={{ marginTop: 12 }}
+        size="small"
+        tabBarGutter={24}
+        activeKey={tab ?? active}
+        onChange={(k) => setTab(k as MyInvoisEnvironment)}
+        items={envs.map((env) => ({
+          key: env,
+          label: (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {ENV_LABEL[env]}
+              {env === active && (
+                <Tooltip title="Active — new submissions go here">
+                  <span
+                    aria-label="Active"
+                    style={{ width: 7, height: 7, borderRadius: '50%', background: palette.success, display: 'inline-block' }}
+                  />
+                </Tooltip>
+              )}
+            </span>
+          ),
+          children: <EnvironmentCredentials environment={env} existing={credFor(env)} loading={isLoading} />,
+        }))}
+      />
     </Card>
   );
 }

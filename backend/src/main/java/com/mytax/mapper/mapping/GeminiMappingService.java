@@ -397,9 +397,19 @@ public class GeminiMappingService implements MappingEngine {
 
                 Rule of thumb: if the document is a spreadsheet, each row (after the header) is normally its \
                 own transaction. If the document is a batch of scanned receipts, each receipt is its own \
-                transaction. If the document is clearly a single already-complete invoice for one sale with \
-                several product lines, treat the WHOLE document as ONE transaction — do not split its line \
-                items into separate transactions.
+                transaction.
+
+                A single receipt (or a single complete invoice for one sale) is EXACTLY ONE transaction, no \
+                matter how many product lines it lists:
+                - description: the receipt/bill number if printed, then a short list of the items, e.g. \
+                "Receipt #A1023 — Latte, Chicken Sandwich, Mineral Water".
+                - quantity: 1.
+                - unitPrice: the amount BEFORE tax as printed (the subtotal); if no separate tax is printed, \
+                the printed total.
+                - taxAmount: the tax/SST amount as printed, otherwise 0.
+                Never ALSO output the receipt's individual items as extra transactions, never output a \
+                summary row next to item rows, and never list the same transaction twice — every sale must \
+                appear in the transactions list exactly once.
 
                 For each transaction, buyerName/buyerTin should only be filled in if the document actually \
                 identifies a specific buyer for that transaction — omit both for anonymous/walk-in retail \
@@ -410,7 +420,7 @@ public class GeminiMappingService implements MappingEngine {
                 looks straightforward (e.g. quantity × unit price). Only report a number if it is written \
                 literally in the source document; omit a field rather than computing it. Include a \
                 confidenceScore between 0 and 1 per transaction reflecting how certain you are it was read \
-                correctly.""" + LINE_ITEM_CODING;
+                correctly.""" + LINE_ITEM_CODING.replace("For EACH line item", "For EACH transaction");
     }
 
     private Map<String, Object> responseSchema() {

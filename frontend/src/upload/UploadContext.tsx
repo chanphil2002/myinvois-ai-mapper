@@ -23,6 +23,8 @@ export interface UploadJob {
   group?: string;
   /** One-line result shown when done (e.g. "12 sales added"). */
   summary?: string;
+  /** Data the job produced, for the page that started it (e.g. extracted sales to review). */
+  result?: unknown;
   status: 'running' | 'done' | 'error';
   link?: JobLink;
   error?: string;
@@ -36,7 +38,7 @@ interface UploadContextValue {
     label: string;
     draftId?: number;
     group?: string;
-    run: () => Promise<{ link?: JobLink; summary?: string } | void>;
+    run: () => Promise<{ link?: JobLink; summary?: string; result?: unknown } | void>;
   }) => string;
   dismiss: (id: string) => void;
 }
@@ -56,7 +58,7 @@ export function UploadProvider({ children }: { children: ReactNode }) {
       setJobs((j) => [...j, { id, kind, label, draftId, group, status: 'running' }]);
       run()
         .then((res) => {
-          setJobs((j) => j.map((x) => (x.id === id ? { ...x, status: 'done', link: res?.link, summary: res?.summary } : x)));
+          setJobs((j) => j.map((x) => (x.id === id ? { ...x, status: 'done', link: res?.link, summary: res?.summary, result: res?.result } : x)));
           // Refresh anything that may now have new data.
           ['documents', 'mapped-invoices', 'consolidated-invoices', 'eligible-transactions', 'usage'].forEach((k) =>
             queryClient.invalidateQueries({ queryKey: [k] }),

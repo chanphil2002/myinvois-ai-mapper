@@ -5,7 +5,7 @@ import type {
   ConsolidatedInvoiceResponse,
   CreateManualConsolidatedInvoicePayload,
   ManualConsolidatedLineItem,
-  CredentialResponse,
+  CredentialsOverview,
   DocumentResponse,
   MappedInvoiceResponse,
   MyInvoisEnvironment,
@@ -34,15 +34,22 @@ export function saveCredentials(payload: {
   clientId: string;
   clientSecret: string;
   environment: MyInvoisEnvironment;
-}): Promise<CredentialResponse> {
-  return unwrap(apiClient.put<ApiResponse<CredentialResponse>>('/api/myinvois/credentials', payload));
+}): Promise<CredentialsOverview> {
+  return unwrap(apiClient.put<ApiResponse<CredentialsOverview>>('/api/myinvois/credentials', payload));
 }
 
-export function getCredentials(): Promise<CredentialResponse> {
-  return unwrap(apiClient.get<ApiResponse<CredentialResponse>>('/api/myinvois/credentials'));
+export function getCredentials(): Promise<CredentialsOverview> {
+  return unwrap(apiClient.get<ApiResponse<CredentialsOverview>>('/api/myinvois/credentials'));
 }
 
-export function revealCredentials(payload: { password: string }): Promise<RevealedCredentialResponse> {
+export function setActiveEnvironment(environment: MyInvoisEnvironment): Promise<CredentialsOverview> {
+  return unwrap(apiClient.put<ApiResponse<CredentialsOverview>>('/api/myinvois/credentials/active', { environment }));
+}
+
+export function revealCredentials(payload: {
+  password: string;
+  environment: MyInvoisEnvironment;
+}): Promise<RevealedCredentialResponse> {
   return unwrap(
     apiClient.post<ApiResponse<RevealedCredentialResponse>>('/api/myinvois/credentials/reveal', payload),
   );

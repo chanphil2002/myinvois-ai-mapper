@@ -14,6 +14,13 @@ export interface CredentialResponse {
   configured: boolean;
 }
 
+/** Both environments' credentials plus where submissions currently go. */
+export interface CredentialsOverview {
+  activeEnvironment: MyInvoisEnvironment;
+  sandbox: CredentialResponse | null;
+  production: CredentialResponse | null;
+}
+
 export type SubmissionMode = 'INDIVIDUAL' | 'CONSOLIDATED';
 
 export interface BusinessProfile {
@@ -78,6 +85,8 @@ export interface ManualConsolidatedLineItem {
   taxAmount: number;
   unitCode?: string | null;
   classificationCode?: string | null;
+  /** Reviewed AI row: update this extracted transaction instead of creating a new one. */
+  sourceTransactionId?: number | null;
 }
 
 export interface CreateManualConsolidatedInvoicePayload {
@@ -153,6 +162,7 @@ export interface SubmissionResponse {
   submittedAt: string | null;
   statusUpdatedAt: string | null;
   errorMessage: string | null;
+  environment: MyInvoisEnvironment;
 }
 
 export type SalesTransactionStatus = 'PENDING' | 'GROUPED' | 'EXCLUDED';

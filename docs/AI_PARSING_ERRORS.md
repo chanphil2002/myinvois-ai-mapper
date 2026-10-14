@@ -131,7 +131,44 @@ constrains the output.
 
 **Separate issue spotted:** `receipt_03` came back as two identical rows, and `receipt_01` as an
 overlapping summary row plus an item row. That's an extraction-quality issue (duplicate or rolled-up
-lines), not this failure. Track it separately.
+lines), not this failure. Fixed separately; see the next entry.
+
+---
+
+### 2026-10-15 — receipts extracted as duplicate / rolled-up rows
+
+**Symptom.** A single receipt image came back as more than one transaction:
+- `receipt_03` gave two identical rows (`Cotton T-Shirt, Canvas Tote Bag · 59.80`, twice).
+- `receipt_01` gave a summary row (`Latte, Chicken Sandwich, Mineral Water · 26.90`) plus an item
+  row (`Latte · 9.50`).
+
+Either way the totals were double-counted.
+
+**Root cause: contradictory prompt.** The extraction prompt said "a single complete invoice is
+ONE transaction". The appended code instructions then said "For **EACH line item** set
+unitCode/classificationCode". That pushed the model to also emit item-level rows (or repeat the
+receipt), and nothing defined what goes in description, quantity and price for a one-receipt
+transaction.
+
+**Fix.**
+1. **Prompt.** A single receipt is exactly one transaction:
+   - description: receipt number plus a short item list.
+   - quantity: 1.
+   - unitPrice: the printed subtotal (before tax), or the printed total if no tax is shown.
+   - taxAmount: the printed tax.
+
+   Item rows, summary rows and repeats are explicitly forbidden. In transaction mode, the code
+   instructions now read "For EACH transaction".
+2. **Safety net.** `TransactionExtractionService.dropRepeatedReceiptRows` drops rows identical in
+   every field, for image/PDF documents only. Spreadsheets and CSVs are left alone, since two
+   identical rows there can be two real sales. It logs `Dropped N repeated row(s)`.
+3. **Human check.** Extracted sales no longer go straight into the invoice. They load into the
+   draft's *Key in* form, marked with an "AI" corner label, and are only added after the user
+   clicks *Add to invoice*.
+
+**Verification.** `receipt_03.png` now yields one row:
+`Receipt #TEST-0003 — Cotton T-Shirt, Canvas Tote Bag · 1 × 59.80 + 3.59 tax`. The safety net
+wasn't needed (no "Dropped" log line).
 
 ---
 
