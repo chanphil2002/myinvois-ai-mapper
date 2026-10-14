@@ -108,7 +108,30 @@ doc 63 #3  runaway:   C62ScopeCode0221312312312312312312312312312312312312312312
 5. *(Optional)* Vary each retry, e.g. add a small temperature change or retry with thinking turned
    off, so attempts 2–3 aren't identical copies of attempt 1.
 
-**Status:** documented; fixes pending approval.
+**Status: fixed (2026-10-15).** Fixes 1–3 are implemented:
+
+- `MyInvoisCodes` (backend `mapping/`) holds the unit codes (31) and classification codes
+  (001–045), matching the frontend's `constants/myinvoisCodes.ts`.
+- Both response schemas declare `unitCode` and `classificationCode` as `STRING` + `enum` over those
+  lists, so decoding is constrained.
+- `salvageCodeFields` runs right after JSON parsing and **before** the runaway guard. It rewrites
+  each code field to a valid code (the value itself, else its leading valid code, else `C62` /
+  `022`). It logs `Gemini returned malformed <field> … salvaged …` whenever it changes something.
+- Error and log previews go through `preview()`, which is safe for values of any length, so the
+  `Range [0, 60) out of bounds` crash is gone.
+- Unit tests: `MyInvoisCodesTest`, built from the exact bad values above.
+
+**Verification:** re-ran `receipt_01/02/03.png` through transaction extraction (documents
+66–68). All three succeeded on the **first** attempt, with every `unitCode = C62`. There were no
+`malformed` or `salvaged` log lines, so the enum alone prevented the problem and the salvage step
+wasn't needed.
+
+Fix 4 (shorten the code list in the prompt) is still open. It's lower priority now that the enum
+constrains the output.
+
+**Separate issue spotted:** `receipt_03` came back as two identical rows, and `receipt_01` as an
+overlapping summary row plus an item row. That's an extraction-quality issue (duplicate or rolled-up
+lines), not this failure. Track it separately.
 
 ---
 

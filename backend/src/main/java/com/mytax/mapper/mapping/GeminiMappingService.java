@@ -3,6 +3,7 @@ package com.mytax.mapper.mapping;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.mytax.mapper.config.GeminiProperties;
@@ -97,6 +98,13 @@ public class GeminiMappingService implements MappingEngine {
             XBO (bottle), XRO (roll). Always output a CODE (not free text like "unit" or "pcs"); default to C62 \
             for a plain count with no unit shown.""";
 
+    // Constrained decoding: with an enum, Gemini can only emit one of these exact codes, so it can't
+    // keep writing past "C62" into the field (the 2026-10-15 failure, docs/AI_PARSING_ERRORS.md).
+    private static final Map<String, Object> UNIT_CODE_SCHEMA = Map.of(
+            "type", "STRING", "format", "enum", "enum", MyInvoisCodes.UNIT_CODES);
+    private static final Map<String, Object> CLASSIFICATION_CODE_SCHEMA = Map.of(
+            "type", "STRING", "format", "enum", "enum", MyInvoisCodes.CLASSIFICATION_CODES);
+
     private final GeminiProperties properties;
     private final XlsxParser xlsxParser;
     private final RestClient restClient;
@@ -122,7 +130,7 @@ public class GeminiMappingService implements MappingEngine {
                     : draft.lineItems().stream().map(MappedInvoiceDraft.LineItemDraft::unitCode).toList());
             if (oversizedUnitCode != null) {
                 throw new IllegalStateException(
-                        "Gemini produced an oversized unitCode value: " + oversizedUnitCode.substring(0, 60) + "...");
+                        "Gemini produced an oversized unitCode value: " + preview(oversizedUnitCode));
             }
             return draft;
         });
@@ -146,7 +154,7 @@ public class GeminiMappingService implements MappingEngine {
             String oversizedUnitCode = findOversizedUnitCode(drafts.stream().map(SalesTransactionDraft::unitCode).toList());
             if (oversizedUnitCode != null) {
                 throw new IllegalStateException(
-                        "Gemini produced an oversized unitCode value: " + oversizedUnitCode.substring(0, 60) + "...");
+                        "Gemini produced an oversized unitCode value: " + preview(oversizedUnitCode));
             }
             return drafts;
         });
@@ -205,11 +213,12 @@ public class GeminiMappingService implements MappingEngine {
             String json = extractJsonText(response);
             try {
                 JsonNode parsedJson = LENIENT_PARSER.readTree(json);
+                // Repair code fields first, so one rambling unitCode can't fail the whole document.
+                salvageCodeFields(parsedJson, documentId);
                 String runaway = findRunawayString(parsedJson);
                 if (runaway != null) {
                     throw new IllegalStateException(
-                            "Gemini produced a runaway/degenerate value: "
-                                    + runaway.substring(0, Math.min(60, runaway.length())) + "...");
+                            "Gemini produced a runaway/degenerate value: " + preview(runaway));
                 }
                 T value = parser.parse(parsedJson);
                 return new RawExtraction<>(value, response == null ? "{}" : response.toString());
@@ -222,6 +231,43 @@ public class GeminiMappingService implements MappingEngine {
         throw new IllegalStateException(
                 "Gemini produced malformed structured output " + MAX_ATTEMPTS + " times in a row: "
                         + (lastFailure == null ? "unknown error" : lastFailure.getMessage()), lastFailure);
+    }
+
+    /**
+     * Rewrites every {@code unitCode} / {@code classificationCode} in the response to a valid code
+     * (see {@link MyInvoisCodes#salvageUnitCode}). The enum schema should already prevent bad values;
+     * this is the safety net if the model still produces one, keeping the rest of the extraction.
+     */
+    private void salvageCodeFields(JsonNode node, Long documentId) {
+        if (node instanceof ObjectNode object) {
+            salvageField(object, "unitCode", MyInvoisCodes::salvageUnitCode, documentId);
+            salvageField(object, "classificationCode", MyInvoisCodes::salvageClassificationCode, documentId);
+        }
+        if (node.isObject() || node.isArray()) {
+            node.elements().forEachRemaining(child -> salvageCodeFields(child, documentId));
+        }
+    }
+
+    private void salvageField(ObjectNode object, String field, java.util.function.UnaryOperator<String> salvage,
+                              Long documentId) {
+        JsonNode value = object.get(field);
+        if (value == null || !value.isTextual()) {
+            return;
+        }
+        String original = value.asText();
+        String fixed = salvage.apply(original);
+        if (fixed == null) {
+            object.remove(field);
+        } else if (!fixed.equals(original)) {
+            log.warn("Gemini returned malformed {} for document {}; salvaged \"{}\" from: {}",
+                    field, documentId, fixed, preview(original));
+            object.put(field, fixed);
+        }
+    }
+
+    /** First 60 chars of a (possibly short) value for error messages and logs. */
+    private static String preview(String value) {
+        return value.length() <= 60 ? value : value.substring(0, 60) + "...";
     }
 
     /**
@@ -375,8 +421,8 @@ public class GeminiMappingService implements MappingEngine {
                         "quantity", Map.of("type", "NUMBER"),
                         "unitPrice", Map.of("type", "NUMBER"),
                         "taxAmount", Map.of("type", "NUMBER"),
-                        "classificationCode", Map.of("type", "STRING"),
-                        "unitCode", Map.of("type", "STRING"),
+                        "classificationCode", CLASSIFICATION_CODE_SCHEMA,
+                        "unitCode", UNIT_CODE_SCHEMA,
                         "confidenceScore", Map.of("type", "NUMBER")
                 ),
                 "required", List.of("description", "quantity", "unitPrice")
@@ -423,8 +469,8 @@ public class GeminiMappingService implements MappingEngine {
                         "quantity", Map.of("type", "NUMBER"),
                         "unitPrice", Map.of("type", "NUMBER"),
                         "taxAmount", Map.of("type", "NUMBER"),
-                        "classificationCode", Map.of("type", "STRING"),
-                        "unitCode", Map.of("type", "STRING"),
+                        "classificationCode", CLASSIFICATION_CODE_SCHEMA,
+                        "unitCode", UNIT_CODE_SCHEMA,
                         "buyerName", Map.of("type", "STRING"),
                         "buyerTin", Map.of("type", "STRING"),
                         "confidenceScore", Map.of("type", "NUMBER")
