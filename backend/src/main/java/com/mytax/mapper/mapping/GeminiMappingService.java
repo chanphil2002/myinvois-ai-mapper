@@ -289,9 +289,16 @@ public class GeminiMappingService implements MappingEngine {
             }
             return Map.of("text", text.toString());
         }
+        if ("csv".equals(fileType) || "tsv".equals(fileType) || "txt".equals(fileType)) {
+            String text = new String(fileBytes, java.nio.charset.StandardCharsets.UTF_8);
+            if (text.startsWith("\uFEFF")) {
+                text = text.substring(1); // Excel's UTF-8 BOM
+            }
+            return Map.of("text", "Delimited sales export (CSV/TSV), row 1 is likely headers:\n" + text);
+        }
         throw new UnsupportedOperationException(
-                "Mapping for file type '" + fileType + "' is not implemented in this scaffold. " +
-                        "Supported: xlsx/xls, pdf, png/jpg/jpeg/webp/gif.");
+                "Mapping for file type '" + fileType + "' is not supported. " +
+                        "Supported: csv, xlsx/xls, pdf, png/jpg/jpeg/webp/gif.");
     }
 
     private String extractJsonText(JsonNode response) {

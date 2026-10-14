@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Button, Card, Grid, Spin, Typography, theme } from 'antd';
-import { CheckCircleTwoTone, CloseCircleTwoTone, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
+import { Button, Card, Grid, Progress, Spin, Typography, theme } from 'antd';
+import { CheckCircleTwoTone, CloseCircleTwoTone, CloseOutlined, DownOutlined, LoadingOutlined, UpOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../theme/ThemeContext';
@@ -19,6 +19,10 @@ export interface UploadJob {
   label: string;
   /** Consolidated draft this job feeds; such jobs are shown inside the draft, not as a list row. */
   draftId?: number;
+  /** Jobs sharing a group (e.g. several files dropped into one draft) collapse into one banner. */
+  group?: string;
+  /** One-line result shown when done (e.g. "12 sales added"). */
+  summary?: string;
   status: 'running' | 'done' | 'error';
   link?: JobLink;
   error?: string;
@@ -27,7 +31,13 @@ export interface UploadJob {
 interface UploadContextValue {
   jobs: UploadJob[];
   /** Run an upload/parse in the background; the banner tracks it across navigation. */
-  startJob: (opts: { kind: UploadKind; label: string; draftId?: number; run: () => Promise<{ link?: JobLink } | void> }) => string;
+  startJob: (opts: {
+    kind: UploadKind;
+    label: string;
+    draftId?: number;
+    group?: string;
+    run: () => Promise<{ link?: JobLink; summary?: string } | void>;
+  }) => string;
   dismiss: (id: string) => void;
 }
 
@@ -41,12 +51,12 @@ export function UploadProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
   const startJob: UploadContextValue['startJob'] = useCallback(
-    ({ kind, label, draftId, run }) => {
+    ({ kind, label, draftId, group, run }) => {
       const id = newId();
-      setJobs((j) => [...j, { id, kind, label, draftId, status: 'running' }]);
+      setJobs((j) => [...j, { id, kind, label, draftId, group, status: 'running' }]);
       run()
         .then((res) => {
-          setJobs((j) => j.map((x) => (x.id === id ? { ...x, status: 'done', link: res?.link } : x)));
+          setJobs((j) => j.map((x) => (x.id === id ? { ...x, status: 'done', link: res?.link, summary: res?.summary } : x)));
           // Refresh anything that may now have new data.
           ['documents', 'mapped-invoices', 'consolidated-invoices', 'eligible-transactions', 'usage'].forEach((k) =>
             queryClient.invalidateQueries({ queryKey: [k] }),
@@ -96,7 +106,7 @@ function JobCard({ job, onClose }: { job: UploadJob; onClose: () => void }) {
           </Typography.Text>
           <div style={{ fontSize: 12, color: token.colorTextSecondary, wordBreak: 'break-word' }}>
             {job.status === 'running' && 'Uploading & parsing — you can keep working.'}
-            {job.status === 'done' && (job.label.length > 0 ? job.label : 'Finished')}
+            {job.status === 'done' && (job.summary ?? job.label)}
             {job.status === 'error' && job.error}
           </div>
           {job.status === 'done' && job.link && (
@@ -111,12 +121,113 @@ function JobCard({ job, onClose }: { job: UploadJob; onClose: () => void }) {
   );
 }
 
-/** Fixed, closeable banner listing in-flight (and just-finished) background uploads. */
+/** Strip the "Extracting " / "Importing " verb so the per-file list shows just the file name. */
+const fileName = (label: string) => label.replace(/^(Extracting|Importing|Parsing)\s+/, '');
+
+/** Several files uploaded together: one card with an n-of-m progress ring and an expandable file list. */
+function GroupCard({ jobs, onClose }: { jobs: UploadJob[]; onClose: () => void }) {
+  const { token } = theme.useToken();
+  const { palette, isDark } = useTheme();
+  const [open, setOpen] = useState(false);
+  const total = jobs.length;
+  const failed = jobs.filter((j) => j.status === 'error').length;
+  const finished = jobs.filter((j) => j.status !== 'running').length;
+  const running = finished < total;
+  const link = jobs.find((j) => j.link)?.link;
+
+  const title = running
+    ? `Processing ${total} files`
+    : failed === 0
+      ? `${total} files processed`
+      : `${total - failed} of ${total} processed · ${failed} failed`;
+  const subtitle = running ? `${finished} of ${total} done — you can keep working.` : failed ? 'Open the list to see what failed.' : 'All done.';
+
+  return (
+    <Card
+      size="small"
+      styles={{ body: { padding: 12 } }}
+      style={{ boxShadow: isDark ? '0 0 0 1px ' + palette.borderStrong : '0 6px 20px rgba(28,28,26,0.14)', background: palette.elevated }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Progress
+          type="circle"
+          size={40}
+          percent={Math.round((finished / total) * 100)}
+          status={!running && failed ? 'exception' : undefined}
+          strokeColor={!running && failed ? palette.error : running ? palette.primary : palette.success}
+          format={() => (
+            <span style={{ fontSize: 11, fontWeight: 600, color: token.colorText }}>
+              {finished}/{total}
+            </span>
+          )}
+        />
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <Typography.Text strong style={{ display: 'block' }}>
+            {title}
+          </Typography.Text>
+          <div style={{ fontSize: 12, color: token.colorTextSecondary }}>{subtitle}</div>
+          <div style={{ display: 'flex', gap: 12, marginTop: 2 }}>
+            <a onClick={() => setOpen(!open)} style={{ fontSize: 13 }}>
+              {open ? 'Hide files' : 'Show files'} {open ? <UpOutlined /> : <DownOutlined />}
+            </a>
+            {!running && link && (
+              <Link to={link.to} onClick={onClose} style={{ fontSize: 13, fontWeight: 500 }}>
+                {link.text} →
+              </Link>
+            )}
+          </div>
+        </div>
+        <Button type="text" size="small" icon={<CloseOutlined />} onClick={onClose} aria-label="Dismiss" />
+      </div>
+      {open && (
+        <div style={{ marginTop: 10, maxHeight: 180, overflowY: 'auto', borderTop: `1px solid ${palette.border}`, paddingTop: 8 }}>
+          {jobs.map((j) => (
+            <div key={j.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '3px 0', fontSize: 12 }}>
+              <span style={{ flex: 'none', marginTop: 1 }}>
+                {j.status === 'running' && <Spin indicator={<LoadingOutlined spin style={{ fontSize: 12 }} />} size="small" />}
+                {j.status === 'done' && <CheckCircleTwoTone twoToneColor={palette.success} />}
+                {j.status === 'error' && <CloseCircleTwoTone twoToneColor={palette.error} />}
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ overflowWrap: 'anywhere' }}>{fileName(j.label)}</div>
+                {(j.summary || j.error) && (
+                  <div style={{ color: j.error ? palette.error : token.colorTextSecondary, overflowWrap: 'anywhere' }}>
+                    {j.error ?? j.summary}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** Fixed, closeable banner listing in-flight (and just-finished) background uploads — one card per group. */
 export function UploadBanner() {
   const { jobs, dismiss } = useUpload();
   const screens = Grid.useBreakpoint();
   const mobile = !screens.lg;
-  if (jobs.length === 0) return null;
+  // Closing a group that's still running only hides it (the jobs keep going); it reappears if
+  // more files join the group. Finished groups are dismissed for good.
+  const [hidden, setHidden] = useState<Record<string, number>>({});
+
+  const groups: { key: string; jobs: UploadJob[] }[] = [];
+  for (const j of jobs) {
+    const key = j.group ?? j.id;
+    const g = groups.find((x) => x.key === key);
+    if (g) g.jobs.push(j);
+    else groups.push({ key, jobs: [j] });
+  }
+  const visible = groups.filter((g) => hidden[g.key] !== g.jobs.length);
+  if (visible.length === 0) return null;
+
+  const close = (g: { key: string; jobs: UploadJob[] }) => {
+    if (g.jobs.some((j) => j.status === 'running')) setHidden((h) => ({ ...h, [g.key]: g.jobs.length }));
+    else g.jobs.forEach((j) => dismiss(j.id));
+  };
+
   return (
     <div
       style={{
@@ -130,12 +241,17 @@ export function UploadBanner() {
         flexDirection: 'column',
         gap: 8,
         maxWidth: 380,
+        width: mobile ? undefined : 380,
         marginLeft: 'auto',
       }}
     >
-      {jobs.map((j) => (
-        <JobCard key={j.id} job={j} onClose={() => dismiss(j.id)} />
-      ))}
+      {visible.map((g) =>
+        g.jobs.length > 1 ? (
+          <GroupCard key={g.key} jobs={g.jobs} onClose={() => close(g)} />
+        ) : (
+          <JobCard key={g.key} job={g.jobs[0]} onClose={() => close(g)} />
+        ),
+      )}
     </div>
   );
 }

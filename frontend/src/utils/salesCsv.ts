@@ -18,6 +18,8 @@ export interface ParseResult {
   sales: ParsedSale[];
   /** Human-readable notes about rows that were skipped or values that were ignored. */
   warnings: string[];
+  /** True when a header row named the columns — the import can then be trusted without AI. */
+  headerMatched: boolean;
 }
 
 /** Splits delimited text into rows, honouring "quoted, fields" and "" escapes. */
@@ -57,6 +59,15 @@ const FIELD_ALIASES: Record<string, keyof ParsedSale> = {
   'transaction date': 'date',
   description: 'description',
   item: 'description',
+  'item name': 'description',
+  'product name': 'description',
+  product: 'description',
+  'order date': 'date',
+  'order creation date': 'date',
+  'deal price': 'unitPrice',
+  'unit price (rm)': 'unitPrice',
+  'price (rm)': 'unitPrice',
+  'sst': 'taxAmount',
   qty: 'quantity',
   quantity: 'quantity',
   'unit price': 'unitPrice',
@@ -87,7 +98,7 @@ const num = (v: string | undefined): number | null => {
 };
 
 const parseDate = (v: string): string | null => {
-  const t = v.trim();
+  const t = v.trim().split(/[ T]/)[0]; // exports often append a time
   if (!t) return null;
   for (const f of ['YYYY-MM-DD', 'D/M/YYYY', 'DD/MM/YYYY', 'D-M-YYYY', 'DD-MM-YYYY']) {
     const d = dayjs(t, f, true);
@@ -108,13 +119,15 @@ export function parseSalesText(text: string): ParseResult {
     firstLine.split(d).length > firstLine.split(best).length ? d : best,
   );
   const rows = splitRows(text, delimiter);
-  if (rows.length === 0) return { sales: [], warnings: ['Nothing to import.'] };
+  if (rows.length === 0) return { sales: [], warnings: ['Nothing to import.'], headerMatched: false };
 
   let order = DEFAULT_ORDER;
+  let headerMatched = false;
   const header = rows[0].map((h) => h.trim().toLowerCase());
   if (header.some((h) => FIELD_ALIASES[h] === 'description')) {
     order = header.map((h) => FIELD_ALIASES[h]);
     rows.shift();
+    headerMatched = true;
   }
 
   const validUnits = new Set(UOM_CODES.map((u) => u.value));
@@ -158,5 +171,5 @@ export function parseSalesText(text: string): ParseResult {
       classificationCode: validClass.has(cls) ? cls : null,
     });
   });
-  return { sales, warnings };
+  return { sales, warnings, headerMatched };
 }

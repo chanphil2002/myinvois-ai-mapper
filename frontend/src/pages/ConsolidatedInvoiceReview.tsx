@@ -29,6 +29,7 @@ import {
 } from '../api/endpoints';
 import type { ConsolidatedInvoiceResponse, SalesTransactionResponse } from '../api/types';
 import { useUpload } from '../upload/UploadContext';
+import { parseSalesText } from '../utils/salesCsv';
 import { invoiceDisplayName } from '../utils/invoice';
 
 // Attaches run one at a time: each is a read-merge-write of the draft's transaction set, so
@@ -200,20 +201,65 @@ export default function ConsolidatedInvoiceReview() {
     onError: onErr('Could not adjust the period'),
   });
 
-  // Each file extracts in the background and is attached to THIS draft when ready.
+  // Each file runs in the background and lands in THIS draft. Files dropped together share a
+  // group, so the banner shows one "n of m" card instead of one card per file.
   const uploadFile = (file: File) => {
+    const group = `draft-${consolidatedInvoiceId}`;
+    const link = { to: `/consolidated-invoices/${consolidatedInvoiceId}`, text: 'View draft' };
+    const refresh = () => queryClient.invalidateQueries({ queryKey: ['consolidated-invoice', consolidatedInvoiceId] });
+
+    // A CSV whose header names our columns (date, description, qty, …) is imported directly —
+    // instant, exact and free. Any other CSV (e.g. a raw marketplace export) goes to the AI.
+    if (/\.(csv|tsv|txt)$/i.test(file.name)) {
+      startJob({
+        kind: 'consolidated',
+        label: `Importing ${file.name}`,
+        draftId: consolidatedInvoiceId,
+        group,
+        run: async () => {
+          const parsed = parseSalesText(await file.text());
+          if (parsed.headerMatched && parsed.sales.length > 0) {
+            await queueAttach(() =>
+              addConsolidatedLines(
+                consolidatedInvoiceId,
+                parsed.sales.map((x) => ({
+                  transactionDate: x.date,
+                  description: x.description,
+                  quantity: x.quantity,
+                  unitPrice: x.unitPrice,
+                  taxAmount: x.taxAmount,
+                  unitCode: x.unitCode,
+                  classificationCode: x.classificationCode,
+                })),
+              ),
+            );
+            refresh();
+            const skipped = parsed.warnings.length ? ` · ${parsed.warnings.length} note(s)` : '';
+            return { link, summary: `${parsed.sales.length} sales imported from ${file.name}${skipped}` };
+          }
+          const doc = await uploadDocument(file);
+          const txs = await extractTransactions(doc.id);
+          if (txs.length > 0) await queueAttach(() => attachTransactions(consolidatedInvoiceId, txs.map((t) => t.id)));
+          refresh();
+          return { link, summary: `${txs.length} sales extracted by AI from ${file.name}` };
+        },
+      });
+      return;
+    }
+
     startJob({
       kind: 'consolidated',
       label: `Extracting ${file.name}`,
       draftId: consolidatedInvoiceId,
+      group,
       run: async () => {
         const doc = await uploadDocument(file);
         const txs = await extractTransactions(doc.id);
         if (txs.length > 0) {
           await queueAttach(() => attachTransactions(consolidatedInvoiceId, txs.map((t) => t.id)));
         }
-        queryClient.invalidateQueries({ queryKey: ['consolidated-invoice', consolidatedInvoiceId] });
-        return { link: { to: `/consolidated-invoices/${consolidatedInvoiceId}`, text: 'View draft' } };
+        refresh();
+        return { link, summary: `${txs.length} sale${txs.length === 1 ? '' : 's'} from ${file.name}` };
       },
     });
   };
@@ -339,12 +385,37 @@ export default function ConsolidatedInvoiceReview() {
 
       {(invoice.status === 'DRAFT' || invoice.status === 'CONFIRMED') && <DueByHint periodEnd={invoice.periodEnd} />}
 
-      {running.map((j) => (
-        <Alert key={j.id} type="info" showIcon icon={<LoadingOutlined />} message={j.label} description="Extracting sales — they’ll appear below automatically. You can keep adding files or browse elsewhere." />
-      ))}
-      {failed.map((j) => (
-        <Alert key={j.id} type="error" showIcon closable onClose={() => dismiss(j.id)} message={`${j.label} failed`} description={j.error} />
-      ))}
+      {running.length > 0 && (
+        <Alert
+          type="info"
+          showIcon
+          icon={<LoadingOutlined />}
+          message={
+            draftJobs.length > 1
+              ? `Processing files — ${draftJobs.length - running.length} of ${draftJobs.length} done`
+              : running[0].label
+          }
+          description={`${running.map((j) => j.label.replace(/^(Extracting|Importing)\s+/, '')).join(', ')} — sales appear below automatically. You can keep adding files or browse elsewhere.`}
+        />
+      )}
+      {failed.length > 0 && (
+        <Alert
+          type="error"
+          showIcon
+          closable
+          onClose={() => failed.forEach((j) => dismiss(j.id))}
+          message={`${failed.length} file${failed.length === 1 ? '' : 's'} could not be processed`}
+          description={
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              {failed.map((j) => (
+                <li key={j.id}>
+                  {j.label.replace(/^(Extracting|Importing)\s+/, '')}: {j.error}
+                </li>
+              ))}
+            </ul>
+          }
+        />
+      )}
       {outside.length > 0 && isDraft && (
         <Alert
           type="warning"
@@ -384,12 +455,13 @@ export default function ConsolidatedInvoiceReview() {
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
                       Pick several files at once, or come back and add more later. AI extracts the sales and adds them to
-                      this invoice — remove any that don’t belong.
+                      this invoice — remove any that don’t belong. A CSV with our column headers (date, description,
+                      qty, unit price, tax) is imported directly without using AI credits.
                     </Typography.Paragraph>
                     <FileUploadDropzone
                       multiple
                       uploading={false}
-                      hint="Supports .xlsx, .pdf, .png, .jpg"
+                      hint="Supports .csv, .xlsx, .pdf, .png, .jpg — select several at once"
                       onFileSelected={uploadFile}
                     />
                   </Space>

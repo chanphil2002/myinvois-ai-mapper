@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Alert, Button, Col, DatePicker, Input, InputNumber, Modal, Pagination, Row, Select, Space, Typography, Upload, message, theme } from 'antd';
+import { Alert, Button, Col, DatePicker, Input, InputNumber, Modal, Pagination, Row, Select, Space, Tooltip, Typography, Upload, message, theme } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import type { ManualConsolidatedLineItem } from '../api/types';
 import { CLASSIFICATION_CODES, UOM_CODES } from '../constants/myinvoisCodes';
@@ -42,7 +43,6 @@ export default function ManualSalesForm({ periodEnd, submitText, loading, onSubm
   const defaultDate = dayjs(periodEnd);
   const [lines, setLines] = useState<Line[]>([blank(defaultDate)]);
   const [showErrors, setShowErrors] = useState(false);
-  const [showMore, setShowMore] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [csvText, setCsvText] = useState('');
   const [parsed, setParsed] = useState<ParseResult | null>(null);
@@ -106,13 +106,12 @@ export default function ManualSalesForm({ periodEnd, submitText, loading, onSubm
     // Replace the untouched starter row instead of leaving an empty card above the imported ones.
     setLines([...lines.filter(touched), ...added]);
     setPage(1);
-    if (added.some((a) => a.unitCode || a.classificationCode)) setShowMore(true);
     message.success(`${added.length} sale${added.length === 1 ? '' : 's'} imported — review, then add to invoice`);
     closeImport();
   };
 
   const label = (text: string) => (
-    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+    <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 2 }}>
       {text}
     </Typography.Text>
   );
@@ -123,12 +122,10 @@ export default function ManualSalesForm({ periodEnd, submitText, loading, onSubm
         const i = start + k;
         const bad = showErrors && invalid(l);
         return (
-          <div
-            key={i}
-            style={{ border: `1px solid ${token.colorBorderSecondary}`, borderRadius: 10, padding: 14 }}
-          >
-            <Row gutter={[12, 10]}>
-              <Col xs={24} md={14}>
+          <div key={i} style={{ border: `1px solid ${token.colorBorderSecondary}`, borderRadius: 10, padding: 12 }}>
+            {/* Row 1: what & when (+ remove). Row 2: every amount/code field side by side. */}
+            <Row gutter={[10, 8]} align="bottom">
+              <Col xs={24} md={15}>
                 {label('Description')}
                 <Input
                   status={bad ? 'error' : undefined}
@@ -136,60 +133,64 @@ export default function ManualSalesForm({ periodEnd, submitText, loading, onSubm
                   placeholder="e.g. Walk-in sales — 12 Sep"
                   onChange={(e) => update(i, { description: e.target.value })}
                 />
-                {bad && <Typography.Text type="danger" style={{ fontSize: 12 }}>Add a description for this sale.</Typography.Text>}
               </Col>
-              <Col xs={24} md={10}>
+              <Col xs={19} md={8}>
                 {label('Sale date')}
                 <DatePicker style={{ width: '100%' }} value={l.date} onChange={(d) => update(i, { date: d })} />
               </Col>
-              <Col xs={8}>
+              <Col xs={5} md={1} style={{ textAlign: 'right' }}>
+                <Tooltip title={lines.length === 1 ? 'Clear' : 'Remove sale'}>
+                  <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(i)} aria-label="Remove sale" />
+                </Tooltip>
+              </Col>
+              <Col xs={8} md={3}>
                 {label('Qty')}
                 <InputNumber style={{ width: '100%' }} min={0} value={l.quantity} onChange={(v) => update(i, { quantity: v ?? 0 })} />
               </Col>
-              <Col xs={8}>
+              <Col xs={8} md={4}>
                 {label('Unit price')}
                 <InputNumber style={{ width: '100%' }} min={0} value={l.unitPrice} onChange={(v) => update(i, { unitPrice: v ?? 0 })} />
               </Col>
-              <Col xs={8}>
+              <Col xs={8} md={3}>
                 {label('Tax')}
                 <InputNumber style={{ width: '100%' }} min={0} value={l.taxAmount} onChange={(v) => update(i, { taxAmount: v ?? 0 })} />
               </Col>
-              {showMore && (
-                <>
-                  <Col xs={24} md={10}>
-                    {label('Unit of measurement')}
-                    <Select
-                      allowClear
-                      showSearch
-                      optionFilterProp="label"
-                      style={{ width: '100%' }}
-                      placeholder="Default: C62 (unit)"
-                      options={UOM_CODES}
-                      value={l.unitCode ?? undefined}
-                      onChange={(v) => update(i, { unitCode: v ?? null })}
-                    />
-                  </Col>
-                  <Col xs={24} md={14}>
-                    {label('Classification (for your records)')}
-                    <Select
-                      allowClear
-                      showSearch
-                      optionFilterProp="label"
-                      style={{ width: '100%' }}
-                      placeholder="Submitted as 004"
-                      options={CLASSIFICATION_CODES}
-                      value={l.classificationCode ?? undefined}
-                      onChange={(v) => update(i, { classificationCode: v ?? null })}
-                    />
-                  </Col>
-                </>
-              )}
+              <Col xs={12} md={6}>
+                {label('Unit of measurement')}
+                <Select
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  style={{ width: '100%' }}
+                  placeholder="C62 (unit)"
+                  options={UOM_CODES}
+                  value={l.unitCode ?? undefined}
+                  onChange={(v) => update(i, { unitCode: v ?? null })}
+                  popupMatchSelectWidth={false}
+                />
+              </Col>
+              <Col xs={12} md={8}>
+                <Tooltip title="MyInvois requires classification 004 on every consolidated line, so this is kept for your records only.">
+                  <span>{label('Classification (for your records) ⓘ')}</span>
+                </Tooltip>
+                <Select
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  style={{ width: '100%' }}
+                  placeholder="Submitted as 004"
+                  options={CLASSIFICATION_CODES}
+                  value={l.classificationCode ?? undefined}
+                  onChange={(v) => update(i, { classificationCode: v ?? null })}
+                  popupMatchSelectWidth={false}
+                />
+              </Col>
             </Row>
-            <div style={{ textAlign: 'right', marginTop: 8 }}>
-              <Button type="link" danger size="small" onClick={() => remove(i)} style={{ padding: 0 }}>
-                {lines.length === 1 ? 'Clear' : 'Remove'}
-              </Button>
-            </div>
+            {bad && (
+              <Typography.Text type="danger" style={{ fontSize: 12 }}>
+                Add a description for this sale.
+              </Typography.Text>
+            )}
           </div>
         );
       })}
@@ -220,16 +221,7 @@ export default function ManualSalesForm({ periodEnd, submitText, loading, onSubm
           + Add another sale
         </Button>
         <Button onClick={() => setImportOpen(true)}>Paste / import CSV</Button>
-        <Button type="link" onClick={() => setShowMore(!showMore)}>
-          {showMore ? 'Hide' : 'Show'} unit &amp; classification
-        </Button>
       </Space>
-      {showMore && (
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          Unit of measurement is submitted to MyInvois. MyInvois requires classification 004 on every consolidated
-          line, so a code you pick here is kept for your records only.
-        </Typography.Text>
-      )}
       <Modal
         open={importOpen}
         title="Paste or import sales"

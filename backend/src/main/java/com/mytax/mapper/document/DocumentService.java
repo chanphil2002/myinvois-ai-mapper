@@ -198,6 +198,8 @@ public class DocumentService {
             case "gif" -> "image/gif";
             case "pdf" -> "application/pdf";
             case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            case "csv" -> "text/csv";
+            case "tsv", "txt" -> "text/plain";
             default -> "application/octet-stream";
         };
     }
