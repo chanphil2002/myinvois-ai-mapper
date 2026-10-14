@@ -107,7 +107,7 @@ function AppLayout() {
             </a>
           </div>
         </div>
-        <Content style={{ margin: 16, paddingBottom: 'calc(76px + env(safe-area-inset-bottom))' }}>
+        <Content style={{ margin: 16, paddingBottom: 'calc(112px + env(safe-area-inset-bottom))' }}>
           {backButton}
           {routes}
         </Content>
@@ -141,7 +141,7 @@ function AppLayout() {
           <span>{email}</span>
           <a onClick={logout} style={{ fontWeight: 500 }}>Log out</a>
         </Header>
-        <Content style={{ margin: 24 }}>
+        <Content style={{ margin: 24, paddingBottom: 48 }}>
           <div style={{ maxWidth: 1080, margin: '0 auto' }}>
             {backButton}
             {routes}

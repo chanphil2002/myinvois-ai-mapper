@@ -1,14 +1,7 @@
-import { Tag } from 'antd';
 import type { SubmissionStatus } from '../api/types';
+import StatusTag from './StatusTag';
 
-const COLORS: Record<SubmissionStatus, string> = {
-  PENDING: 'default',
-  IN_PROGRESS: 'processing',
-  VALID: 'success',
-  INVALID: 'error',
-  PARTIALLY_VALID: 'warning',
-};
-
+/** LHDN submission status — same palette-driven tag as invoice statuses. */
 export default function SubmissionStatusBadge({ status }: { status: SubmissionStatus }) {
-  return <Tag color={COLORS[status]}>{status}</Tag>;
+  return <StatusTag status={status} />;
 }
