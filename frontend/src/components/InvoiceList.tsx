@@ -1,9 +1,10 @@
 import type { Key } from 'react';
 import { Card, Spin, Table, Tag, Typography, theme } from 'antd';
-import { LoadingOutlined, RightOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, LoadingOutlined, RightOutlined, UserOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import StatusTag from './StatusTag';
+import { useTheme } from '../theme/ThemeContext';
 
 export type InvoiceType = 'Individual' | 'Consolidated';
 
@@ -23,8 +24,20 @@ const money = (v: number | null | undefined) =>
   v == null ? '—' : `RM ${Number(v).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const dateTime = (iso: string | null | undefined) => (iso ? dayjs(iso).format('MMM D, YY - HH:mm') : '—');
 
+// Type is a category, not a state, so it stays quiet: a neutral graphite chip with a coloured
+// icon, leaving the bright colours to the status tag beside it.
 function TypeTag({ type }: { type: InvoiceType }) {
-  return <Tag color={type === 'Individual' ? 'geekblue' : 'purple'}>{type}</Tag>;
+  const { palette: p } = useTheme();
+  const individual = type === 'Individual';
+  return (
+    <Tag
+      bordered
+      icon={individual ? <UserOutlined style={{ color: p.info }} /> : <AppstoreOutlined style={{ color: p.link }} />}
+      style={{ background: p.subtle, borderColor: p.border, color: p.textSecondary, marginInlineEnd: 0 }}
+    >
+      {type}
+    </Tag>
+  );
 }
 
 /** Mobile: each invoice as a tappable card so there's no horizontal scrolling. */
