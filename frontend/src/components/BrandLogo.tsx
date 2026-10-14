@@ -10,14 +10,14 @@ export default function BrandLogo({ dark = false, size = 'md' }: { dark?: boolea
           width: box,
           height: box,
           borderRadius: 11,
-          background: 'linear-gradient(135deg, #4f6ef7 0%, #1e3a8a 100%)',
+          background: 'linear-gradient(135deg, #10b981 0%, #065f46 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: '#fff',
           fontSize: size === 'lg' ? 22 : 17,
           flex: 'none',
-          boxShadow: '0 4px 12px rgba(59,91,219,0.35)',
+          boxShadow: '0 4px 12px rgba(4,120,87,0.30)',
         }}
       >
         <FileDoneOutlined />
@@ -27,13 +27,13 @@ export default function BrandLogo({ dark = false, size = 'md' }: { dark?: boolea
           style={{
             fontWeight: 700,
             fontSize: size === 'lg' ? 20 : 16,
-            color: dark ? '#fff' : '#0f172a',
+            color: dark ? '#ececea' : '#1c1c1a',
             letterSpacing: 0.2,
           }}
         >
           MyTax
         </div>
-        <div style={{ fontSize: 11, color: dark ? 'rgba(255,255,255,0.55)' : '#64748b' }}>e-Invoicing</div>
+        <div style={{ fontSize: 11, color: dark ? '#a8a8a3' : '#57534e' }}>e-Invoicing</div>
       </div>
     </div>
   );

@@ -8,8 +8,9 @@ import InvoiceList from '../components/InvoiceList';
 import type { InvoiceRow } from '../components/InvoiceList';
 import { invoiceDisplayName } from '../utils/invoice';
 import { useUpload } from '../upload/UploadContext';
+import { useTheme } from '../theme/ThemeContext';
 
-function StatTile({ title, value, icon, color }: { title: string; value: number; icon: ReactNode; color: string }) {
+function StatTile({ title, value, icon, color, soft }: { title: string; value: number; icon: ReactNode; color: string; soft: string }) {
   const { token } = theme.useToken();
   const screens = Grid.useBreakpoint();
   // On a phone three tiles share the row, so stack icon/number/label vertically and give the
@@ -37,7 +38,7 @@ function StatTile({ title, value, icon, color }: { title: string; value: number;
             justifyContent: 'center',
             fontSize: stacked ? 15 : 18,
             color,
-            background: `${color}22`,
+            background: soft,
           }}
         >
           {icon}
@@ -62,6 +63,7 @@ function StatTile({ title, value, icon, color }: { title: string; value: number;
 
 export default function Dashboard() {
   const { token } = theme.useToken();
+  const { palette: p } = useTheme();
   const navigate = useNavigate();
   const { jobs } = useUpload();
   const screens = Grid.useBreakpoint();
@@ -134,13 +136,13 @@ export default function Dashboard() {
       {/* Invoice-centric stat row */}
       <Row gutter={[12, 12]}>
         <Col xs={8}>
-          <StatTile title="To review" value={drafts} icon={<FileTextOutlined />} color="#3b5bdb" />
+          <StatTile title="To review" value={drafts} icon={<FileTextOutlined />} color={p.info} soft={p.infoSoft} />
         </Col>
         <Col xs={8}>
-          <StatTile title="In progress" value={inProgress} icon={<ThunderboltOutlined />} color="#f59e0b" />
+          <StatTile title="In progress" value={inProgress} icon={<ThunderboltOutlined />} color={p.warning} soft={p.warningSoft} />
         </Col>
         <Col xs={8}>
-          <StatTile title="Accepted" value={accepted} icon={<CheckCircleOutlined />} color="#16a34a" />
+          <StatTile title="Accepted" value={accepted} icon={<CheckCircleOutlined />} color={p.success} soft={p.successSoft} />
         </Col>
       </Row>
 
@@ -148,7 +150,7 @@ export default function Dashboard() {
       <Card size="small">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <ThunderboltOutlined style={{ color: '#f59e0b', fontSize: 18 }} />
+            <ThunderboltOutlined style={{ color: p.warning, fontSize: 18 }} />
             <div>
               <Typography.Text strong>AI parsing credits</Typography.Text>
               <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
@@ -157,14 +159,15 @@ export default function Dashboard() {
             </div>
           </div>
           <Typography.Text style={{ fontSize: 16 }}>
-            <strong style={{ color: creditsLeft === 0 ? '#dc2626' : token.colorText }}>{creditsLeft}</strong>
+            <strong style={{ color: creditsLeft === 0 ? p.error : token.colorText }}>{creditsLeft}</strong>
             <span style={{ color: token.colorTextTertiary }}> / {creditLimit} {periodLabel}</span>
           </Typography.Text>
         </div>
         <Progress
           percent={creditPct}
           showInfo={false}
-          strokeColor={creditsLeft === 0 ? '#dc2626' : '#3b5bdb'}
+          strokeColor={creditsLeft === 0 ? p.error : p.primary}
+          trailColor={p.borderStrong}
           style={{ marginTop: 10, marginBottom: 0 }}
         />
       </Card>

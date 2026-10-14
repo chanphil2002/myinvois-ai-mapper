@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Card, Col, Row, Typography } from 'antd';
 import { FileTextOutlined, AppstoreOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../../theme/ThemeContext';
 
 interface Option {
   key: string;
@@ -10,11 +11,13 @@ interface Option {
   to: string;
   icon: ReactNode;
   color: string;
+  soft: string;
 }
 
 /** Step 1 of the create flow: choose the e-invoice type. */
 export default function CreateInvoice() {
   const navigate = useNavigate();
+  const { palette: p } = useTheme();
 
   const options: Option[] = [
     {
@@ -23,7 +26,8 @@ export default function CreateInvoice() {
       description: 'A single invoice issued to one identified buyer (B2B / B2G).',
       to: '/create/individual',
       icon: <FileTextOutlined />,
-      color: '#3b5bdb',
+      color: p.info,
+      soft: p.infoSoft,
     },
     {
       key: 'consolidated',
@@ -31,7 +35,8 @@ export default function CreateInvoice() {
       description: 'Aggregate a period of B2C sales (no named buyer) into one submission.',
       to: '/create/consolidated',
       icon: <AppstoreOutlined />,
-      color: '#16a34a',
+      color: p.link,
+      soft: p.primarySoft,
     },
   ];
 
@@ -53,7 +58,7 @@ export default function CreateInvoice() {
                   justifyContent: 'center',
                   fontSize: 22,
                   color: o.color,
-                  background: `${o.color}14`,
+                  background: o.soft,
                   marginBottom: 14,
                 }}
               >

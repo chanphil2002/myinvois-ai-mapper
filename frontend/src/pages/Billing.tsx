@@ -4,6 +4,7 @@ import { CheckCircleTwoTone } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSubscription, subscribePlan } from '../api/endpoints';
 import StatusTag from '../components/StatusTag';
+import { useTheme } from '../theme/ThemeContext';
 
 interface Plan {
   id: string;
@@ -62,6 +63,7 @@ function PlanCards({
   onChoose: (id: string) => void;
   pendingPlan: string | null;
 }) {
+  const { palette } = useTheme();
   const isFreeUser = currentPlan === null;
   return (
     <Row gutter={[16, 16]}>
@@ -70,11 +72,11 @@ function PlanCards({
         return (
           <Col xs={24} sm={12} md={6} key={p.id}>
             <Card
-              style={{ height: '100%', borderColor: p.popular ? '#3b5bdb' : undefined }}
+              style={{ height: '100%', borderColor: p.popular ? palette.primary : undefined }}
               title={
                 <Space>
                   {p.name}
-                  {p.popular && <Tag color="blue">Popular</Tag>}
+                  {p.popular && <Tag color="success">Popular</Tag>}
                 </Space>
               }
             >
@@ -89,7 +91,7 @@ function PlanCards({
               <Space direction="vertical" size={4} style={{ marginBottom: 16 }}>
                 {p.features.map((f) => (
                   <Space key={f} size={8} align="start">
-                    <CheckCircleTwoTone twoToneColor="#52c41a" />
+                    <CheckCircleTwoTone twoToneColor={palette.success} />
                     <span>{f}</span>
                   </Space>
                 ))}
@@ -188,7 +190,7 @@ export default function Billing() {
               <Typography.Text strong style={{ fontSize: 18 }}>
                 Free
               </Typography.Text>
-              <Tag color="blue">Current</Tag>
+              <Tag color="success">Current</Tag>
             </Space>
             <Typography.Text type="secondary">2 documents / day · upgrade any time for more</Typography.Text>
           </Space>

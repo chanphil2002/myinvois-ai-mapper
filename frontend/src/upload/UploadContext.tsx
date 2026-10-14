@@ -4,6 +4,7 @@ import { Button, Card, Grid, Spin, Typography, theme } from 'antd';
 import { CheckCircleTwoTone, CloseCircleTwoTone, CloseOutlined, LoadingOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTheme } from '../theme/ThemeContext';
 
 interface JobLink {
   to: string;
@@ -76,13 +77,14 @@ export function useUpload(): UploadContextValue {
 
 function JobCard({ job, onClose }: { job: UploadJob; onClose: () => void }) {
   const { token } = theme.useToken();
+  const { palette, isDark } = useTheme();
   return (
-    <Card size="small" styles={{ body: { padding: 12 } }} style={{ boxShadow: '0 6px 20px rgba(16,24,40,0.18)' }}>
+    <Card size="small" styles={{ body: { padding: 12 } }} style={{ boxShadow: isDark ? '0 0 0 1px ' + palette.borderStrong : '0 6px 20px rgba(28,28,26,0.14)', background: palette.elevated }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
         <div style={{ fontSize: 18, lineHeight: 1, marginTop: 1 }}>
           {job.status === 'running' && <Spin indicator={<LoadingOutlined spin />} size="small" />}
-          {job.status === 'done' && <CheckCircleTwoTone twoToneColor="#16a34a" />}
-          {job.status === 'error' && <CloseCircleTwoTone twoToneColor="#dc2626" />}
+          {job.status === 'done' && <CheckCircleTwoTone twoToneColor={palette.success} />}
+          {job.status === 'error' && <CloseCircleTwoTone twoToneColor={palette.error} />}
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <Typography.Text strong ellipsis style={{ display: 'block' }}>

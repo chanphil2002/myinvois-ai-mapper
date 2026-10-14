@@ -12,6 +12,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { deleteDocument, getDocument, getDocumentFile } from '../api/endpoints';
+import { useTheme } from '../theme/ThemeContext';
 
 const IMAGE_TYPES = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
 
@@ -29,6 +30,7 @@ function fileIcon(type: string) {
  */
 export default function SourceDocumentCard({ documentId }: { documentId: number }) {
   const { token } = theme.useToken();
+  const { palette: p } = useTheme();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: doc, isLoading } = useQuery({
@@ -101,8 +103,8 @@ export default function SourceDocumentCard({ documentId }: { documentId: number 
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 18,
-            color: isManual ? '#8b5cf6' : '#3b5bdb',
-            background: isManual ? '#8b5cf622' : '#3b5bdb22',
+            color: isManual ? p.warning : p.info,
+            background: isManual ? p.warningSoft : p.infoSoft,
           }}
         >
           {isManual ? <EditOutlined /> : fileIcon(type)}
@@ -166,7 +168,7 @@ export default function SourceDocumentCard({ documentId }: { documentId: number 
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.25)',
+            background: 'rgba(0,0,0,0.45)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

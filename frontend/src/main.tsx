@@ -11,13 +11,6 @@ import './index.css';
 
 const queryClient = new QueryClient();
 
-// Shared brand tokens (also referenced from components via these exports).
-export const BRAND = {
-  primary: '#3b5bdb',
-  primaryDeep: '#1e3a8a',
-  sider: '#0f172a',
-  siderActive: '#3b5bdb',
-};
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -5,7 +5,7 @@ import BrandLogo from './components/BrandLogo';
 import BottomTabBar from './components/BottomTabBar';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { useAuth } from './auth/AuthContext';
-import { useTheme, SURFACE } from './theme/ThemeContext';
+import { useTheme } from './theme/ThemeContext';
 import { UploadBanner } from './upload/UploadContext';
 import Support from './pages/Support';
 import ParsingInvoice from './pages/ParsingInvoice';
@@ -34,8 +34,7 @@ function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { email, logout } = useAuth();
-  const { isDark, toggle } = useTheme();
-  const surface = isDark ? SURFACE.dark : SURFACE.light;
+  const { isDark, toggle, palette: surface } = useTheme();
 
   const themeToggle = (
     <Tooltip title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
@@ -103,7 +102,7 @@ function AppLayout() {
           <BrandLogo dark={isDark} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {themeToggle}
-            <a onClick={logout} style={{ color: '#3b5bdb', fontWeight: 500 }}>
+            <a onClick={logout} style={{ color: surface.link, fontWeight: 500 }}>
               Log out
             </a>
           </div>
@@ -137,10 +136,10 @@ function AppLayout() {
         <Menu theme="dark" mode="inline" selectedKeys={[selectedKey]} items={items} />
       </Sider>
       <Layout>
-        <Header style={{ background: surface.header, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, padding: '0 20px', borderBottom: `1px solid ${surface.border}`, boxShadow: isDark ? 'none' : '0 1px 2px rgba(16,24,40,0.04)' }}>
+        <Header style={{ background: surface.header, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, padding: '0 20px', borderBottom: `1px solid ${surface.border}`, boxShadow: surface.shadow }}>
           {themeToggle}
           <span>{email}</span>
-          <a onClick={logout}>Log out</a>
+          <a onClick={logout} style={{ fontWeight: 500 }}>Log out</a>
         </Header>
         <Content style={{ margin: 24 }}>
           <div style={{ maxWidth: 1080, margin: '0 auto' }}>

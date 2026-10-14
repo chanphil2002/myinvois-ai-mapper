@@ -1,6 +1,7 @@
 import { Table, Tag } from 'antd';
 import type { SalesTransactionResponse } from '../api/types';
 import { useTheme } from '../theme/ThemeContext';
+import { confidenceTint } from '../theme/palette';
 
 interface Props {
   transactions: SalesTransactionResponse[];
@@ -9,21 +10,13 @@ interface Props {
   loading?: boolean;
 }
 
-// Confidence tints that stay readable in both themes (light pastels vs. low-alpha overlays).
-function confidenceColor(score: number | null, isDark: boolean): string | undefined {
-  if (score === null) return undefined;
-  if (score >= 0.8) return isDark ? 'rgba(82,196,26,0.20)' : '#f6ffed';
-  if (score >= 0.5) return isDark ? 'rgba(250,173,20,0.22)' : '#fffbe6';
-  return isDark ? 'rgba(255,77,79,0.24)' : '#fff1f0';
-}
-
 /**
  * Sibling to MappingReviewTable, but for picking (not editing) transactions: a plain selectable
  * grid rather than a controlled-array editor. `eligibleForConsolidation` only pre-tints rows and
  * is never a hard filter — the user can select or deselect any row regardless of the AI's guess.
  */
 export default function TransactionSelectionTable({ transactions, selectedIds, onSelectionChange, loading }: Props) {
-  const { isDark } = useTheme();
+  const { palette } = useTheme();
   const columns = [
     { title: 'Date', dataIndex: 'transactionDate', key: 'transactionDate', width: 110 },
     {
@@ -31,7 +24,7 @@ export default function TransactionSelectionTable({ transactions, selectedIds, o
       dataIndex: 'description',
       key: 'description',
       render: (value: string | null, record: SalesTransactionResponse) => (
-        <span style={{ background: confidenceColor(record.confidenceScore, isDark), padding: '2px 4px', borderRadius: 4 }}>{value}</span>
+        <span style={{ background: confidenceTint(record.confidenceScore, palette), padding: '2px 4px', borderRadius: 4 }}>{value}</span>
       ),
     },
     { title: 'Qty', dataIndex: 'quantity', key: 'quantity', width: 80 },

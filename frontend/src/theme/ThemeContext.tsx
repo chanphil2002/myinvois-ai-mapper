@@ -1,24 +1,22 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ConfigProvider, theme as antdTheme } from 'antd';
+import { PALETTES } from './palette';
+import type { Palette } from './palette';
 
 type Mode = 'light' | 'dark';
 
 interface ThemeContextValue {
   mode: Mode;
   isDark: boolean;
+  /** Current mode's colours, for custom inline-styled UI. */
+  palette: Palette;
   toggle: () => void;
   setMode: (m: Mode) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 const STORAGE_KEY = 'mytax-theme';
-
-const BRAND = {
-  primary: '#3b5bdb',
-  sider: '#0f172a',
-  siderActive: '#3b5bdb',
-};
 
 function readInitial(): Mode {
   try {
@@ -33,6 +31,7 @@ function readInitial(): Mode {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<Mode>(readInitial);
   const isDark = mode === 'dark';
+  const p = PALETTES[mode];
 
   useEffect(() => {
     try {
@@ -41,13 +40,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       /* ignore */
     }
     // Keep the page/overscroll background in step with the theme.
-    document.body.style.background = isDark ? '#0b1220' : '#f4f6fb';
+    document.body.style.background = p.bg;
     document.documentElement.style.colorScheme = mode;
-  }, [mode, isDark]);
+  }, [mode, p]);
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ mode, isDark, toggle: () => setMode((m) => (m === 'dark' ? 'light' : 'dark')), setMode }),
-    [mode, isDark],
+    () => ({ mode, isDark, palette: p, toggle: () => setMode((m) => (m === 'dark' ? 'light' : 'dark')), setMode }),
+    [mode, isDark, p],
   );
 
   return (
@@ -56,30 +55,53 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         theme={{
           algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
           token: {
-            colorPrimary: BRAND.primary,
-            colorLink: BRAND.primary,
+            colorPrimary: p.primary,
+            colorInfo: p.info,
+            colorSuccess: p.success,
+            colorWarning: p.warning,
+            colorError: p.error,
+            colorLink: p.link,
+            colorLinkHover: p.link,
+            colorTextBase: p.text,
+            colorText: p.text,
+            colorTextHeading: p.text,
+            colorTextSecondary: p.textSecondary,
+            colorTextTertiary: p.textTertiary,
+            colorTextDescription: p.textSecondary,
+            colorTextPlaceholder: p.textTertiary,
+            colorTextDisabled: p.textDisabled,
+            colorBgContainerDisabled: p.subtle,
+            colorBgLayout: p.bg,
+            colorBgContainer: p.card,
+            colorBgElevated: p.elevated,
+            colorFillAlter: p.subtle,
+            colorBorder: p.borderStrong,
+            colorBorderSecondary: p.border,
+            colorSplit: p.border,
             borderRadius: 10,
-            colorBgLayout: isDark ? '#0b1220' : '#f4f6fb',
             fontFamily:
               "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', sans-serif",
           },
           components: {
             Layout: {
-              siderBg: BRAND.sider,
-              headerBg: isDark ? '#111a2e' : '#ffffff',
-              bodyBg: isDark ? '#0b1220' : '#f4f6fb',
+              siderBg: p.sider,
+              headerBg: p.header,
+              bodyBg: p.bg,
             },
             Menu: {
-              darkItemBg: BRAND.sider,
-              darkSubMenuItemBg: BRAND.sider,
-              darkItemSelectedBg: BRAND.siderActive,
-              darkItemHoverBg: 'rgba(255,255,255,0.08)',
+              darkItemBg: p.sider,
+              darkSubMenuItemBg: p.sider,
+              darkPopupBg: p.sider,
+              darkItemSelectedBg: p.siderActive,
+              darkItemSelectedColor: '#ffffff',
+              darkItemColor: 'rgba(255,255,255,0.72)',
+              darkItemHoverBg: p.siderHover,
               itemBorderRadius: 8,
               itemMarginInline: 8,
             },
             Card: {
               borderRadiusLG: 14,
-              boxShadowTertiary: '0 1px 3px rgba(16,24,40,0.06)',
+              boxShadowTertiary: p.shadow,
               // Consistent, roomy padding for every card's body and header so content never
               // hugs the border — applies app-wide instead of per-card overrides.
               bodyPadding: 20,
@@ -88,9 +110,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
               headerPaddingSM: 16,
               headerFontSize: 16,
             },
-            Button: { controlHeight: 38, borderRadius: 8, fontWeight: 500 },
+            Button: { controlHeight: 38, borderRadius: 8, fontWeight: 500, primaryColor: p.onPrimary, primaryShadow: 'none' },
             Table: {
-              headerBg: isDark ? '#1a2540' : '#f8fafc',
+              headerBg: p.subtle,
+              headerColor: p.textSecondary,
+              rowHoverBg: p.subtle,
               borderRadius: 10,
               // Even, roomier cell padding so text never hugs the cell edges — including
               // size="small" tables, whose 8px default felt cramped.
@@ -116,9 +140,3 @@ export function useTheme(): ThemeContextValue {
   if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
   return ctx;
 }
-
-export const SURFACE = {
-  // Surface colours for custom (non-antd) inline-styled chrome, per mode.
-  light: { header: '#ffffff', border: '#eef1f6', tabInactive: '#94a3b8' },
-  dark: { header: '#111a2e', border: '#1f2a44', tabInactive: '#7488a8' },
-};

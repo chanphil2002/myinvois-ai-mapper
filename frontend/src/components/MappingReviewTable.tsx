@@ -1,6 +1,7 @@
 import { Table, InputNumber, Input, Button, Select, Space } from 'antd';
 import type { LineItem } from '../api/types';
 import { useTheme } from '../theme/ThemeContext';
+import { confidenceTint } from '../theme/palette';
 import { CLASSIFICATION_CODES, UOM_CODES } from '../constants/myinvoisCodes';
 import type { CodeOption } from '../constants/myinvoisCodes';
 
@@ -16,16 +17,8 @@ function optionsWith(base: CodeOption[], value: string | null | undefined): Code
   return base;
 }
 
-// Confidence tints that stay readable in both themes (light pastels vs. low-alpha overlays).
-function confidenceColor(score: number | null, isDark: boolean): string | undefined {
-  if (score === null) return undefined;
-  if (score >= 0.8) return isDark ? 'rgba(82,196,26,0.20)' : '#f6ffed';
-  if (score >= 0.5) return isDark ? 'rgba(250,173,20,0.22)' : '#fffbe6';
-  return isDark ? 'rgba(255,77,79,0.24)' : '#fff1f0';
-}
-
 export default function MappingReviewTable({ lineItems, onChange, disabled }: Props) {
-  const { isDark } = useTheme();
+  const { palette } = useTheme();
   const updateField = (index: number, field: keyof LineItem, value: unknown) => {
     const next = lineItems.map((item, i) => (i === index ? { ...item, [field]: value } : item));
     onChange(next);
@@ -62,7 +55,7 @@ export default function MappingReviewTable({ lineItems, onChange, disabled }: Pr
         <Input
           value={record.description ?? ''}
           disabled={disabled}
-          style={{ background: confidenceColor(record.confidenceScore, isDark) }}
+          style={{ background: confidenceTint(record.confidenceScore, palette) }}
           onChange={(e) => updateField(index, 'description', e.target.value)}
         />
       ),
