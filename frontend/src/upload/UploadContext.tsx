@@ -16,6 +16,8 @@ export interface UploadJob {
   id: string;
   kind: UploadKind;
   label: string;
+  /** Consolidated draft this job feeds; such jobs are shown inside the draft, not as a list row. */
+  draftId?: number;
   status: 'running' | 'done' | 'error';
   link?: JobLink;
   error?: string;
@@ -24,7 +26,7 @@ export interface UploadJob {
 interface UploadContextValue {
   jobs: UploadJob[];
   /** Run an upload/parse in the background; the banner tracks it across navigation. */
-  startJob: (opts: { kind: UploadKind; label: string; run: () => Promise<{ link?: JobLink } | void> }) => string;
+  startJob: (opts: { kind: UploadKind; label: string; draftId?: number; run: () => Promise<{ link?: JobLink } | void> }) => string;
   dismiss: (id: string) => void;
 }
 
@@ -38,9 +40,9 @@ export function UploadProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
   const startJob: UploadContextValue['startJob'] = useCallback(
-    ({ kind, label, run }) => {
+    ({ kind, label, draftId, run }) => {
       const id = newId();
-      setJobs((j) => [...j, { id, kind, label, status: 'running' }]);
+      setJobs((j) => [...j, { id, kind, label, draftId, status: 'running' }]);
       run()
         .then((res) => {
           setJobs((j) => j.map((x) => (x.id === id ? { ...x, status: 'done', link: res?.link } : x)));

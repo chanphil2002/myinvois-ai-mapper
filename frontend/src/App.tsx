@@ -15,7 +15,6 @@ import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import MappingReview from './pages/MappingReview';
 import Submissions from './pages/Submissions';
-import ConsolidationBuilder from './pages/ConsolidationBuilder';
 import ConsolidatedInvoiceReview from './pages/ConsolidatedInvoiceReview';
 import CreateInvoice from './pages/create/CreateInvoice';
 import CreateIndividual from './pages/create/CreateIndividual';
@@ -76,7 +75,7 @@ function AppLayout() {
       <Route path="/mapped-invoices/:id" element={<MappingReview />} />
       <Route path="/parsing/:jobId" element={<ParsingInvoice />} />
       <Route path="/submissions" element={<Submissions />} />
-      <Route path="/consolidate" element={<ConsolidationBuilder />} />
+      <Route path="/consolidate" element={<Navigate to="/submissions?tab=consolidated" replace />} />
       <Route path="/consolidated-invoices/:id" element={<ConsolidatedInvoiceReview />} />
       <Route path="/billing" element={<Billing />} />
       <Route path="/settings" element={<Settings />} />

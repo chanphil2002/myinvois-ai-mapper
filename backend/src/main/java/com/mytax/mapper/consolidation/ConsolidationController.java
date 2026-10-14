@@ -2,7 +2,11 @@ package com.mytax.mapper.consolidation;
 
 import com.mytax.mapper.auth.CurrentUser;
 import com.mytax.mapper.common.ApiResponse;
+import com.mytax.mapper.consolidation.dto.AddManualLinesRequest;
+import com.mytax.mapper.consolidation.dto.AttachTransactionsRequest;
 import com.mytax.mapper.consolidation.dto.ConsolidatedInvoiceResponse;
+import com.mytax.mapper.consolidation.dto.CreateConsolidatedDraftRequest;
+import com.mytax.mapper.consolidation.dto.UpdateConsolidatedDetailsRequest;
 import com.mytax.mapper.consolidation.dto.CreateConsolidatedInvoiceRequest;
 import com.mytax.mapper.consolidation.dto.CreateManualConsolidatedInvoiceRequest;
 import com.mytax.mapper.consolidation.dto.UpdateConsolidatedInvoiceRequest;
@@ -56,5 +60,33 @@ public class ConsolidationController {
     @PostMapping("/api/consolidated-invoices/{id}/confirm")
     public ApiResponse<ConsolidatedInvoiceResponse> confirm(@PathVariable Long id) {
         return ApiResponse.ok(consolidationService.confirm(id, CurrentUser.id()));
+    }
+
+    @PostMapping("/api/consolidated-invoices/draft")
+    public ApiResponse<ConsolidatedInvoiceResponse> createDraft(@Valid @RequestBody CreateConsolidatedDraftRequest request) {
+        return ApiResponse.ok(consolidationService.createDraft(CurrentUser.id(), request));
+    }
+
+    @PatchMapping("/api/consolidated-invoices/{id}/details")
+    public ApiResponse<ConsolidatedInvoiceResponse> updateDetails(@PathVariable Long id,
+                                                                    @Valid @RequestBody UpdateConsolidatedDetailsRequest request) {
+        return ApiResponse.ok(consolidationService.updateDetails(id, CurrentUser.id(), request));
+    }
+
+    @PostMapping("/api/consolidated-invoices/{id}/attach")
+    public ApiResponse<ConsolidatedInvoiceResponse> attach(@PathVariable Long id,
+                                                             @Valid @RequestBody AttachTransactionsRequest request) {
+        return ApiResponse.ok(consolidationService.attach(id, CurrentUser.id(), request.transactionIds()));
+    }
+
+    @PostMapping("/api/consolidated-invoices/{id}/lines")
+    public ApiResponse<ConsolidatedInvoiceResponse> addLines(@PathVariable Long id,
+                                                               @Valid @RequestBody AddManualLinesRequest request) {
+        return ApiResponse.ok(consolidationService.addManualLines(id, CurrentUser.id(), request.lineItems()));
+    }
+
+    @DeleteMapping("/api/consolidated-invoices/{id}/transactions/{transactionId}")
+    public ApiResponse<ConsolidatedInvoiceResponse> removeTransaction(@PathVariable Long id, @PathVariable Long transactionId) {
+        return ApiResponse.ok(consolidationService.removeTransaction(id, CurrentUser.id(), transactionId));
     }
 }

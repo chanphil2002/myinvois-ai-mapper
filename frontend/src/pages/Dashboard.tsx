@@ -108,7 +108,7 @@ export default function Dashboard() {
   // Uploads still processing show as non-clickable "Parsing…" placeholder rows at the top,
   // until the real invoice lands (the banner also tracks them).
   const pendingRows: InvoiceRow[] = jobs
-    .filter((j) => j.status === 'running')
+    .filter((j) => j.status === 'running' && j.draftId === undefined)
     .map((j) => ({
       id: -1,
       createdAt: new Date().toISOString(),

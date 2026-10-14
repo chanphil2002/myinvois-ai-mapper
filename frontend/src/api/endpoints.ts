@@ -4,6 +4,7 @@ import type {
   BusinessProfile,
   ConsolidatedInvoiceResponse,
   CreateManualConsolidatedInvoicePayload,
+  ManualConsolidatedLineItem,
   CredentialResponse,
   DocumentResponse,
   MappedInvoiceResponse,
@@ -157,6 +158,42 @@ export function createManualConsolidatedInvoice(
 ): Promise<ConsolidatedInvoiceResponse> {
   return unwrap(
     apiClient.post<ApiResponse<ConsolidatedInvoiceResponse>>('/api/consolidated-invoices/manual', payload),
+  );
+}
+
+export function createConsolidatedDraft(payload: {
+  invoiceName?: string | null;
+  periodStart: string;
+  periodEnd: string;
+}): Promise<ConsolidatedInvoiceResponse> {
+  return unwrap(apiClient.post<ApiResponse<ConsolidatedInvoiceResponse>>('/api/consolidated-invoices/draft', payload));
+}
+
+export function updateConsolidatedDetails(
+  id: number,
+  payload: { invoiceName?: string | null; periodStart: string; periodEnd: string },
+): Promise<ConsolidatedInvoiceResponse> {
+  return unwrap(apiClient.patch<ApiResponse<ConsolidatedInvoiceResponse>>(`/api/consolidated-invoices/${id}/details`, payload));
+}
+
+export function attachTransactions(id: number, transactionIds: number[]): Promise<ConsolidatedInvoiceResponse> {
+  return unwrap(
+    apiClient.post<ApiResponse<ConsolidatedInvoiceResponse>>(`/api/consolidated-invoices/${id}/attach`, { transactionIds }),
+  );
+}
+
+export function addConsolidatedLines(
+  id: number,
+  lineItems: ManualConsolidatedLineItem[],
+): Promise<ConsolidatedInvoiceResponse> {
+  return unwrap(
+    apiClient.post<ApiResponse<ConsolidatedInvoiceResponse>>(`/api/consolidated-invoices/${id}/lines`, { lineItems }),
+  );
+}
+
+export function removeConsolidatedTransaction(id: number, transactionId: number): Promise<ConsolidatedInvoiceResponse> {
+  return unwrap(
+    apiClient.delete<ApiResponse<ConsolidatedInvoiceResponse>>(`/api/consolidated-invoices/${id}/transactions/${transactionId}`),
   );
 }
 

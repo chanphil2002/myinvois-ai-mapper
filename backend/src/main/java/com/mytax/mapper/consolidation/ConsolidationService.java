@@ -2,7 +2,9 @@ package com.mytax.mapper.consolidation;
 
 import com.mytax.mapper.common.EntityNotFoundException;
 import com.mytax.mapper.consolidation.dto.ConsolidatedInvoiceResponse;
+import com.mytax.mapper.consolidation.dto.CreateConsolidatedDraftRequest;
 import com.mytax.mapper.consolidation.dto.CreateConsolidatedInvoiceRequest;
+import com.mytax.mapper.consolidation.dto.UpdateConsolidatedDetailsRequest;
 import com.mytax.mapper.consolidation.dto.CreateManualConsolidatedInvoiceRequest;
 import com.mytax.mapper.consolidation.dto.UpdateConsolidatedInvoiceRequest;
 import com.mytax.mapper.document.Document;
@@ -88,24 +90,7 @@ public class ConsolidationService {
      */
     @Transactional
     public ConsolidatedInvoiceResponse createManual(Long userId, CreateManualConsolidatedInvoiceRequest request) {
-        Document document = documentService.createManual(userId, "Manual entry — consolidated e-invoice");
-
-        List<Long> transactionIds = new java.util.ArrayList<>();
-        for (CreateManualConsolidatedInvoiceRequest.LineItem line : request.lineItems()) {
-            SalesTransaction transaction = SalesTransaction.builder()
-                    .documentId(document.getId())
-                    .transactionDate(line.transactionDate() != null ? line.transactionDate() : request.periodEnd())
-                    .description(line.description())
-                    .quantity(line.quantity() != null ? line.quantity() : BigDecimal.ONE)
-                    .unitPrice(line.unitPrice() != null ? line.unitPrice() : BigDecimal.ZERO)
-                    .taxAmount(line.taxAmount() != null ? line.taxAmount() : BigDecimal.ZERO)
-                    .unitCode(line.unitCode() != null ? line.unitCode() : "C62")
-                    .eligibleForConsolidation(true)
-                    .status(SalesTransactionStatus.PENDING)
-                    .build();
-            transaction = salesTransactionRepository.save(transaction);
-            transactionIds.add(transaction.getId());
-        }
+        List<Long> transactionIds = createManualTransactions(userId, request.lineItems(), request.periodEnd());
 
         ConsolidatedInvoice invoice = ConsolidatedInvoice.builder()
                 .userId(userId)
@@ -118,6 +103,100 @@ public class ConsolidationService {
 
         applyTransactions(invoice, userId, transactionIds);
         return toResponse(invoice);
+    }
+
+    /** Starts an empty DRAFT (name + period); sales are attached afterwards. */
+    @Transactional
+    public ConsolidatedInvoiceResponse createDraft(Long userId, CreateConsolidatedDraftRequest request) {
+        ConsolidatedInvoice invoice = ConsolidatedInvoice.builder()
+                .userId(userId)
+                .invoiceName(request.invoiceName() == null || request.invoiceName().isBlank() ? null : request.invoiceName().trim())
+                .periodStart(request.periodStart())
+                .periodEnd(request.periodEnd())
+                .status(ConsolidatedInvoiceStatus.DRAFT)
+                .build();
+        invoice = consolidatedInvoiceRepository.save(invoice);
+        applyTransactions(invoice, userId, List.of());
+        return toResponse(invoice);
+    }
+
+    @Transactional
+    public ConsolidatedInvoiceResponse updateDetails(Long id, Long userId, UpdateConsolidatedDetailsRequest request) {
+        ConsolidatedInvoice invoice = getOwned(id, userId);
+        requireDraft(invoice, "edited");
+        invoice.setInvoiceName(request.invoiceName() == null || request.invoiceName().isBlank() ? null : request.invoiceName().trim());
+        invoice.setPeriodStart(request.periodStart());
+        invoice.setPeriodEnd(request.periodEnd());
+        return toResponse(consolidatedInvoiceRepository.save(invoice));
+    }
+
+    /** Adds already-extracted, still-ungrouped transactions to a DRAFT. */
+    @Transactional
+    public ConsolidatedInvoiceResponse attach(Long id, Long userId, List<Long> transactionIds) {
+        ConsolidatedInvoice invoice = getOwned(id, userId);
+        requireDraft(invoice, "edited");
+        List<Long> merged = new java.util.ArrayList<>(currentTransactionIds(invoice));
+        transactionIds.stream().filter(t -> !merged.contains(t)).forEach(merged::add);
+        replaceTransactions(invoice, userId, merged);
+        return toResponse(invoice);
+    }
+
+    /** Keys in extra B2C sale lines directly on a DRAFT. */
+    @Transactional
+    public ConsolidatedInvoiceResponse addManualLines(Long id, Long userId,
+                                                       List<CreateManualConsolidatedInvoiceRequest.LineItem> lines) {
+        ConsolidatedInvoice invoice = getOwned(id, userId);
+        requireDraft(invoice, "edited");
+        List<Long> created = createManualTransactions(userId, lines, invoice.getPeriodEnd());
+        return attach(id, userId, created);
+    }
+
+    @Transactional
+    public ConsolidatedInvoiceResponse removeTransaction(Long id, Long userId, Long transactionId) {
+        ConsolidatedInvoice invoice = getOwned(id, userId);
+        requireDraft(invoice, "edited");
+        List<Long> remaining = new java.util.ArrayList<>(currentTransactionIds(invoice));
+        remaining.remove(transactionId);
+        replaceTransactions(invoice, userId, remaining);
+        return toResponse(invoice);
+    }
+
+    private List<Long> currentTransactionIds(ConsolidatedInvoice invoice) {
+        return linkRepository.findByConsolidatedInvoiceId(invoice.getId()).stream()
+                .map(ConsolidatedInvoiceTransaction::getSalesTransactionId).toList();
+    }
+
+    /** Releases the invoice's current transactions back to PENDING, then groups exactly {@code ids}. */
+    private void replaceTransactions(ConsolidatedInvoice invoice, Long userId, List<Long> ids) {
+        for (ConsolidatedInvoiceTransaction link : linkRepository.findByConsolidatedInvoiceId(invoice.getId())) {
+            salesTransactionRepository.findById(link.getSalesTransactionId()).ifPresent(t -> {
+                t.setStatus(SalesTransactionStatus.PENDING);
+                salesTransactionRepository.save(t);
+            });
+            linkRepository.delete(link);
+        }
+        applyTransactions(invoice, userId, ids);
+    }
+
+    private List<Long> createManualTransactions(Long userId, List<CreateManualConsolidatedInvoiceRequest.LineItem> lines,
+                                                java.time.LocalDate defaultDate) {
+        Document document = documentService.createManual(userId, "Manual entry — consolidated e-invoice");
+        List<Long> ids = new java.util.ArrayList<>();
+        for (CreateManualConsolidatedInvoiceRequest.LineItem line : lines) {
+            SalesTransaction transaction = SalesTransaction.builder()
+                    .documentId(document.getId())
+                    .transactionDate(line.transactionDate() != null ? line.transactionDate() : defaultDate)
+                    .description(line.description())
+                    .quantity(line.quantity() != null ? line.quantity() : BigDecimal.ONE)
+                    .unitPrice(line.unitPrice() != null ? line.unitPrice() : BigDecimal.ZERO)
+                    .taxAmount(line.taxAmount() != null ? line.taxAmount() : BigDecimal.ZERO)
+                    .unitCode(line.unitCode() != null ? line.unitCode() : "C62")
+                    .eligibleForConsolidation(true)
+                    .status(SalesTransactionStatus.PENDING)
+                    .build();
+            ids.add(salesTransactionRepository.save(transaction).getId());
+        }
+        return ids;
     }
 
     @Transactional
@@ -147,6 +226,9 @@ public class ConsolidationService {
     public ConsolidatedInvoiceResponse confirm(Long consolidatedInvoiceId, Long userId) {
         ConsolidatedInvoice invoice = getOwned(consolidatedInvoiceId, userId);
         requireDraft(invoice, "confirmed");
+        if (linkRepository.findByConsolidatedInvoiceId(invoice.getId()).isEmpty()) {
+            throw new IllegalStateException("Add at least one sale before confirming this consolidated invoice");
+        }
         invoice.setStatus(ConsolidatedInvoiceStatus.CONFIRMED);
         invoice = consolidatedInvoiceRepository.save(invoice);
         return toResponse(invoice);

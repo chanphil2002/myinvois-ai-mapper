@@ -1,190 +1,55 @@
 import { useState } from 'react';
-import { Button, Card, Col, DatePicker, Input, InputNumber, Row, Space, Table, Typography, message } from 'antd';
-import { useMutation } from '@tanstack/react-query';
+import { Alert, Button, Card, DatePicker, Input, Space, Typography, message } from 'antd';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
-import FileUploadDropzone from '../../components/FileUploadDropzone';
-import { createManualConsolidatedInvoice, extractTransactions, uploadDocument } from '../../api/endpoints';
-import type { ManualConsolidatedLineItem } from '../../api/types';
-import { useUpload } from '../../upload/UploadContext';
+import ConsolidatedSteps from '../../components/ConsolidatedSteps';
+import { createConsolidatedDraft } from '../../api/endpoints';
 
-type Method = null | 'manual' | 'upload';
-
-interface Row {
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  taxAmount: number;
-}
-
-const emptyRow = (): Row => ({ description: '', quantity: 1, unitPrice: 0, taxAmount: 0 });
-
+/**
+ * Step 1 of a consolidated e-invoice: name + period. This creates a real DRAFT straight away
+ * (so it shows in Submissions), then sales are added inside it — typed in, uploaded, or both.
+ */
 export default function CreateConsolidated() {
   const navigate = useNavigate();
-  const { startJob } = useUpload();
-  const [method, setMethod] = useState<Method>(null);
+  const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [period, setPeriod] = useState<[Dayjs, Dayjs] | null>([dayjs().startOf('month'), dayjs().endOf('month')]);
-  const [rows, setRows] = useState<Row[]>([emptyRow()]);
 
-  // Each file uploads + extracts in the background (tracked by the banner) and its transactions
-  // accumulate on the server; we redirect to Submissions where it shows as a parsing placeholder.
-  const startExtract = (file: File) => {
-    startJob({
-      kind: 'consolidated',
-      label: `Extracting ${file.name}`,
-      run: async () => {
-        const doc = await uploadDocument(file);
-        await extractTransactions(doc.id);
-        return { link: { to: '/consolidate', text: 'Group transactions' } };
-      },
-    });
-    navigate('/submissions?tab=consolidated');
-  };
-
-  const manualMutation = useMutation({
-    mutationFn: () => {
-      if (!period) throw new Error('Select a period');
-      const lineItems: ManualConsolidatedLineItem[] = rows
-        .filter((r) => r.description.trim() !== '')
-        .map((r) => ({ description: r.description, quantity: r.quantity, unitPrice: r.unitPrice, taxAmount: r.taxAmount }));
-      if (lineItems.length === 0) throw new Error('Add at least one line item');
-      return createManualConsolidatedInvoice({
+  const createDraft = useMutation({
+    mutationFn: async (_add: 'manual' | 'upload') => {
+      if (!period) throw new Error('Select the period these sales cover');
+      return createConsolidatedDraft({
         invoiceName: name.trim() || null,
         periodStart: period[0].format('YYYY-MM-DD'),
         periodEnd: period[1].format('YYYY-MM-DD'),
-        lineItems,
       });
     },
-    onSuccess: (invoice) => {
-      message.success('Consolidated invoice created — review and submit');
-      navigate(`/consolidated-invoices/${invoice.id}`);
+    onSuccess: (invoice, add) => {
+      queryClient.invalidateQueries({ queryKey: ['consolidated-invoices'] });
+      navigate(`/consolidated-invoices/${invoice.id}?add=${add}`);
     },
-    onError: (err) => message.error(err instanceof Error ? err.message : 'Could not create consolidated invoice'),
+    onError: (err) => message.error(err instanceof Error ? err.message : 'Could not create the draft'),
   });
 
-  const updateRow = (index: number, field: keyof Row, value: unknown) =>
-    setRows(rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
-
-  // A single Back that steps up one level (method screen → chooser → type picker).
-  const back = (
-    <Button
-      type="link"
-      style={{ paddingLeft: 0 }}
-      onClick={() => (method === null ? navigate('/create') : setMethod(null))}
-    >
-      ← Back
-    </Button>
-  );
-
-  if (method === null) {
-    return (
-      <div style={{ maxWidth: 820 }}>
-        {back}
-        <Typography.Title level={3} style={{ marginTop: 8 }}>
+  return (
+    <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: 820 }}>
+      <Button type="link" style={{ paddingLeft: 0, alignSelf: 'flex-start' }} onClick={() => navigate('/create')}>
+        ← Back
+      </Button>
+      <div>
+        <Typography.Title level={3} style={{ marginTop: 0 }}>
           Consolidated e-Invoice
         </Typography.Title>
-        <Typography.Paragraph type="secondary">How do you want to enter the sales?</Typography.Paragraph>
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12}>
-            <Card hoverable onClick={() => setMethod('manual')} style={{ height: '100%' }}>
-              <Typography.Title level={4} style={{ marginTop: 0 }}>
-                Key in manually
-              </Typography.Title>
-              <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                Enter the period and each B2C sale line yourself.
-              </Typography.Paragraph>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12}>
-            <Card hoverable onClick={() => setMethod('upload')} style={{ height: '100%' }}>
-              <Typography.Title level={4} style={{ marginTop: 0 }}>
-                Upload documents
-              </Typography.Title>
-              <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                Upload one or more files; AI extracts the sale lines for you to group.
-              </Typography.Paragraph>
-            </Card>
-          </Col>
-        </Row>
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+          Combine many small B2C sales (customers with no named buyer) into one invoice for a period — typically one per
+          month. Check LHDN’s current guidance for the submission deadline.
+        </Typography.Paragraph>
       </div>
-    );
-  }
 
-  if (method === 'upload') {
-    return (
-      <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: 820 }}>
-        {back}
-        <Card title="Upload source documents">
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-              Pick one or more files. Each uploads and extracts its B2C sales <strong>in the background</strong>, and
-              we'll take you to Submissions where it shows as a parsing placeholder — then you group the extracted
-              transactions into a consolidated invoice.
-            </Typography.Paragraph>
+      <ConsolidatedSteps current={0} />
 
-            <FileUploadDropzone
-              multiple
-              uploading={false}
-              hint="Supports .xlsx, .pdf, .png, .jpg — add several at once"
-              onFileSelected={startExtract}
-            />
-          </Space>
-        </Card>
-      </Space>
-    );
-  }
-
-  const columns = [
-    {
-      title: 'Description',
-      key: 'description',
-      render: (_: unknown, _r: Row, i: number) => (
-        <Input value={rows[i].description} onChange={(e) => updateRow(i, 'description', e.target.value)} />
-      ),
-    },
-    {
-      title: 'Qty',
-      key: 'quantity',
-      width: 110,
-      render: (_: unknown, _r: Row, i: number) => (
-        <InputNumber style={{ width: '100%' }} value={rows[i].quantity} min={0} onChange={(v) => updateRow(i, 'quantity', v ?? 0)} />
-      ),
-    },
-    {
-      title: 'Unit Price',
-      key: 'unitPrice',
-      width: 130,
-      render: (_: unknown, _r: Row, i: number) => (
-        <InputNumber style={{ width: '100%' }} value={rows[i].unitPrice} min={0} onChange={(v) => updateRow(i, 'unitPrice', v ?? 0)} />
-      ),
-    },
-    {
-      title: 'Tax',
-      key: 'taxAmount',
-      width: 120,
-      render: (_: unknown, _r: Row, i: number) => (
-        <InputNumber style={{ width: '100%' }} value={rows[i].taxAmount} min={0} onChange={(v) => updateRow(i, 'taxAmount', v ?? 0)} />
-      ),
-    },
-    {
-      title: '',
-      key: 'remove',
-      width: 80,
-      render: (_: unknown, _r: Row, i: number) => (
-        <Button danger size="small" disabled={rows.length === 1} onClick={() => setRows(rows.filter((_, j) => j !== i))}>
-          Remove
-        </Button>
-      ),
-    },
-  ];
-
-  const total = rows.reduce((sum, r) => sum + r.quantity * r.unitPrice + r.taxAmount, 0);
-
-  return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      {back}
-      <Card title="Key in a consolidated e-Invoice">
+      <Card title="Name and period">
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <div style={{ maxWidth: 360 }}>
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -198,7 +63,9 @@ export default function CreateConsolidated() {
             />
           </div>
           <div>
-            <Typography.Text type="secondary">Aggregation period</Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Period these sales cover
+            </Typography.Text>
             <br />
             <DatePicker.RangePicker
               value={period}
@@ -206,16 +73,20 @@ export default function CreateConsolidated() {
               style={{ marginTop: 4 }}
             />
           </div>
-          <Table rowKey={(_, i) => String(i)} dataSource={rows} columns={columns} pagination={false} size="small" scroll={{ x: 'max-content' }} />
-          <Button type="dashed" block onClick={() => setRows([...rows, emptyRow()])}>
-            + Add line item
-          </Button>
-          <Typography.Text strong>Grand total: RM {total.toFixed(2)}</Typography.Text>
-          <div>
-            <Button type="primary" loading={manualMutation.isPending} onClick={() => manualMutation.mutate()}>
-              Create consolidated invoice
+          <Alert
+            type="info"
+            showIcon
+            message="Next: add your sales"
+            description="We’ll save this as a draft. You can then key in sales, upload receipts or spreadsheets (AI extracts them), or do both — and add more later."
+          />
+          <Space wrap>
+            <Button type="primary" loading={createDraft.isPending} onClick={() => createDraft.mutate('manual')}>
+              Create draft &amp; key in sales
             </Button>
-          </div>
+            <Button loading={createDraft.isPending} onClick={() => createDraft.mutate('upload')}>
+              Create draft &amp; upload files
+            </Button>
+          </Space>
         </Space>
       </Card>
     </Space>
