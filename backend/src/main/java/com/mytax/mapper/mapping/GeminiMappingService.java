@@ -106,12 +106,15 @@ public class GeminiMappingService implements MappingEngine {
             "type", "STRING", "format", "enum", "enum", MyInvoisCodes.CLASSIFICATION_CODES);
 
     private final GeminiProperties properties;
+    private final com.mytax.mapper.usage.UsageService usageService;
     private final XlsxParser xlsxParser;
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
 
-    public GeminiMappingService(GeminiProperties properties, XlsxParser xlsxParser, ObjectMapper objectMapper) {
+    public GeminiMappingService(GeminiProperties properties, XlsxParser xlsxParser, ObjectMapper objectMapper,
+                                com.mytax.mapper.usage.UsageService usageService) {
         this.properties = properties;
+        this.usageService = usageService;
         this.xlsxParser = xlsxParser;
         this.objectMapper = objectMapper;
         this.restClient = RestClient.create();
@@ -123,7 +126,7 @@ public class GeminiMappingService implements MappingEngine {
         Map<String, Object> userPart = buildContentPart(fileType, fileBytes);
         Map<String, Object> requestBody = buildRequestBody(userPart, systemPrompt(), responseSchema());
 
-        RawExtraction<MappedInvoiceDraft> result = callWithRetry(requestBody, document.getId(), "mapping", parsedJson -> {
+        RawExtraction<MappedInvoiceDraft> result = callWithRetry(requestBody, document, "MAPPING", parsedJson -> {
             MappedInvoiceDraft draft = objectMapper.treeToValue(parsedJson, MappedInvoiceDraft.class);
             String oversizedUnitCode = findOversizedUnitCode(draft.lineItems() == null
                     ? List.of()
@@ -143,7 +146,7 @@ public class GeminiMappingService implements MappingEngine {
         Map<String, Object> userPart = buildContentPart(fileType, fileBytes);
         Map<String, Object> requestBody = buildRequestBody(userPart, transactionSystemPrompt(), transactionResponseSchema());
 
-        RawExtraction<List<SalesTransactionDraft>> result = callWithRetry(requestBody, document.getId(), "transaction extraction", parsedJson -> {
+        RawExtraction<List<SalesTransactionDraft>> result = callWithRetry(requestBody, document, "EXTRACTION", parsedJson -> {
             JsonNode transactionsNode = parsedJson.path("transactions");
             List<SalesTransactionDraft> drafts = new ArrayList<>();
             if (transactionsNode.isArray()) {
@@ -197,8 +200,9 @@ public class GeminiMappingService implements MappingEngine {
      * {@code parser} (which does its own type-specific validation, e.g. oversized unitCode), and
      * retries up to {@link #MAX_ATTEMPTS} times on any failure.
      */
-    private <T> RawExtraction<T> callWithRetry(Map<String, Object> requestBody, Long documentId, String operationName,
+    private <T> RawExtraction<T> callWithRetry(Map<String, Object> requestBody, Document document, String operationName,
                                                 DegenerationCheckingParser<T> parser) {
+        Long documentId = document.getId();
         String uri = properties.getBaseUrl() + "/v1beta/models/" + properties.getModel() + ":generateContent";
 
         Exception lastFailure = null;
@@ -210,8 +214,9 @@ public class GeminiMappingService implements MappingEngine {
                     .retrieve()
                     .body(JsonNode.class);
 
-            String json = extractJsonText(response);
+            boolean ok = false;
             try {
+                String json = extractJsonText(response);
                 JsonNode parsedJson = LENIENT_PARSER.readTree(json);
                 // Repair code fields first, so one rambling unitCode can't fail the whole document.
                 salvageCodeFields(parsedJson, documentId);
@@ -221,16 +226,36 @@ public class GeminiMappingService implements MappingEngine {
                             "Gemini produced a runaway/degenerate value: " + preview(runaway));
                 }
                 T value = parser.parse(parsedJson);
+                ok = true;
                 return new RawExtraction<>(value, response == null ? "{}" : response.toString());
             } catch (Exception e) {
                 lastFailure = e;
                 log.warn("Gemini {} attempt {}/{} produced malformed output for document {}: {}",
                         operationName, attempt, MAX_ATTEMPTS, documentId, e.getMessage());
+            } finally {
+                // Meter every call — a rejected attempt that gets retried still cost tokens.
+                recordUsage(document, operationName, response, ok);
             }
         }
         throw new IllegalStateException(
                 "Gemini produced malformed structured output " + MAX_ATTEMPTS + " times in a row: "
                         + (lastFailure == null ? "unknown error" : lastFailure.getMessage()), lastFailure);
+    }
+
+    private void recordUsage(Document document, String operation, JsonNode response, boolean success) {
+        JsonNode usage = response == null ? null : response.path("usageMetadata");
+        if (usage == null || usage.isMissingNode()) {
+            return;
+        }
+        try {
+            usageService.recordAiCall(document.getUserId(), operation, document.getId(),
+                    usage.path("promptTokenCount").asInt(0),
+                    usage.path("candidatesTokenCount").asInt(0),
+                    usage.path("thoughtsTokenCount").asInt(0),
+                    success);
+        } catch (Exception e) {
+            log.warn("Could not record AI usage for document {}: {}", document.getId(), e.getMessage());
+        }
     }
 
     /**

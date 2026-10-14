@@ -42,6 +42,7 @@ public class MappingService {
     @Transactional
     public MappedInvoiceResponse runMapping(Long documentId, Long userId) {
         Document document = documentService.getOwned(documentId, userId);
+        usageService.requireAllowance(userId); // usage itself is metered per AI call by the engine
 
         ExtractionJob job = extractionJobSupport.start(documentId);
 
@@ -51,7 +52,6 @@ public class MappingService {
 
             extractionJobSupport.complete(job, result.modelName(), result.rawResponseJson());
             document.setStatus(DocumentStatus.PARSED);
-            usageService.record(userId, "MAPPING", documentId);
 
             MappedInvoice mappedInvoice = persistDraft(document, job.getId(), result.draft());
             return toResponse(mappedInvoice, lineItemRepository.findByMappedInvoiceIdOrderByLineNo(mappedInvoice.getId()));

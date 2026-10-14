@@ -71,9 +71,12 @@ export interface UsageResponse {
   plan: string;
   planName: string;
   free: boolean;
-  used: number;
-  limit: number;
-  remaining: number;
+  /** Share of the period's AI allowance used (metered by actual token cost), e.g. 37.5. */
+  usedPercent: number;
+  /** Roughly how many more typical documents fit in what's left. */
+  typicalDocumentsLeft: number;
+  /** The allowance expressed in typical documents. */
+  allowanceTypicalDocuments: number;
   periodLabel: string;
 }
 
@@ -182,6 +185,8 @@ export interface SalesTransactionResponse {
   eligibleForConsolidation: boolean;
   status: SalesTransactionStatus;
   confidenceScore: number | null;
+  /** True when the sale was read by AI (vs. typed in or imported from a CSV). */
+  aiExtracted: boolean;
 }
 
 export type ConsolidatedInvoiceStatus = 'DRAFT' | 'CONFIRMED' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED';

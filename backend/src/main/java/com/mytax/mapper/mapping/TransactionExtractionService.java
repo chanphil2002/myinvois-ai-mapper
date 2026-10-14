@@ -57,6 +57,7 @@ public class TransactionExtractionService {
     @Transactional
     public List<SalesTransactionResponse> extractTransactions(Long documentId, Long userId) {
         Document document = documentService.getOwned(documentId, userId);
+        usageService.requireAllowance(userId); // usage itself is metered per AI call by the engine
 
         ExtractionJob job = extractionJobSupport.start(documentId);
 
@@ -66,10 +67,9 @@ public class TransactionExtractionService {
 
             extractionJobSupport.complete(job, result.modelName(), result.rawResponseJson());
             document.setStatus(DocumentStatus.PARSED);
-            usageService.record(userId, "EXTRACTION", documentId);
 
             List<SalesTransaction> transactions = persistDrafts(document, job.getId(),
-                    dropRepeatedReceiptRows(document, result.drafts()));
+                    dropItemisedRows(document, dropRepeatedReceiptRows(document, result.drafts())));
             return transactions.stream().map(this::toResponse).toList();
         } catch (Exception e) {
             extractionJobSupport.fail(job, e.getMessage());
@@ -111,6 +111,47 @@ public class TransactionExtractionService {
         return unique;
     }
 
+    private static final BigDecimal ROLLUP_TOLERANCE = new BigDecimal("0.05");
+
+    /**
+     * Safety net for the "receipt total + its items" failure (docs/AI_PARSING_ERRORS.md): the model
+     * returns the receipt as one row AND lists its items as extra rows, double-counting the sale.
+     * If one row's amount equals the sum of all the other rows, and those rows are clearly its items
+     * (their descriptions appear in its description, or they carry no date of their own), keep only
+     * the receipt row. Image/PDF documents only — spreadsheets are never collapsed.
+     */
+    private List<SalesTransactionDraft> dropItemisedRows(Document document, List<SalesTransactionDraft> drafts) {
+        String type = document.getFileType() == null ? "" : document.getFileType().toLowerCase();
+        if (drafts.size() < 3 || Set.of("xlsx", "xls", "csv", "tsv", "txt").contains(type)) {
+            return drafts;
+        }
+        for (SalesTransactionDraft receipt : drafts) {
+            List<SalesTransactionDraft> others = drafts.stream().filter(d -> d != receipt).toList();
+            BigDecimal itemsTotal = others.stream().map(TransactionExtractionService::lineAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (lineAmount(receipt).subtract(itemsTotal).abs().compareTo(ROLLUP_TOLERANCE) > 0) {
+                continue;
+            }
+            String receiptText = normalize(receipt.description()) == null ? "" : normalize(receipt.description());
+            boolean namedInReceipt = others.stream().allMatch(d -> d.description() != null
+                    && receiptText.contains(normalize(d.description())));
+            boolean undatedItems = receipt.transactionDate() != null
+                    && others.stream().allMatch(d -> d.transactionDate() == null);
+            if (namedInReceipt || undatedItems) {
+                log.warn("Document {}: dropped {} item row(s) that duplicated receipt row \"{}\"",
+                        document.getId(), others.size(), receipt.description());
+                return List.of(receipt);
+            }
+        }
+        return drafts;
+    }
+
+    private static BigDecimal lineAmount(SalesTransactionDraft d) {
+        BigDecimal qty = d.quantity() != null ? d.quantity() : BigDecimal.ONE;
+        BigDecimal price = d.unitPrice() != null ? d.unitPrice() : BigDecimal.ZERO;
+        return qty.multiply(price);
+    }
+
     private static String normalize(String text) {
         return text == null ? null : text.trim().replaceAll("\\s+", " ").toLowerCase();
     }
@@ -146,6 +187,7 @@ public class TransactionExtractionService {
     private SalesTransactionResponse toResponse(SalesTransaction t) {
         return new SalesTransactionResponse(t.getId(), t.getDocumentId(), t.getTransactionDate(), t.getDescription(),
                 t.getQuantity(), t.getUnitPrice(), t.getTaxAmount(), t.getClassificationCode(), t.getUnitCode(),
-                t.getBuyerName(), t.getBuyerTin(), t.isEligibleForConsolidation(), t.getStatus(), t.getConfidenceScore());
+                t.getBuyerName(), t.getBuyerTin(), t.isEligibleForConsolidation(), t.getStatus(), t.getConfidenceScore(),
+                t.getExtractionJobId() != null);
     }
 }

@@ -172,6 +172,57 @@ wasn't needed (no "Dropped" log line).
 
 ---
 
+### 2026-10-15 — receipt total extracted alongside its items (double-counted sale)
+
+**Symptom.** After the "one receipt = one transaction" prompt fix, `receipt_01.png` (job 46,
+document 73) still came back as **four** rows:
+
+```
+Receipt #TEST-0001 — Latte (Regular), Chicken Sandwich, Mineral Water   1 × 26.90  tax 1.61  2026-10-03
+Latte (Regular)                                                         1 × 9.50   tax —     (no date)
+Chicken Sandwich                                                        1 × 14.90  tax —     (no date)
+Mineral Water                                                           1 × 2.50   tax —     (no date)
+```
+
+The three items add up exactly to the receipt row (9.50 + 14.90 + 2.50 = 26.90), so the sale was
+counted twice: RM 53.80 instead of RM 26.90.
+
+**Root cause.** The model followed the new rule (it wrote the receipt row correctly) and then
+**also** itemised the receipt, even though the prompt explicitly says not to. A prompt rule is a
+request, not a guarantee. Two things in the raw response give the item rows away: they have no
+date and no tax of their own, and their descriptions repeat words from the receipt row. On a later
+run of the same receipt (document 74) the model instead repeated the receipt row, which the
+repeat filter caught. The model's behaviour varies from run to run, so deterministic checks are
+needed.
+
+**Fix (deterministic, in code).** `TransactionExtractionService.dropItemisedRows` handles image and
+PDF documents with 3 or more rows. If one row's amount equals the **sum of all the other rows**
+(within RM 0.05), **and** those rows are clearly its items, only the receipt row is kept. "Clearly
+its items" means either every item description appears in the receipt row's description, or the
+receipt row has a date and none of the items do. It logs `dropped N item row(s) that duplicated
+receipt row …`. Spreadsheets and CSVs are never collapsed. This runs after the exact-repeat filter,
+and both run before anything is saved. The user still reviews every AI row before it's added.
+
+**Verification.** Document 74 (receipt_01) → one row `Receipt #TEST-0001 — … · 26.90 + 1.61 tax`.
+
+---
+
+### Note: AI cost varies a lot per document
+
+Raw `usageMetadata` across eight receipt extractions (same kind of document):
+
+| Prompt tokens | Output tokens | Thinking tokens | Total |
+|---|---|---|---|
+| ~2,060–2,190 | 62–163 | **740–5,652** | 2,997–7,809 |
+
+"Thinking" tokens are billed as output and dominate the cost, so one parse can cost 2–3× another.
+Rejected retry attempts also cost tokens. Usage is therefore metered **per AI call, by tokens**
+(`ai_usage_events.prompt_tokens/output_tokens/thought_tokens/cost_usd`, including failed attempts),
+and plans are an allowance shown as a percentage. See `UsageService`. Prices are set in
+`app.ai-usage.*` in `application.yml`.
+
+---
+
 ## Troubleshooting checklist
 
 - Read **all three** attempt reasons in the backend log, not just the one shown in the UI.

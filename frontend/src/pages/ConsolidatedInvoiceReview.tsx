@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Alert, Button, Card, Col, DatePicker, Input, Row, Space, Table, Tabs, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Col, DatePicker, Input, Row, Space, Table, Tabs, Tag, Tooltip, Typography, message } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import StatusTag from '../components/StatusTag';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import SubmissionStatusBadge from '../components/SubmissionStatusBadge';
 import Page from '../components/Page';
+import { useTheme } from '../theme/ThemeContext';
 import EnvironmentTag from '../components/EnvironmentTag';
 import { tablePagination } from '../utils/pagination';
 import ConsolidatedSteps from '../components/ConsolidatedSteps';
@@ -105,6 +106,7 @@ export default function ConsolidatedInvoiceReview() {
   const [params] = useSearchParams();
   const consolidatedInvoiceId = Number(id);
   const queryClient = useQueryClient();
+  const { palette } = useTheme();
   const { jobs, startJob, dismiss } = useUpload();
   const [addTab, setAddTab] = useState(params.get('add') === 'upload' ? 'upload' : 'manual');
   const [pickedIds, setPickedIds] = useState<number[]>([]);
@@ -279,7 +281,35 @@ export default function ConsolidatedInvoiceReview() {
         </Space>
       ),
     },
-    { title: 'Description', dataIndex: 'description', key: 'description' },
+    {
+      title: 'Description',
+      dataIndex: 'description',
+      key: 'description',
+      render: (v: string | null, record: SalesTransactionResponse) => (
+        <Space size={6} align="start">
+          {record.aiExtracted && (
+            <Tooltip title="Read by AI from an uploaded document">
+              <Tag
+                style={{
+                  marginInlineEnd: 0,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 1,
+                  lineHeight: '16px',
+                  padding: '0 5px',
+                  color: palette.link,
+                  background: palette.primarySoft,
+                  borderColor: 'transparent',
+                }}
+              >
+                AI
+              </Tag>
+            </Tooltip>
+          )}
+          <span>{v}</span>
+        </Space>
+      ),
+    },
     { title: 'Qty', dataIndex: 'quantity', key: 'quantity', width: 70 },
     { title: 'Unit Price', dataIndex: 'unitPrice', key: 'unitPrice', width: 100 },
     { title: 'Tax', dataIndex: 'taxAmount', key: 'taxAmount', width: 90 },

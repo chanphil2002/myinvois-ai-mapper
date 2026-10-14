@@ -49,6 +49,15 @@ app:
     api-key: ${GEMINI_API_KEY:}
     model: ${GEMINI_MODEL:gemini-3.5-flash}
     base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+  ai-usage:
+    # Gemini list prices used to meter usage (USD per 1M tokens). Output includes "thinking" tokens.
+    # Update these to your model's actual price — they drive the % shown to users.
+    input-usd-per-million: ${AI_INPUT_USD_PER_MILLION:0.30}
+    output-usd-per-million: ${AI_OUTPUT_USD_PER_MILLION:2.50}
+    # A "typical" parse, measured from real receipt extractions (Oct 2026): ~2,100 input and
+    # ~2,300 output+thinking tokens. Plan allowances are expressed as N typical parses.
+    typical-input-tokens: 2100
+    typical-output-tokens: 2300
   mapping:
     # which AI provider powers document mapping: "gemini" (default, has a free tier) or "claude"
     engine: ${MAPPING_ENGINE:gemini}

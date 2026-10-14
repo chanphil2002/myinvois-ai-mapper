@@ -100,13 +100,15 @@ export default function Dashboard() {
   const inProgress = allRows.filter((i) => i.status === 'CONFIRMED' || i.status === 'SUBMITTED').length;
   const accepted = allRows.filter((i) => i.status === 'ACCEPTED').length;
 
-  // Usage/credits are tracked server-side (deducted on each real parse) — the client just displays them.
+  // AI usage is metered server-side by what each AI call actually cost (tokens), as a % of the
+  // plan's allowance — a heavy document uses more than a light one. The client only displays it.
   const planName = usage?.planName ?? 'Free';
   const isFree = usage?.free ?? true;
-  const creditLimit = usage?.limit ?? 0;
-  const creditsLeft = usage?.remaining ?? 0;
-  const creditPct = creditLimit > 0 ? Math.round((creditsLeft / creditLimit) * 100) : 0;
-  const periodLabel = `left ${usage?.periodLabel ?? ''}`.trim();
+  const usedPct = Math.min(100, usage?.usedPercent ?? 0);
+  const exhausted = usedPct >= 100;
+  const nearLimit = usedPct >= 80;
+  const docsLeft = usage?.typicalDocumentsLeft ?? 0;
+  const periodLabel = usage?.periodLabel ?? '';
 
   // Uploads still processing show as non-clickable "Parsing…" placeholder rows at the top,
   // until the real invoice lands (the banner also tracks them).
@@ -150,21 +152,28 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <ThunderboltOutlined style={{ color: p.warning, fontSize: 18 }} />
             <div>
-              <Typography.Text strong>AI parsing credits</Typography.Text>
+              <Typography.Text strong>AI usage</Typography.Text>
               <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
                 {planName} plan {isFree && <Link to="/billing">· upgrade</Link>}
               </div>
             </div>
           </div>
-          <Typography.Text style={{ fontSize: 16 }}>
-            <strong style={{ color: creditsLeft === 0 ? p.error : token.colorText }}>{creditsLeft}</strong>
-            <span style={{ color: token.colorTextTertiary }}> / {creditLimit} {periodLabel}</span>
-          </Typography.Text>
+          <div style={{ textAlign: 'right' }}>
+            <Typography.Text style={{ fontSize: 16 }}>
+              <strong style={{ color: exhausted ? p.error : nearLimit ? p.warning : token.colorText }}>
+                {usedPct.toFixed(usedPct < 10 && usedPct > 0 ? 1 : 0)}%
+              </strong>
+              <span style={{ color: token.colorTextTertiary }}> used {periodLabel}</span>
+            </Typography.Text>
+            <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
+              {exhausted ? 'Allowance used up' : `≈ ${docsLeft.toLocaleString()} typical document${docsLeft === 1 ? '' : 's'} left`}
+            </div>
+          </div>
         </div>
         <Progress
-          percent={creditPct}
+          percent={usedPct}
           showInfo={false}
-          strokeColor={creditsLeft === 0 ? p.error : p.primary}
+          strokeColor={exhausted ? p.error : nearLimit ? p.warning : p.primary}
           trailColor={p.borderStrong}
           style={{ marginTop: 10, marginBottom: 0 }}
         />

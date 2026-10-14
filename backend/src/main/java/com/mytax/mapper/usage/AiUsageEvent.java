@@ -27,6 +27,23 @@ public class AiUsageEvent {
     @Column(name = "document_id")
     private Long documentId;
 
+    @Column(name = "prompt_tokens")
+    private Integer promptTokens;
+
+    /** Response tokens (the JSON answer). */
+    @Column(name = "output_tokens")
+    private Integer outputTokens;
+
+    /** "Thinking" tokens — billed as output, and the main source of cost variance between parses. */
+    @Column(name = "thought_tokens")
+    private Integer thoughtTokens;
+
+    @Column(name = "cost_usd", precision = 12, scale = 6)
+    private java.math.BigDecimal costUsd;
+
+    /** False for an attempt whose output was rejected and retried (it still cost tokens). */
+    private Boolean success;
+
     @Column(name = "created_at", updatable = false, insertable = false)
     private Instant createdAt;
 
@@ -37,6 +54,20 @@ public class AiUsageEvent {
         this.userId = userId;
         this.operation = operation;
         this.documentId = documentId;
+    }
+
+    public AiUsageEvent(Long userId, String operation, Long documentId, Integer promptTokens, Integer outputTokens,
+                        Integer thoughtTokens, java.math.BigDecimal costUsd, boolean success) {
+        this(userId, operation, documentId);
+        this.promptTokens = promptTokens;
+        this.outputTokens = outputTokens;
+        this.thoughtTokens = thoughtTokens;
+        this.costUsd = costUsd;
+        this.success = success;
+    }
+
+    public java.math.BigDecimal getCostUsd() {
+        return costUsd;
     }
 
     public Long getId() {

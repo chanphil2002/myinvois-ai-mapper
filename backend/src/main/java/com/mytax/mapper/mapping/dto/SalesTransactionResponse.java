@@ -19,6 +19,8 @@ public record SalesTransactionResponse(
         String buyerTin,
         boolean eligibleForConsolidation,
         SalesTransactionStatus status,
-        BigDecimal confidenceScore
+        BigDecimal confidenceScore,
+        /** True when the sale came from AI extraction (vs. typed in or a header-matched CSV). */
+        boolean aiExtracted
 ) {
 }

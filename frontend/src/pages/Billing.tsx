@@ -25,7 +25,7 @@ const PLANS: Plan[] = [
     price: 'RM 0',
     period: '',
     tagline: 'For trying things out',
-    features: ['2 documents / day', 'Individual & consolidated e-invoices', 'Submit to MyInvois'],
+    features: ['AI allowance ≈ 2 documents / day', 'Individual & consolidated e-invoices', 'Submit to MyInvois'],
     free: true,
   },
   {
@@ -34,7 +34,7 @@ const PLANS: Plan[] = [
     price: 'RM 29',
     period: '/month',
     tagline: 'For individuals getting started',
-    features: ['30 documents / month', 'Individual & consolidated e-invoices', 'Submit to MyInvois', 'Email support'],
+    features: ['AI allowance ≈ 30 documents / month', 'Individual & consolidated e-invoices', 'Submit to MyInvois', 'Email support'],
   },
   {
     id: 'heavy',
@@ -42,7 +42,7 @@ const PLANS: Plan[] = [
     price: 'RM 99',
     period: '/month',
     tagline: 'For growing businesses',
-    features: ['Everything in Beginner', 'AI document mapping', 'Priority support'],
+    features: ['AI allowance ≈ 500 documents / month', 'Everything in Beginner', 'Priority support'],
     popular: true,
   },
   {
@@ -51,7 +51,7 @@ const PLANS: Plan[] = [
     price: 'RM 299',
     period: '/month',
     tagline: 'For high-volume senders',
-    features: ['Everything in Heavy', 'Bulk & API access', 'Dedicated support'],
+    features: ['AI allowance ≈ 1,500 documents / month', 'Everything in Heavy', 'Bulk & API access', 'Dedicated support'],
   },
 ];
 
@@ -199,7 +199,7 @@ export default function Billing() {
               </Typography.Text>
               <Tag color="success">Current</Tag>
             </Space>
-            <Typography.Text type="secondary">2 documents / day · upgrade any time for more</Typography.Text>
+            <Typography.Text type="secondary">AI allowance ≈ 2 documents / day · upgrade any time for more</Typography.Text>
           </Space>
         )}
       </Card>

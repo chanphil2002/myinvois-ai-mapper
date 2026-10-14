@@ -331,6 +331,7 @@ public class ConsolidationService {
     private SalesTransactionResponse toTransactionResponse(SalesTransaction t) {
         return new SalesTransactionResponse(t.getId(), t.getDocumentId(), t.getTransactionDate(), t.getDescription(),
                 t.getQuantity(), t.getUnitPrice(), t.getTaxAmount(), t.getClassificationCode(), t.getUnitCode(),
-                t.getBuyerName(), t.getBuyerTin(), t.isEligibleForConsolidation(), t.getStatus(), t.getConfidenceScore());
+                t.getBuyerName(), t.getBuyerTin(), t.isEligibleForConsolidation(), t.getStatus(), t.getConfidenceScore(),
+                t.getExtractionJobId() != null);
     }
 }
