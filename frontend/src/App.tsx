@@ -1,5 +1,6 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Layout, Menu, Tooltip } from 'antd';
+import { Button, Layout, Menu, Spin, Tooltip } from 'antd';
 import { ArrowLeftOutlined, BulbOutlined, MoonOutlined } from '@ant-design/icons';
 import BrandLogo from './components/BrandLogo';
 import BottomTabBar from './components/BottomTabBar';
@@ -8,21 +9,24 @@ import { ProtectedRoute } from './auth/ProtectedRoute';
 import { useAuth } from './auth/AuthContext';
 import { useTheme } from './theme/ThemeContext';
 import { UploadBanner } from './upload/UploadContext';
-import Support from './pages/Support';
-import ParsingInvoice from './pages/ParsingInvoice';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Settings from './pages/Settings';
-import MappingReview from './pages/MappingReview';
-import Submissions from './pages/Submissions';
-import ConsolidatedInvoiceReview from './pages/ConsolidatedInvoiceReview';
-import CreateInvoice from './pages/create/CreateInvoice';
-import CreateIndividual from './pages/create/CreateIndividual';
-import CreateConsolidated from './pages/create/CreateConsolidated';
-import Billing from './pages/Billing';
 
 const { Header, Content, Sider } = Layout;
+
+// Pages load on demand (one small chunk per screen) so phones download only what they open.
+const Support = lazy(() => import('./pages/Support'));
+const ParsingInvoice = lazy(() => import('./pages/ParsingInvoice'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Settings = lazy(() => import('./pages/Settings'));
+const MappingReview = lazy(() => import('./pages/MappingReview'));
+const Submissions = lazy(() => import('./pages/Submissions'));
+const ConsolidatedInvoiceReview = lazy(() => import('./pages/ConsolidatedInvoiceReview'));
+const CreateInvoice = lazy(() => import('./pages/create/CreateInvoice'));
+const CreateIndividual = lazy(() => import('./pages/create/CreateIndividual'));
+const CreateConsolidated = lazy(() => import('./pages/create/CreateConsolidated'));
+const Billing = lazy(() => import('./pages/Billing'));
+
 
 // Primary navigation destinations (sidebar on desktop, bottom tabs on mobile). Pages not listed
 // here (invoice detail, create sub-steps) are drill-downs and show a Back button instead.
@@ -68,6 +72,13 @@ function AppLayout() {
   );
 
   const routes = (
+    <Suspense
+      fallback={
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+          <Spin />
+        </div>
+      }
+    >
     <Routes>
       <Route path="/" element={<Dashboard />} />
       <Route path="/create" element={<CreateInvoice />} />
@@ -82,6 +93,7 @@ function AppLayout() {
       <Route path="/settings" element={<Settings />} />
       <Route path="/support" element={<Support />} />
     </Routes>
+    </Suspense>
   );
 
   // ---- Mobile: safe-area header + native bottom tab bar (no hidden hamburger) ----
