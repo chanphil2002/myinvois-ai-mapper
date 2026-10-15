@@ -11,6 +11,47 @@ body,
   overflow-x: hidden;
 }
 
+html {
+  /* Stop iOS from inflating text in landscape; keep our own type scale. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  /* Native-feeling taps: no grey flash, no 300ms double-tap-zoom delay. */
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+button,
+a,
+[role='button'],
+[role='tab'],
+.ant-select-selector {
+  touch-action: manipulation;
+}
+
+/* Phone/tablet layout (matches useIsMobile). iOS Safari zooms the page when a focused field's text
+   is under 16px, which also breaks the layout — so every text entry is 16px here. */
+@media (max-width: 991.98px) {
+  .ant-input,
+  .ant-input-affix-wrapper input,
+  .ant-input-number-input,
+  .ant-picker-input > input,
+  .ant-select-selection-search-input,
+  .ant-select-single .ant-select-selector .ant-select-selection-item,
+  .ant-select-single .ant-select-selector .ant-select-selection-placeholder,
+  textarea.ant-input {
+    font-size: 16px !important;
+  }
+}
+
+/* Buttons in the phone sticky action bar share the width equally. */
+.page-sticky-actions > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 /* Tighter vertical rhythm for dense forms (e.g. the business profile) so they don't
    eat a screenful of scrolling. */
 .compact-form .ant-form-item {

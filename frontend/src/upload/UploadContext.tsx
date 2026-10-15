@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Button, Card, Grid, Progress, Spin, Typography, theme } from 'antd';
+import { Button, Card, Progress, Spin, Typography, theme } from 'antd';
 import { CheckCircleTwoTone, CloseCircleTwoTone, CloseOutlined, DownOutlined, LoadingOutlined, UpOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../theme/ThemeContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 interface JobLink {
   to: string;
@@ -209,8 +210,7 @@ function GroupCard({ jobs, onClose }: { jobs: UploadJob[]; onClose: () => void }
 /** Fixed, closeable banner listing in-flight (and just-finished) background uploads — one card per group. */
 export function UploadBanner() {
   const { jobs, dismiss } = useUpload();
-  const screens = Grid.useBreakpoint();
-  const mobile = !screens.lg;
+  const mobile = useIsMobile();
   // Closing a group that's still running only hides it (the jobs keep going); it reappears if
   // more files join the group. Finished groups are dismissed for good.
   const [hidden, setHidden] = useState<Record<string, number>>({});
@@ -237,7 +237,7 @@ export function UploadBanner() {
         right: 16,
         left: mobile ? 16 : 'auto',
         // Sit above the mobile bottom tab bar.
-        bottom: mobile ? 'calc(84px + env(safe-area-inset-bottom))' : 16,
+        bottom: mobile ? 'calc(72px + env(safe-area-inset-bottom))' : 16,
         zIndex: 2000,
         display: 'flex',
         flexDirection: 'column',

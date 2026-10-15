@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Button, Card, Form, Input, Typography, message } from 'antd';
+import { Button, Form, Input, message } from 'antd';
+import AuthShell from '../components/AuthShell';
 import { Link, useNavigate } from 'react-router-dom';
 import { register } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
@@ -28,30 +29,39 @@ export default function Register() {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', padding: 16 }}>
-      <Card style={{ width: '100%', maxWidth: 420 }}>
-        <Typography.Title level={3}>Create your account</Typography.Title>
-        <Form layout="vertical" onFinish={onFinish}>
-          <Form.Item name="companyName" label="Company name" rules={[{ required: true }]}>
-            <Input autoFocus />
-          </Form.Item>
-          <Form.Item name="tin" label="Company TIN (optional)">
-            <Input />
-          </Form.Item>
-          <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="password" label="Password" rules={[{ required: true, min: 8 }]}>
-            <Input.Password />
-          </Form.Item>
-          <Button type="primary" htmlType="submit" loading={loading} block>
-            Register
-          </Button>
-        </Form>
-        <div style={{ marginTop: 16, textAlign: 'center' }}>
+    <AuthShell
+      subtitle="Create your MyTax account"
+      footer={
+        <>
           Already have an account? <Link to="/login">Log in</Link>
-        </div>
-      </Card>
-    </div>
+        </>
+      }
+    >
+      <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
+        <Form.Item name="companyName" label="Company name" rules={[{ required: true }]}>
+          <Input size="large" autoComplete="organization" />
+        </Form.Item>
+        <Form.Item name="tin" label="Company TIN (optional)">
+          <Input size="large" autoCapitalize="characters" autoCorrect="off" spellCheck={false} />
+        </Form.Item>
+        <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
+          <Input
+            size="large"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+        </Form.Item>
+        <Form.Item name="password" label="Password" rules={[{ required: true, min: 8 }]}>
+          <Input.Password size="large" autoComplete="new-password" />
+        </Form.Item>
+        <Button type="primary" htmlType="submit" loading={loading} block size="large">
+          Create account
+        </Button>
+      </Form>
+    </AuthShell>
   );
 }

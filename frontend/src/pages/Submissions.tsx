@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Grid, Tabs, Typography, message } from 'antd';
+import { Alert, Button, Card, Tabs, Typography, message } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -15,6 +15,7 @@ import type { InvoiceRow } from '../components/InvoiceList';
 import { invoiceDisplayName } from '../utils/invoice';
 import { useUpload } from '../upload/UploadContext';
 import type { UploadKind } from '../upload/UploadContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 // In-flight uploads of this kind, shown as "Parsing…" placeholder rows that link to the loading view.
 function usePendingRows(kind: UploadKind, type: 'Individual' | 'Consolidated'): InvoiceRow[] {
@@ -134,8 +135,7 @@ function ConsolidatedSubmissions({ mobile }: { mobile: boolean }) {
 }
 
 export default function Submissions() {
-  const screens = Grid.useBreakpoint();
-  const mobile = !screens.md;
+  const mobile = useIsMobile();
   const [params, setParams] = useSearchParams();
   const activeKey = params.get('tab') === 'consolidated' ? 'consolidated' : 'individual';
 

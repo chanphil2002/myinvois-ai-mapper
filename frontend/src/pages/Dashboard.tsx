@@ -10,6 +10,7 @@ import type { InvoiceRow } from '../components/InvoiceList';
 import { invoiceDisplayName } from '../utils/invoice';
 import { useUpload } from '../upload/UploadContext';
 import { useTheme } from '../theme/ThemeContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 function StatTile({ title, value, icon, color, soft }: { title: string; value: number; icon: ReactNode; color: string; soft: string }) {
   const { token } = theme.useToken();
@@ -67,8 +68,7 @@ export default function Dashboard() {
   const { palette: p } = useTheme();
   const navigate = useNavigate();
   const { jobs } = useUpload();
-  const screens = Grid.useBreakpoint();
-  const mobile = !screens.md;
+  const mobile = useIsMobile();
   const { data: individual, isLoading: loadingInd } = useQuery({ queryKey: ['mapped-invoices'], queryFn: listMappedInvoices });
   const { data: consolidated, isLoading: loadingCon } = useQuery({ queryKey: ['consolidated-invoices'], queryFn: listConsolidatedInvoices });
   const { data: usage } = useQuery({ queryKey: ['usage'], queryFn: getUsage });

@@ -1,4 +1,6 @@
-import { Table, Tag } from 'antd';
+import { Button, Checkbox, List, Table, Tag } from 'antd';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { formatRM } from '../utils/money';
 import type { SalesTransactionResponse } from '../api/types';
 import { tablePagination } from '../utils/pagination';
 import { useTheme } from '../theme/ThemeContext';
@@ -18,6 +20,7 @@ interface Props {
  */
 export default function TransactionSelectionTable({ transactions, selectedIds, onSelectionChange, loading }: Props) {
   const { palette } = useTheme();
+  const mobile = useIsMobile();
   const columns = [
     { title: 'Date', dataIndex: 'transactionDate', key: 'transactionDate', width: 110 },
     {
@@ -51,6 +54,76 @@ export default function TransactionSelectionTable({ transactions, selectedIds, o
         record.eligibleForConsolidation ? <Tag color="success">Yes</Tag> : <Tag color="warning">Check</Tag>,
     },
   ];
+
+  if (mobile) {
+    // Phones: a tappable checklist (the whole row toggles) instead of a wide checkbox table.
+    const all = transactions.length > 0 && selectedIds.length === transactions.length;
+    const toggle = (id: number) =>
+      onSelectionChange(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
+    return (
+      <div>
+        {transactions.length > 0 && (
+          <Button
+            type="link"
+            style={{ paddingLeft: 0 }}
+            onClick={() => onSelectionChange(all ? [] : transactions.map((t) => t.id))}
+          >
+            {all ? 'Clear selection' : `Select all ${transactions.length}`}
+          </Button>
+        )}
+        <List
+          loading={loading}
+          dataSource={transactions}
+          rowKey="id"
+          split={false}
+          locale={{ emptyText: 'Nothing waiting — every extracted sale is already in an invoice.' }}
+          pagination={
+            transactions.length > 10 ? { pageSize: 10, align: 'center', showSizeChanger: false } : false
+          }
+          renderItem={(t: SalesTransactionResponse) => {
+            const checked = selectedIds.includes(t.id);
+            return (
+              <div
+                role="checkbox"
+                aria-checked={checked}
+                tabIndex={0}
+                onClick={() => toggle(t.id)}
+                onKeyDown={(e) => (e.key === ' ' || e.key === 'Enter') && toggle(t.id)}
+                style={{
+                  display: 'flex',
+                  gap: 12,
+                  alignItems: 'flex-start',
+                  padding: '12px 8px',
+                  minHeight: 44,
+                  cursor: 'pointer',
+                  borderBottom: `1px solid ${palette.border}`,
+                  background: confidenceTint(t.confidenceScore, palette),
+                }}
+              >
+                <Checkbox checked={checked} style={{ marginTop: 2, pointerEvents: 'none' }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <span style={{ flex: 1, minWidth: 0, fontWeight: 500, overflowWrap: 'anywhere' }}>{t.description}</span>
+                    <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {formatRM(Number(t.quantity) * Number(t.unitPrice) + Number(t.taxAmount))}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: palette.textSecondary, marginTop: 2 }}>
+                    {t.transactionDate ?? 'No date'} · {Number(t.quantity)} × {formatRM(t.unitPrice)}
+                    {!t.eligibleForConsolidation && (
+                      <Tag color="warning" style={{ marginLeft: 6 }}>
+                        Check
+                      </Tag>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <Table

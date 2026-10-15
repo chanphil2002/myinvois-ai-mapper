@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, Col, Form, Input, Modal, Row, Segmented, Select, Space, Tabs, Tag, Tooltip, Typography, message } from 'antd';
-import { EyeInvisibleOutlined, EyeOutlined, EditOutlined } from '@ant-design/icons';
+import type { ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
+import { Button, Card, Col, Form, Input, Modal, Row, Segmented, Select, Space, Switch, Tabs, Tag, Tooltip, Typography, message } from 'antd';
+import {
+  BulbOutlined,
+  EditOutlined,
+  EyeInvisibleOutlined,
+  EyeOutlined,
+  LogoutOutlined,
+  QuestionCircleOutlined,
+  RightOutlined,
+} from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getBusinessProfile,
@@ -437,9 +448,61 @@ function BusinessProfileCard() {
   );
 }
 
+/** Signed-in account: help, appearance and sign-out (on phones this is the only place to log out). */
+function AccountCard() {
+  const { email, logout } = useAuth();
+  const { isDark, toggle, palette } = useTheme();
+  const navigate = useNavigate();
+  const row = (icon: ReactNode, label: ReactNode, extra: ReactNode, onClick?: () => void, danger = false) => (
+    <div
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={(e) => onClick && (e.key === 'Enter' || e.key === ' ') && onClick()}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        minHeight: 52,
+        padding: '4px 0',
+        cursor: onClick ? 'pointer' : 'default',
+        borderTop: `1px solid ${palette.border}`,
+        color: danger ? palette.error : undefined,
+      }}
+    >
+      <span style={{ fontSize: 18, width: 22, textAlign: 'center', color: danger ? palette.error : palette.textSecondary }}>
+        {icon}
+      </span>
+      <span style={{ flex: 1, minWidth: 0, fontWeight: 500 }}>{label}</span>
+      {extra}
+    </div>
+  );
+  return (
+    <Card title="Account">
+      <div style={{ paddingBottom: 12 }}>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          Signed in as
+        </Typography.Text>
+        <div style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{email}</div>
+      </div>
+      {/* The whole row toggles, not just the small switch. */}
+      {row(
+        <BulbOutlined />,
+        'Dark mode',
+        <Switch checked={isDark} aria-label="Dark mode" style={{ pointerEvents: 'none' }} />,
+        toggle,
+      )}
+      {row(<QuestionCircleOutlined />, 'Help & support', <RightOutlined style={{ color: palette.textTertiary }} />, () =>
+        navigate('/support'),
+      )}
+      {row(<LogoutOutlined />, 'Log out', null, logout, true)}
+    </Card>
+  );
+}
+
 export default function Settings() {
   return (
-    <Page title="MyInvois Settings" subtitle="Your LHDN API credentials and the supplier details printed on every e-invoice.">
+    <Page title="Settings" subtitle="Your LHDN API credentials, the supplier details printed on every e-invoice, and your account.">
       {/* Credentials and Business Profile stretch to the same height. */}
       <Row gutter={[16, 16]} align="stretch">
         <Col xs={24} lg={9}>
@@ -449,6 +512,7 @@ export default function Settings() {
           <BusinessProfileCard />
         </Col>
       </Row>
+      <AccountCard />
     </Page>
   );
 }

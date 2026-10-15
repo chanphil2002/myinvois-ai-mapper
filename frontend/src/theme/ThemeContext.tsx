@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ConfigProvider, theme as antdTheme } from 'antd';
 import { PALETTES } from './palette';
 import type { Palette } from './palette';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 type Mode = 'light' | 'dark';
 
@@ -32,6 +33,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<Mode>(readInitial);
   const isDark = mode === 'dark';
   const p = PALETTES[mode];
+  // Touch layouts get 44px controls (Apple HIG / Material minimum tap target) app-wide.
+  const touch = useIsMobile();
 
   useEffect(() => {
     try {
@@ -42,6 +45,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Keep the page/overscroll background in step with the theme.
     document.body.style.background = p.bg;
     document.documentElement.style.colorScheme = mode;
+    // Browser/PWA status bar colour follows the in-app theme, not just the OS setting.
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', p.header));
   }, [mode, p]);
 
   const value = useMemo<ThemeContextValue>(
@@ -79,6 +84,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             colorBorderSecondary: p.border,
             colorSplit: p.border,
             borderRadius: 10,
+            ...(touch ? { controlHeight: 44, controlHeightSM: 36, controlHeightLG: 48 } : {}),
             fontFamily:
               "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', sans-serif",
           },
@@ -110,7 +116,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
               headerPaddingSM: 16,
               headerFontSize: 16,
             },
-            Button: { controlHeight: 38, borderRadius: 8, fontWeight: 500, primaryColor: p.onPrimary, primaryShadow: 'none' },
+            Button: {
+              controlHeight: touch ? 44 : 38,
+              controlHeightSM: touch ? 36 : 24,
+              borderRadius: 8,
+              fontWeight: 500,
+              primaryColor: p.onPrimary,
+              primaryShadow: 'none',
+            },
+            ...(touch
+              ? {
+                  Tabs: { horizontalItemPadding: '14px 0', horizontalItemPaddingSM: '12px 0' },
+                  Pagination: { itemSize: 40, itemSizeSM: 36 },
+                  Segmented: { controlHeight: 40 },
+                }
+              : {}),
             Table: {
               headerBg: p.subtle,
               headerColor: p.textSecondary,

@@ -362,18 +362,27 @@ export default function MappingReview() {
       )}
 
       {/* Supplier is always the account's own Business Profile — read-only, shown last. */}
-      <Card title="Supplier" extra={<Link to="/settings">Edit in Settings</Link>}>
+      <Card
+        title="Supplier"
+        extra={
+          <Link to="/settings" style={{ display: 'inline-flex' }}>
+            <Button type="link" style={{ paddingInline: 0 }}>
+              Edit in Settings
+            </Button>
+          </Link>
+        }
+      >
         <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 16 }}>
           The supplier on this e-Invoice is always your registered Business Profile — not read from the document.
         </Typography.Paragraph>
         {profile ? (
           <Row gutter={[16, 12]}>
             <Col xs={24} sm={12} lg={8}>{field('Registration name', <Typography.Text>{profile.registrationName || '—'}</Typography.Text>)}</Col>
-            <Col xs={24} sm={12} lg={8}>{field('TIN', <Typography.Text>{profile.tin || '—'}</Typography.Text>)}</Col>
-            <Col xs={24} sm={12} lg={8}>{field('Identification', <Typography.Text>{[profile.idType, profile.idValue].filter(Boolean).join(' ') || '—'}</Typography.Text>)}</Col>
-            <Col xs={24} sm={12} lg={8}>{field('SST registration', <Typography.Text>{profile.sstRegistration || '—'}</Typography.Text>)}</Col>
-            <Col xs={24} sm={12} lg={8}>{field('MSIC code', <Typography.Text>{profile.msicCode || '—'}</Typography.Text>)}</Col>
-            <Col xs={24} sm={12} lg={8}>{field('Phone', <Typography.Text>{profile.phone || '—'}</Typography.Text>)}</Col>
+            <Col xs={12} lg={8}>{field('TIN', <Typography.Text>{profile.tin || '—'}</Typography.Text>)}</Col>
+            <Col xs={12} lg={8}>{field('Identification', <Typography.Text>{[profile.idType, profile.idValue].filter(Boolean).join(' ') || '—'}</Typography.Text>)}</Col>
+            <Col xs={12} lg={8}>{field('SST registration', <Typography.Text>{profile.sstRegistration || '—'}</Typography.Text>)}</Col>
+            <Col xs={12} lg={8}>{field('MSIC code', <Typography.Text>{profile.msicCode || '—'}</Typography.Text>)}</Col>
+            <Col xs={12} lg={8}>{field('Phone', <Typography.Text>{profile.phone || '—'}</Typography.Text>)}</Col>
             <Col xs={24}>{field('Address', <Typography.Text>{[profile.addressLine1, profile.addressLine2, profile.city, profile.postalZone, profile.stateCode, profile.countryCode].filter(Boolean).join(', ') || '—'}</Typography.Text>)}</Col>
             <Col xs={24} sm={12} lg={8}>{field('Email', <Typography.Text>{profile.email || '—'}</Typography.Text>)}</Col>
           </Row>

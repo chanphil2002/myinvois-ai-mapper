@@ -1,8 +1,9 @@
 import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Grid, Layout, Menu, Tooltip } from 'antd';
+import { Button, Layout, Menu, Tooltip } from 'antd';
 import { ArrowLeftOutlined, BulbOutlined, MoonOutlined } from '@ant-design/icons';
 import BrandLogo from './components/BrandLogo';
 import BottomTabBar from './components/BottomTabBar';
+import { useIsMobile } from './hooks/useIsMobile';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { useAuth } from './auth/AuthContext';
 import { useTheme } from './theme/ThemeContext';
@@ -47,12 +48,13 @@ function AppLayout() {
       />
     </Tooltip>
   );
-  const screens = Grid.useBreakpoint();
-  const isMobile = !screens.lg;
+  const isMobile = useIsMobile();
 
   // Keep "Create Invoice" highlighted across the whole create flow (type picker + per-type pages).
   const selectedKey = location.pathname.startsWith('/create') ? '/create' : location.pathname;
-  const showBack = !TAB_ROOTS.includes(location.pathname) && !PAGE_MANAGES_BACK.includes(location.pathname);
+  // On phones Support is reached from Settings (it isn't a tab), so it gets a Back button there.
+  const roots = isMobile ? TAB_ROOTS.filter((r) => r !== '/support') : TAB_ROOTS;
+  const showBack = !roots.includes(location.pathname) && !PAGE_MANAGES_BACK.includes(location.pathname);
 
   const backButton = showBack && (
     <Button
@@ -100,12 +102,8 @@ function AppLayout() {
           }}
         >
           <BrandLogo dark={isDark} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {themeToggle}
-            <a onClick={logout} style={{ color: surface.link, fontWeight: 500 }}>
-              Log out
-            </a>
-          </div>
+          {/* Log out lives in Settings → Account on phones, away from accidental taps. */}
+          {themeToggle}
         </div>
         <Content style={{ margin: 16, paddingBottom: 'calc(112px + env(safe-area-inset-bottom))' }}>
           {backButton}
@@ -123,7 +121,7 @@ function AppLayout() {
     { key: '/create', label: <Link to="/create">Create Invoice</Link> },
     { key: '/submissions', label: <Link to="/submissions">Submissions</Link> },
     { key: '/billing', label: <Link to="/billing">Billing</Link> },
-    { key: '/settings', label: <Link to="/settings">MyInvois Settings</Link> },
+    { key: '/settings', label: <Link to="/settings">Settings</Link> },
     { key: '/support', label: <Link to="/support">Contact Us</Link> },
   ];
 

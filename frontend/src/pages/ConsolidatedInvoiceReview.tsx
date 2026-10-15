@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Alert, Button, Card, Col, DatePicker, Input, Row, Space, Table, Tabs, Tag, Tooltip, Typography, message } from 'antd';
-import { LoadingOutlined } from '@ant-design/icons';
+import { Alert, Button, Card, Col, DatePicker, Input, List, Row, Space, Table, Tabs, Tag, Tooltip, Typography, message } from 'antd';
+import { DeleteOutlined, LoadingOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import StatusTag from '../components/StatusTag';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,8 @@ import Page from '../components/Page';
 import { useTheme } from '../theme/ThemeContext';
 import EnvironmentTag from '../components/EnvironmentTag';
 import { tablePagination } from '../utils/pagination';
+import { formatRM } from '../utils/money';
+import { useIsMobile } from '../hooks/useIsMobile';
 import ConsolidatedSteps from '../components/ConsolidatedSteps';
 import DueByHint from '../components/DueByHint';
 import ManualSalesForm from '../components/ManualSalesForm';
@@ -46,6 +48,78 @@ const queueAttach = <T,>(fn: () => Promise<T>): Promise<T> => {
 
 const outsidePeriod = (t: SalesTransactionResponse, inv: ConsolidatedInvoiceResponse) =>
   !!t.transactionDate && (t.transactionDate < inv.periodStart || t.transactionDate > inv.periodEnd);
+
+/** Phone layout for one sale: what/amount on top, the details underneath — no sideways scrolling. */
+function SaleCard({
+  sale,
+  outside,
+  onRemove,
+  removing,
+}: {
+  sale: SalesTransactionResponse;
+  outside: boolean;
+  onRemove?: () => void;
+  removing?: boolean;
+}) {
+  const { palette } = useTheme();
+  const amount = Number(sale.quantity) * Number(sale.unitPrice) + Number(sale.taxAmount);
+  const hasBuyer = !!(sale.buyerName || sale.buyerTin);
+  return (
+    <div style={{ display: 'flex', gap: 8, padding: '12px 0', borderBottom: `1px solid ${palette.border}` }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+          <div style={{ flex: 1, minWidth: 0, fontWeight: 500, lineHeight: 1.4, overflowWrap: 'anywhere' }}>
+            {sale.aiExtracted && (
+              <Tag
+                style={{
+                  marginInlineEnd: 6,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 1,
+                  lineHeight: '16px',
+                  padding: '0 5px',
+                  color: palette.link,
+                  background: palette.primarySoft,
+                  borderColor: 'transparent',
+                  verticalAlign: 1,
+                }}
+              >
+                AI
+              </Tag>
+            )}
+            {sale.description || '—'}
+          </div>
+          <div style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{formatRM(amount)}</div>
+        </div>
+        <div style={{ marginTop: 4, fontSize: 12, color: palette.textSecondary, display: 'flex', flexWrap: 'wrap', gap: '2px 10px' }}>
+          <span>{sale.transactionDate ?? 'No date'}</span>
+          <span>
+            {Number(sale.quantity)} × {formatRM(sale.unitPrice)}
+          </span>
+          {Number(sale.taxAmount) > 0 && <span>tax {formatRM(sale.taxAmount)}</span>}
+          {sale.unitCode && <span>{sale.unitCode}</span>}
+        </div>
+        {(outside || hasBuyer) && (
+          <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {outside && <Tag color="warning">Outside period</Tag>}
+            {hasBuyer && <Tag color="warning">{`${sale.buyerName ?? ''} ${sale.buyerTin ?? ''}`.trim()}</Tag>}
+          </div>
+        )}
+      </div>
+      {onRemove && (
+        <Button
+          type="text"
+          danger
+          icon={<DeleteOutlined />}
+          loading={removing}
+          onClick={onRemove}
+          aria-label="Remove sale"
+          style={{ flex: 'none', width: 44, height: 44 }}
+        />
+      )}
+    </div>
+  );
+}
 
 function DetailsEditor({ invoice, onSaved }: { invoice: ConsolidatedInvoiceResponse; onSaved: () => void }) {
   const [name, setName] = useState(invoice.invoiceName ?? '');
@@ -107,6 +181,7 @@ export default function ConsolidatedInvoiceReview() {
   const consolidatedInvoiceId = Number(id);
   const queryClient = useQueryClient();
   const { palette } = useTheme();
+  const mobile = useIsMobile();
   const { jobs, startJob, dismiss } = useUpload();
   const [addTab, setAddTab] = useState(params.get('add') === 'upload' ? 'upload' : 'manual');
   const [pickedIds, setPickedIds] = useState<number[]>([]);
@@ -387,19 +462,22 @@ export default function ConsolidatedInvoiceReview() {
             </Col>
           </Row>
         )}
-        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-          <Col xs={24} sm={8}>
-            <Typography.Text type="secondary">Subtotal</Typography.Text>
-            <div>{invoice.subtotal}</div>
-          </Col>
-          <Col xs={24} sm={8}>
-            <Typography.Text type="secondary">Tax total</Typography.Text>
-            <div>{invoice.taxTotal}</div>
-          </Col>
-          <Col xs={24} sm={8}>
-            <Typography.Text type="secondary">Grand total</Typography.Text>
-            <div>{invoice.grandTotal}</div>
-          </Col>
+        {/* Totals stay three-across even on a phone — short figures, no need to stack. */}
+        <Row gutter={[12, 12]} style={{ marginTop: 16 }}>
+          {[
+            ['Subtotal', invoice.subtotal],
+            ['Tax', invoice.taxTotal],
+            ['Grand total', invoice.grandTotal],
+          ].map(([label, value], i) => (
+            <Col xs={8} key={label as string}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {label}
+              </Typography.Text>
+              <div style={{ fontWeight: i === 2 ? 700 : 500, fontSize: i === 2 ? 16 : 14, overflowWrap: 'anywhere' }}>
+                {formatRM(value as number)}
+              </div>
+            </Col>
+          ))}
         </Row>
       </Card>
 
@@ -526,7 +604,26 @@ export default function ConsolidatedInvoiceReview() {
       )}
 
       <Card title={`Sales in this invoice (${invoice.transactions.length})`}>
-        {hasTx ? (
+        {hasTx && mobile ? (
+          <List
+            dataSource={invoice.transactions}
+            rowKey="id"
+            split={false}
+            pagination={
+              invoice.transactions.length > 10
+                ? { pageSize: 10, align: 'center', showSizeChanger: false }
+                : false
+            }
+            renderItem={(t: SalesTransactionResponse) => (
+              <SaleCard
+                sale={t}
+                outside={outsidePeriod(t, invoice)}
+                onRemove={isDraft ? () => removeTx.mutate(t.id) : undefined}
+                removing={removeTx.isPending && removeTx.variables === t.id}
+              />
+            )}
+          />
+        ) : hasTx ? (
           <Table
             rowKey="id"
             dataSource={invoice.transactions}
