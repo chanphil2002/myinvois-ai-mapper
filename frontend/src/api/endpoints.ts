@@ -16,6 +16,13 @@ import type {
   SubscriptionResponse,
   UsageResponse,
   NotificationList,
+  Me,
+  AdminOverview,
+  AdminUserRow,
+  SalespersonRow,
+  SaveSalespersonPayload,
+  ReferralCodeRow,
+  CommissionRow,
 } from './types';
 
 export function register(payload: {
@@ -23,6 +30,7 @@ export function register(payload: {
   password: string;
   companyName: string;
   tin?: string;
+  referralCode?: string;
 }): Promise<AuthResponse> {
   return unwrap(apiClient.post<ApiResponse<AuthResponse>>('/api/auth/register', payload));
 }
@@ -276,3 +284,35 @@ export function cancelSubmission(id: number, reason: string): Promise<Submission
 export function createCreditNote(mappedInvoiceId: number): Promise<MappedInvoiceResponse> {
   return unwrap(apiClient.post<ApiResponse<MappedInvoiceResponse>>(`/api/mapped-invoices/${mappedInvoiceId}/credit-note`));
 }
+
+// --- Account ---
+
+export function getMe(): Promise<Me> {
+  return unwrap(apiClient.get<ApiResponse<Me>>('/api/account/me'));
+}
+
+export function applyReferralCode(code: string): Promise<{ referralCode: string }> {
+  return unwrap(apiClient.post<ApiResponse<{ referralCode: string }>>('/api/account/referral', { code }));
+}
+
+// --- Admin console (role ADMIN) ---
+
+export const adminApi = {
+  overview: () => unwrap(apiClient.get<ApiResponse<AdminOverview>>('/api/admin/overview')),
+  users: (q?: string) => unwrap(apiClient.get<ApiResponse<AdminUserRow[]>>('/api/admin/users', { params: { q } })),
+  updateUser: (id: number, body: { active?: boolean; role?: 'OWNER' | 'ADMIN' }) =>
+    unwrap(apiClient.patch<ApiResponse<void>>(`/api/admin/users/${id}`, body)),
+  salespeople: () => unwrap(apiClient.get<ApiResponse<SalespersonRow[]>>('/api/admin/salespersons')),
+  createSalesperson: (body: SaveSalespersonPayload) =>
+    unwrap(apiClient.post<ApiResponse<{ id: number }>>('/api/admin/salespersons', body)),
+  updateSalesperson: (id: number, body: SaveSalespersonPayload) =>
+    unwrap(apiClient.patch<ApiResponse<{ id: number }>>(`/api/admin/salespersons/${id}`, body)),
+  codes: () => unwrap(apiClient.get<ApiResponse<ReferralCodeRow[]>>('/api/admin/referral-codes')),
+  createCode: (body: { salespersonId: number; code?: string }) =>
+    unwrap(apiClient.post<ApiResponse<{ code: string }>>('/api/admin/referral-codes', body)),
+  updateCode: (id: number, body: { active: boolean }) =>
+    unwrap(apiClient.patch<ApiResponse<void>>(`/api/admin/referral-codes/${id}`, body)),
+  commissions: (status?: string) =>
+    unwrap(apiClient.get<ApiResponse<CommissionRow[]>>('/api/admin/commissions', { params: { status } })),
+  markCommissionPaid: (id: number) => unwrap(apiClient.post<ApiResponse<void>>(`/api/admin/commissions/${id}/pay`)),
+};

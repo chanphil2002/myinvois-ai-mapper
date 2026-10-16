@@ -6,6 +6,7 @@ import BrandLogo from './components/BrandLogo';
 import NotificationBell from './components/NotificationBell';
 import BottomTabBar from './components/BottomTabBar';
 import { useIsMobile } from './hooks/useIsMobile';
+import { useMe } from './hooks/useMe';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { useAuth } from './auth/AuthContext';
 import { useTheme } from './theme/ThemeContext';
@@ -27,11 +28,12 @@ const CreateInvoice = lazy(() => import('./pages/create/CreateInvoice'));
 const CreateIndividual = lazy(() => import('./pages/create/CreateIndividual'));
 const CreateConsolidated = lazy(() => import('./pages/create/CreateConsolidated'));
 const Billing = lazy(() => import('./pages/Billing'));
+const Admin = lazy(() => import('./pages/Admin'));
 
 
 // Primary navigation destinations (sidebar on desktop, bottom tabs on mobile). Pages not listed
 // here (invoice detail, create sub-steps) are drill-downs and show a Back button instead.
-const TAB_ROOTS = ['/', '/create', '/submissions', '/billing', '/settings', '/support'];
+const TAB_ROOTS = ['/', '/create', '/submissions', '/billing', '/settings', '/support', '/admin'];
 // These pages render their own step-up Back button (they have internal steps), so the global
 // layout Back is suppressed to avoid showing two back links.
 const PAGE_MANAGES_BACK = ['/create/individual', '/create/consolidated'];
@@ -54,11 +56,12 @@ function AppLayout() {
     </Tooltip>
   );
   const isMobile = useIsMobile();
+  const { isAdmin } = useMe();
 
   // Keep "Create Invoice" highlighted across the whole create flow (type picker + per-type pages).
   const selectedKey = location.pathname.startsWith('/create') ? '/create' : location.pathname;
   // On phones Support is reached from Settings (it isn't a tab), so it gets a Back button there.
-  const roots = isMobile ? TAB_ROOTS.filter((r) => r !== '/support') : TAB_ROOTS;
+  const roots = isMobile ? TAB_ROOTS.filter((r) => r !== '/support' && r !== '/admin') : TAB_ROOTS;
   const showBack = !roots.includes(location.pathname) && !PAGE_MANAGES_BACK.includes(location.pathname);
 
   const backButton = showBack && (
@@ -93,6 +96,7 @@ function AppLayout() {
       <Route path="/billing" element={<Billing />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="/support" element={<Support />} />
+      <Route path="/admin" element={<Admin />} />
     </Routes>
     </Suspense>
   );
@@ -139,6 +143,7 @@ function AppLayout() {
     { key: '/billing', label: <Link to="/billing">Billing</Link> },
     { key: '/settings', label: <Link to="/settings">Settings</Link> },
     { key: '/support', label: <Link to="/support">Contact Us</Link> },
+    ...(isAdmin ? [{ key: '/admin', label: <Link to="/admin">Admin</Link> }] : []),
   ];
 
   return (

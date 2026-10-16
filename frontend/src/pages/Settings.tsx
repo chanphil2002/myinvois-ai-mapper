@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { useMe } from '../hooks/useMe';
 import { Button, Card, Col, Form, Input, Modal, Row, Segmented, Select, Space, Switch, Tabs, Tag, Tooltip, Typography, message } from 'antd';
 import {
   BulbOutlined,
+  CrownOutlined,
   EditOutlined,
   EyeInvisibleOutlined,
   EyeOutlined,
@@ -451,6 +453,7 @@ function BusinessProfileCard() {
 /** Signed-in account: help, appearance and sign-out (on phones this is the only place to log out). */
 function AccountCard() {
   const { email, logout } = useAuth();
+  const { isAdmin } = useMe();
   const { isDark, toggle, palette } = useTheme();
   const navigate = useNavigate();
   const row = (icon: ReactNode, label: ReactNode, extra: ReactNode, onClick?: () => void, danger = false) => (
@@ -495,6 +498,10 @@ function AccountCard() {
       {row(<QuestionCircleOutlined />, 'Help & support', <RightOutlined style={{ color: palette.textTertiary }} />, () =>
         navigate('/support'),
       )}
+      {isAdmin &&
+        row(<CrownOutlined />, 'Admin console', <RightOutlined style={{ color: palette.textTertiary }} />, () =>
+          navigate('/admin'),
+        )}
       {row(<LogoutOutlined />, 'Log out', null, logout, true)}
     </Card>
   );

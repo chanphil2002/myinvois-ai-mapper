@@ -25,6 +25,14 @@ public class User {
 
     private String role = "OWNER";
 
+    /** False when an admin has blocked the account — it can't log in or use existing sessions. */
+    @Column(nullable = false)
+    private boolean active = true;
+
+    /** Referral code used at sign-up; its salesperson earns commission on this user's payments. */
+    @Column(name = "referral_code_id")
+    private Long referralCodeId;
+
     /** Which MyInvois environment submissions go to (credentials are stored per environment). */
     @Enumerated(EnumType.STRING)
     @Column(name = "myinvois_environment", nullable = false)
@@ -99,6 +107,26 @@ public class User {
 
     public void setMyinvoisEnvironment(com.mytax.mapper.myinvois.MyInvoisEnvironment myinvoisEnvironment) {
         this.myinvoisEnvironment = myinvoisEnvironment;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public Long getReferralCodeId() {
+        return referralCodeId;
+    }
+
+    public void setReferralCodeId(Long referralCodeId) {
+        this.referralCodeId = referralCodeId;
+    }
+
+    public boolean isAdmin() {
+        return "ADMIN".equals(role);
     }
 
     public static final class Builder {

@@ -8,6 +8,8 @@ public record RegisterRequest(
         @Email @NotBlank String email,
         @NotBlank @Size(min = 8) String password,
         @NotBlank String companyName,
-        String tin
+        String tin,
+        /** Optional salesperson referral code. */
+        String referralCode
 ) {
 }

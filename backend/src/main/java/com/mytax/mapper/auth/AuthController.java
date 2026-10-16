@@ -22,15 +22,18 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final com.mytax.mapper.referral.ReferralService referralService;
 
     public AuthController(UserRepository userRepository,
                            PasswordEncoder passwordEncoder,
                            JwtService jwtService,
-                           AuthenticationManager authenticationManager) {
+                           AuthenticationManager authenticationManager,
+                           com.mytax.mapper.referral.ReferralService referralService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
+        this.referralService = referralService;
     }
 
     @PostMapping("/register")
@@ -46,11 +49,15 @@ public class AuthController {
                 .tin(request.tin())
                 .role("OWNER")
                 .build();
+        // Optional salesperson referral — validated before the account exists, so a typo is caught.
+        if (request.referralCode() != null && !request.referralCode().isBlank()) {
+            user.setReferralCodeId(referralService.requireActiveCode(request.referralCode()).getId());
+        }
         user = userRepository.save(user);
 
         String token = jwtService.generateToken(user);
         return ResponseEntity.ok(ApiResponse.ok(
-                new AuthResponse(token, user.getId(), user.getEmail(), user.getCompanyName())));
+                new AuthResponse(token, user.getId(), user.getEmail(), user.getCompanyName(), user.getRole())));
     }
 
     @PostMapping("/login")
@@ -63,6 +70,6 @@ public class AuthController {
 
         String token = jwtService.generateToken(user);
         return ResponseEntity.ok(ApiResponse.ok(
-                new AuthResponse(token, user.getId(), user.getEmail(), user.getCompanyName())));
+                new AuthResponse(token, user.getId(), user.getEmail(), user.getCompanyName(), user.getRole())));
     }
 }

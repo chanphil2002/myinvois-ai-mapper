@@ -81,6 +81,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         // Billplz server-to-server payment callback — authenticated by X-Signature, not JWT.
                         .requestMatchers("/api/billing/callback").permitAll()
+                        // Admin console: only users with role ADMIN.
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

@@ -3,6 +3,7 @@ export interface AuthResponse {
   userId: number;
   email: string;
   companyName: string;
+  role: 'OWNER' | 'ADMIN';
 }
 
 export type MyInvoisEnvironment = 'SANDBOX' | 'PRODUCTION';
@@ -231,4 +232,85 @@ export interface NotificationItem {
 export interface NotificationList {
   unreadCount: number;
   items: NotificationItem[];
+}
+
+export interface Me {
+  userId: number;
+  email: string;
+  companyName: string;
+  role: 'OWNER' | 'ADMIN';
+  referralCode: string | null;
+}
+
+// --- Admin console ---
+
+export interface AdminOverview {
+  totalUsers: number;
+  activeUsers: number;
+  newUsers30d: number;
+  payingUsers: number;
+  usersByPlan: Record<string, number>;
+  monthlyRevenueCents: number;
+  pendingCommissionCents: number;
+  paidCommissionCents: number;
+  aiCostThisMonthUsd: number;
+}
+
+export interface AdminUserRow {
+  id: number;
+  email: string;
+  companyName: string;
+  role: 'OWNER' | 'ADMIN';
+  active: boolean;
+  plan: string;
+  planEndsAt: string | null;
+  autoRenew: boolean;
+  referralCode: string | null;
+  salesperson: string | null;
+  createdAt: string | null;
+}
+
+export interface SalespersonRow {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  commissionPercent: number;
+  active: boolean;
+  codes: string[];
+  referredUsers: number;
+  payingUsers: number;
+  pendingCents: number;
+  paidCents: number;
+  createdAt: string | null;
+}
+
+export interface SaveSalespersonPayload {
+  name?: string;
+  email?: string;
+  phone?: string;
+  commissionPercent?: number;
+  active?: boolean;
+}
+
+export interface ReferralCodeRow {
+  id: number;
+  code: string;
+  salespersonId: number;
+  salesperson: string | null;
+  active: boolean;
+  signups: number;
+  createdAt: string | null;
+}
+
+export interface CommissionRow {
+  id: number;
+  salesperson: string | null;
+  userEmail: string | null;
+  paymentAmountCents: number;
+  percent: number;
+  amountCents: number;
+  status: 'PENDING' | 'PAID';
+  createdAt: string | null;
+  paidAt: string | null;
 }

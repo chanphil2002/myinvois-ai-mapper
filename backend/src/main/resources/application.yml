@@ -49,6 +49,8 @@ app:
     api-key: ${GEMINI_API_KEY:}
     model: ${GEMINI_MODEL:gemini-3.5-flash}
     base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+  # Comma-separated emails granted the ADMIN role (admin console) at start-up.
+  admin-emails: ${ADMIN_EMAILS:}
   # Public address of the web app — used for links in notification emails.
   public-url: ${APP_PUBLIC_URL:http://localhost:5173}
   mail:

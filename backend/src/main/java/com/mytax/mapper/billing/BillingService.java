@@ -35,12 +35,15 @@ public class BillingService {
     private final BillplzProperties properties;
     private final BillplzClient billplzClient;
     private final SubscriptionRepository subscriptionRepository;
+    private final com.mytax.mapper.referral.ReferralService referralService;
 
     public BillingService(BillplzProperties properties, BillplzClient billplzClient,
-                          SubscriptionRepository subscriptionRepository) {
+                          SubscriptionRepository subscriptionRepository,
+                          com.mytax.mapper.referral.ReferralService referralService) {
         this.properties = properties;
         this.billplzClient = billplzClient;
         this.subscriptionRepository = subscriptionRepository;
+        this.referralService = referralService;
     }
 
     @Transactional
@@ -112,6 +115,7 @@ public class BillingService {
                 sub.setAutoRenew(false);
                 subscriptionRepository.save(sub);
                 log.info("Subscription {} activated for user {} (plan {})", sub.getId(), sub.getUserId(), sub.getPlan());
+                referralService.recordPayment(sub.getUserId(), sub.getId(), "billplz-" + billId, sub.getAmountCents());
             }
         });
     }

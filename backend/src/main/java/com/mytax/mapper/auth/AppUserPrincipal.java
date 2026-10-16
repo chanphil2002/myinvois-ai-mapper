@@ -29,6 +29,12 @@ public class AppUserPrincipal implements UserDetails {
         return user.getPasswordHash();
     }
 
+    /** Blocked accounts fail login and are ignored by the JWT filter. */
+    @Override
+    public boolean isEnabled() {
+        return user.isActive();
+    }
+
     @Override
     public String getUsername() {
         return user.getEmail();

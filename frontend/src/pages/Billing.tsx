@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
-import { Button, Card, Col, Row, Space, Table, Tag, Typography, message } from 'antd';
+import { useEffect, useState } from 'react';
+import { Button, Card, Col, Input, Row, Space, Table, Tag, Typography, message } from 'antd';
 import { CheckCircleTwoTone } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getSubscription, subscribePlan } from '../api/endpoints';
+import { applyReferralCode, getSubscription, subscribePlan } from '../api/endpoints';
+import { useMe } from '../hooks/useMe';
 import StatusTag from '../components/StatusTag';
 import Page from '../components/Page';
 import { useTheme } from '../theme/ThemeContext';
@@ -129,6 +130,45 @@ function PlanCards({
   );
 }
 
+/** A salesperson's referral code can be added once, any time before or after subscribing. */
+function ReferralCard() {
+  const queryClient = useQueryClient();
+  const { me } = useMe();
+  const [code, setCode] = useState('');
+  const apply = useMutation({
+    mutationFn: () => applyReferralCode(code.trim()),
+    onSuccess: (r) => {
+      message.success(`Referral code ${r.referralCode} applied`);
+      setCode('');
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
+    onError: (err) => message.error(err instanceof Error ? err.message : 'Could not apply the code'),
+  });
+  if (!me) return null;
+  return (
+    <Card title="Referral code">
+      {me.referralCode ? (
+        <Typography.Text>
+          Referred with code <Typography.Text strong>{me.referralCode}</Typography.Text>.
+        </Typography.Text>
+      ) : (
+        <Space.Compact style={{ width: '100%', maxWidth: 420 }}>
+          <Input
+            placeholder="Have a code from a MyTax salesperson?"
+            value={code}
+            autoCapitalize="characters"
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            onPressEnter={() => code.trim() && apply.mutate()}
+          />
+          <Button type="primary" disabled={!code.trim()} loading={apply.isPending} onClick={() => apply.mutate()}>
+            Apply
+          </Button>
+        </Space.Compact>
+      )}
+    </Card>
+  );
+}
+
 export default function Billing() {
   const queryClient = useQueryClient();
   const { data: current } = useQuery({ queryKey: ['subscription'], queryFn: getSubscription });
@@ -207,6 +247,8 @@ export default function Billing() {
       <Card title={currentPlan ? 'Change plan' : 'Plans'}>
         <PlanCards currentPlan={currentPlan} onChoose={subscribeMutation.mutate} pendingPlan={pendingPlan} />
       </Card>
+
+      <ReferralCard />
 
       <Card title="Payment Method">
         <Typography.Text type="secondary">
