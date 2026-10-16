@@ -39,6 +39,9 @@ public class SubmissionService {
 
     private static final Logger log = LoggerFactory.getLogger(SubmissionService.class);
 
+    /** LHDN lets the issuer cancel a validated document for 72 hours; after that, use a credit note. */
+    public static final java.time.Duration CANCEL_WINDOW = java.time.Duration.ofHours(72);
+
     private final InvoiceReviewService invoiceReviewService;
     private final ConsolidationService consolidationService;
     private final UblDocumentBuilder ublDocumentBuilder;
@@ -51,6 +54,8 @@ public class SubmissionService {
     private final SubmissionRepository submissionRepository;
     private final ObjectMapper objectMapper;
     private final MyInvoisCredentialService credentialService;
+    private final com.mytax.mapper.notification.NotificationService notificationService;
+    private final com.mytax.mapper.document.DocumentRepository documentRepository;
 
     public SubmissionService(InvoiceReviewService invoiceReviewService,
                               ConsolidationService consolidationService,
@@ -63,7 +68,9 @@ public class SubmissionService {
                               ConsolidatedInvoiceRepository consolidatedInvoiceRepository,
                               SubmissionRepository submissionRepository,
                               ObjectMapper objectMapper,
-                              MyInvoisCredentialService credentialService) {
+                              MyInvoisCredentialService credentialService,
+                              com.mytax.mapper.notification.NotificationService notificationService,
+                              com.mytax.mapper.document.DocumentRepository documentRepository) {
         this.invoiceReviewService = invoiceReviewService;
         this.consolidationService = consolidationService;
         this.ublDocumentBuilder = ublDocumentBuilder;
@@ -76,6 +83,8 @@ public class SubmissionService {
         this.submissionRepository = submissionRepository;
         this.objectMapper = objectMapper;
         this.credentialService = credentialService;
+        this.notificationService = notificationService;
+        this.documentRepository = documentRepository;
     }
 
     @Transactional
@@ -92,7 +101,9 @@ public class SubmissionService {
 
         BusinessProfile supplier = businessProfileService.getOwned(userId);
         List<MappedInvoiceLineItem> lineItems = lineItemRepository.findByMappedInvoiceIdOrderByLineNo(invoice.getId());
-        BuiltDocument built = ublDocumentBuilder.build(supplier, invoice, lineItems);
+        String codeNumber = revisionCode("INV-" + invoice.getId(),
+                submissionRepository.findByMappedInvoiceId(invoice.getId()).size());
+        BuiltDocument built = ublDocumentBuilder.build(supplier, invoice, lineItems, codeNumber);
         if (log.isDebugEnabled()) {
             log.debug("Built MyInvois document for mapped invoice {}: {}", invoice.getId(),
                     new String(Base64.getDecoder().decode(built.base64Document()), StandardCharsets.UTF_8));
@@ -103,6 +114,7 @@ public class SubmissionService {
 
         Submission submission = Submission.builder()
                 .mappedInvoiceId(invoice.getId())
+                .internalId(built.codeNumber())
                 .environment(environment)
                 .myInvoisSubmissionUid(response.submissionUid())
                 .myInvoisDocumentUuid(acceptedDocumentUuid(response))
@@ -147,8 +159,15 @@ public class SubmissionService {
         SubmissionStatusResponse status = myInvoisSubmissionClient.getSubmissionStatus(
                 environment, accessToken, submission.getMyInvoisSubmissionUid());
 
+        SubmissionStatus previous = submission.getStatus();
+        if (previous == SubmissionStatus.CANCELLED) {
+            return toResponse(submission); // final — LHDN's submission summary would still read "Valid"
+        }
         submission.setStatus(mapStatus(status.overallStatus()));
         submission.setStatusUpdatedAt(Instant.now());
+        if (submission.getStatus() == SubmissionStatus.VALID && submission.getValidatedAt() == null) {
+            submission.setValidatedAt(Instant.now());
+        }
 
         // The status endpoint only reports Valid/Invalid; it never says why. For an invalid document
         // fetch the per-step validation results, which carry the actual reason (e.g. ERR406), and
@@ -188,7 +207,109 @@ public class SubmissionService {
             consolidatedInvoiceRepository.save(consolidatedInvoice);
         }
 
+        notifyOnVerdict(submission, previous, userId, mappedInvoice, consolidatedInvoice);
         return toResponse(submission);
+    }
+
+    /** Tell the user once when LHDN accepts or rejects a submission (status changed this refresh). */
+    private void notifyOnVerdict(Submission submission, SubmissionStatus previous, Long userId,
+                                 MappedInvoice mappedInvoice, ConsolidatedInvoice consolidatedInvoice) {
+        SubmissionStatus now = submission.getStatus();
+        if (now == previous || (now != SubmissionStatus.VALID && now != SubmissionStatus.INVALID)) {
+            return;
+        }
+        boolean consolidated = consolidatedInvoice != null;
+        Long invoiceId = consolidated ? consolidatedInvoice.getId() : mappedInvoice.getId();
+        String name = consolidated ? consolidatedInvoice.getInvoiceName() : mappedInvoice.getInvoiceName();
+        String label = (name != null && !name.isBlank()) ? name
+                : (consolidated ? "Consolidated invoice #" : "Invoice #") + invoiceId;
+        String link = (consolidated ? "/consolidated-invoices/" : "/mapped-invoices/") + invoiceId;
+        String env = submission.getEnvironment() == MyInvoisEnvironment.PRODUCTION ? "" : " (sandbox)";
+        if (now == SubmissionStatus.VALID) {
+            notificationService.notify(userId, com.mytax.mapper.notification.NotificationType.SUBMISSION_ACCEPTED,
+                    label + " accepted by LHDN" + env,
+                    "Your e-invoice was validated by LHDN MyInvois and is now issued. You can cancel it within 72 hours if something is wrong.",
+                    link, "submission-" + submission.getId() + "-valid");
+        } else {
+            notificationService.notify(userId, com.mytax.mapper.notification.NotificationType.SUBMISSION_REJECTED,
+                    label + " was rejected by LHDN" + env,
+                    "LHDN found a problem with this e-invoice. Open it to see the reason, fix it and submit again.",
+                    link, "submission-" + submission.getId() + "-invalid");
+        }
+    }
+
+    /**
+     * Document ID for the n-th submission of an invoice: the first is the base ("INV-12"); later ones
+     * (resubmissions after a cancellation) get a revision suffix ("INV-12-R2") so LHDN never sees the
+     * same internal ID twice.
+     */
+    public static String revisionCode(String base, int previousSubmissions) {
+        return previousSubmissions == 0 ? base : base + "-R" + (previousSubmissions + 1);
+    }
+
+    /**
+     * Cancels an issued (Valid) e-invoice at LHDN — allowed only within 72 hours of validation — and
+     * reopens the invoice as a draft so the user can correct it and submit again. After the window,
+     * corrections go through a credit note instead (see InvoiceReviewService#createCreditNote).
+     */
+    @Transactional
+    public SubmissionResponse cancel(Long submissionId, Long userId, String reason) {
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new EntityNotFoundException("Submission not found: " + submissionId));
+        MappedInvoice mappedInvoice = null;
+        ConsolidatedInvoice consolidatedInvoice = null;
+        if (submission.getMappedInvoiceId() != null) {
+            mappedInvoice = invoiceReviewService.getOwned(submission.getMappedInvoiceId(), userId);
+        } else {
+            consolidatedInvoice = consolidationService.getOwned(submission.getConsolidatedInvoiceId(), userId);
+        }
+        if (submission.getStatus() != SubmissionStatus.VALID || submission.getMyInvoisDocumentUuid() == null) {
+            throw new IllegalStateException("Only an e-invoice LHDN has validated can be cancelled");
+        }
+        if (submission.getValidatedAt() != null
+                && Instant.now().isAfter(submission.getValidatedAt().plus(CANCEL_WINDOW))) {
+            throw new IllegalStateException(
+                    "The 72-hour cancellation window has passed. Issue a credit note to correct this invoice.");
+        }
+        String trimmed = reason == null ? "" : reason.trim();
+        if (trimmed.isEmpty() || trimmed.length() > 300) {
+            throw new IllegalArgumentException("Give a reason for cancelling (up to 300 characters)");
+        }
+
+        MyInvoisEnvironment environment = submission.getEnvironment();
+        String accessToken = myInvoisAuthService.getAccessToken(userId, environment);
+        myInvoisSubmissionClient.cancelDocument(environment, accessToken, submission.getMyInvoisDocumentUuid(), trimmed);
+
+        submission.setStatus(SubmissionStatus.CANCELLED);
+        submission.setCancelledAt(Instant.now());
+        submission.setCancelReason(trimmed);
+        submission.setStatusUpdatedAt(Instant.now());
+        submissionRepository.save(submission);
+
+        // Reopen for correction; the next submission gets a revision suffix (INV-12-R2).
+        if (mappedInvoice != null) {
+            mappedInvoice.setStatus(InvoiceStatus.DRAFT);
+            mappedInvoiceRepository.save(mappedInvoice);
+        } else {
+            consolidatedInvoice.setStatus(ConsolidatedInvoiceStatus.DRAFT);
+            consolidatedInvoiceRepository.save(consolidatedInvoice);
+        }
+        log.info("Cancelled LHDN document {} (submission {}) for user {}", submission.getMyInvoisDocumentUuid(),
+                submissionId, userId);
+        return toResponse(submission);
+    }
+
+    /** Owner of a submission (for background jobs that act without a logged-in user). */
+    public Long ownerOf(Submission submission) {
+        if (submission.getConsolidatedInvoiceId() != null) {
+            return consolidatedInvoiceRepository.findById(submission.getConsolidatedInvoiceId())
+                    .map(ConsolidatedInvoice::getUserId).orElse(null);
+        }
+        return mappedInvoiceRepository.findById(submission.getMappedInvoiceId())
+                .map(MappedInvoice::getDocumentId)
+                .flatMap(documentRepository::findById)
+                .map(com.mytax.mapper.document.Document::getUserId)
+                .orElse(null);
     }
 
     public List<SubmissionResponse> listForInvoice(Long mappedInvoiceId, Long userId) {
@@ -368,6 +489,9 @@ public class SubmissionService {
                 submission.getConsolidatedInvoiceId(), submission.getMyInvoisSubmissionUid(),
                 submission.getMyInvoisDocumentUuid(), submission.getStatus(), submission.getSubmittedAt(),
                 submission.getStatusUpdatedAt(), extractErrorMessage(submission.getResponsePayload()),
-                submission.getEnvironment());
+                submission.getEnvironment(), submission.getInternalId(), submission.getValidatedAt(),
+                submission.getStatus() == SubmissionStatus.VALID && submission.getValidatedAt() != null
+                        ? submission.getValidatedAt().plus(CANCEL_WINDOW) : null,
+                submission.getCancelledAt(), submission.getCancelReason());
     }
 }

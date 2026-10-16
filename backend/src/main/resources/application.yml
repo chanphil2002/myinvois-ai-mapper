@@ -3,7 +3,7 @@ spring:
     name: mytax-mapper-backend
 
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/mytax_mapper?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/mytax_mapper?useSSL=false&serverTimezone=UTC&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true}
     username: ${DB_USERNAME:mytax}
     password: ${DB_PASSWORD:mytax}
 
@@ -49,6 +49,14 @@ app:
     api-key: ${GEMINI_API_KEY:}
     model: ${GEMINI_MODEL:gemini-3.5-flash}
     base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+  # Public address of the web app — used for links in notification emails.
+  public-url: ${APP_PUBLIC_URL:http://localhost:5173}
+  mail:
+    # Notification emails are sent only when an SMTP server is configured via the standard Spring
+    # env vars: SPRING_MAIL_HOST, SPRING_MAIL_PORT, SPRING_MAIL_USERNAME, SPRING_MAIL_PASSWORD,
+    # SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=true, SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
+    # (e.g. Gmail: smtp.gmail.com:587 with an app password). Without them, alerts are in-app only.
+    from: ${APP_MAIL_FROM:MyTax <no-reply@mytax.app>}
   ai-usage:
     # Gemini list prices used to meter usage (USD per 1M tokens). Output includes "thinking" tokens.
     # Update these to your model's actual price — they drive the % shown to users.

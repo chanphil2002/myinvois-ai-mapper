@@ -5,10 +5,9 @@ import { DeleteOutlined, LoadingOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import StatusTag from '../components/StatusTag';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import SubmissionStatusBadge from '../components/SubmissionStatusBadge';
 import Page from '../components/Page';
 import { useTheme } from '../theme/ThemeContext';
-import EnvironmentTag from '../components/EnvironmentTag';
+import SubmissionHistoryCard from '../components/SubmissionHistoryCard';
 import { tablePagination } from '../utils/pagination';
 import { formatRM } from '../utils/money';
 import { useIsMobile } from '../hooks/useIsMobile';
@@ -26,7 +25,6 @@ import {
   getConsolidatedInvoice,
   listConsolidatedSubmissions,
   listEligibleTransactions,
-  refreshSubmission,
   removeConsolidatedTransaction,
   submitConsolidatedInvoice,
   updateConsolidatedDetails,
@@ -202,7 +200,8 @@ export default function ConsolidatedInvoiceReview() {
   const { data: submissions } = useQuery({
     queryKey: ['consolidated-submissions', consolidatedInvoiceId],
     queryFn: () => listConsolidatedSubmissions(consolidatedInvoiceId),
-    enabled: invoice?.status === 'SUBMITTED' || invoice?.status === 'ACCEPTED' || invoice?.status === 'REJECTED',
+    // Always loaded: a cancelled submission stays in the history after the invoice reopens as a draft.
+    enabled: !!invoice,
   });
 
   const invalidate = () => {
@@ -230,15 +229,6 @@ export default function ConsolidatedInvoiceReview() {
       invalidate();
     },
     onError: onErr('Submission failed'),
-  });
-
-  const refreshMutation = useMutation({
-    mutationFn: (submissionId: number) => refreshSubmission(submissionId),
-    onSuccess: () => {
-      message.success('Status refreshed');
-      invalidate();
-    },
-    onError: onErr('Refresh failed'),
   });
 
   const addLines = useMutation({
@@ -639,29 +629,15 @@ export default function ConsolidatedInvoiceReview() {
         )}
       </Card>
 
-      {submissions && submissions.length > 0 && (
-        <Card title="Submission history">
-          <Space direction="vertical" style={{ width: '100%' }}>
-            {submissions.map((s) => (
-              <Space key={s.id} direction="vertical" size={4} style={{ width: '100%' }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-                  <SubmissionStatusBadge status={s.status} />
-                  <EnvironmentTag environment={s.environment} />
-                  <Typography.Text
-                    type="secondary"
-                    style={{ fontSize: 12, wordBreak: 'break-all', flex: '1 1 140px', minWidth: 0 }}
-                  >
-                    {s.myInvoisSubmissionUid}
-                  </Typography.Text>
-                  <Button size="small" loading={refreshMutation.isPending} onClick={() => refreshMutation.mutate(s.id)}>
-                    Refresh status
-                  </Button>
-                </div>
-                {s.errorMessage && <Alert type="error" message={s.errorMessage} showIcon />}
-              </Space>
-            ))}
-          </Space>
-        </Card>
+      {submissions && (
+        <SubmissionHistoryCard
+          submissions={submissions}
+          invalidateKeys={[
+            ['consolidated-invoice', consolidatedInvoiceId],
+            ['consolidated-submissions', consolidatedInvoiceId],
+            ['consolidated-invoices'],
+          ]}
+        />
       )}
     </Page>
   );

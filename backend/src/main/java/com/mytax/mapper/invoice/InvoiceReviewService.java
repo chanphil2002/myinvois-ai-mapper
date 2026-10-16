@@ -20,13 +20,16 @@ public class InvoiceReviewService {
     private final MappedInvoiceRepository mappedInvoiceRepository;
     private final MappedInvoiceLineItemRepository lineItemRepository;
     private final DocumentService documentService;
+    private final SubmissionRepository submissionRepository;
 
     public InvoiceReviewService(MappedInvoiceRepository mappedInvoiceRepository,
                                  MappedInvoiceLineItemRepository lineItemRepository,
-                                 DocumentService documentService) {
+                                 DocumentService documentService,
+                                 SubmissionRepository submissionRepository) {
         this.mappedInvoiceRepository = mappedInvoiceRepository;
         this.lineItemRepository = lineItemRepository;
         this.documentService = documentService;
+        this.submissionRepository = submissionRepository;
     }
 
     public MappedInvoice getOwned(Long mappedInvoiceId, Long userId) {
@@ -71,6 +74,72 @@ public class InvoiceReviewService {
                 .build();
         invoice = mappedInvoiceRepository.save(invoice);
         return toResponse(applyRequest(invoice, request));
+    }
+
+    /**
+     * Starts a credit note (invoice type 02) for an issued invoice — the way to correct an e-invoice
+     * after LHDN's 72-hour cancellation window. It copies the buyer and line items so the user only
+     * edits the amounts being credited; on submission it references the original document's internal
+     * ID and LHDN UUID (BillingReference).
+     */
+    @Transactional
+    public MappedInvoiceResponse createCreditNote(Long originalId, Long userId) {
+        MappedInvoice original = getOwned(originalId, userId);
+        if (!"01".equals(original.getInvoiceTypeCode()) || original.getStatus() != InvoiceStatus.ACCEPTED) {
+            throw new IllegalStateException("A credit note can only be issued for an invoice LHDN has accepted");
+        }
+        Submission issued = submissionRepository.findByMappedInvoiceId(originalId).stream()
+                .filter(s -> s.getStatus() == SubmissionStatus.VALID && s.getMyInvoisDocumentUuid() != null)
+                .reduce((a, b) -> b)
+                .orElseThrow(() -> new IllegalStateException("No validated LHDN document found for this invoice"));
+
+        String label = original.getInvoiceName() != null && !original.getInvoiceName().isBlank()
+                ? original.getInvoiceName() : "Invoice #" + original.getId();
+        MappedInvoice note = MappedInvoice.builder()
+                .documentId(original.getDocumentId())
+                .status(InvoiceStatus.DRAFT)
+                .invoiceTypeCode("02")
+                .currencyCode(original.getCurrencyCode())
+                .build();
+        note.setInvoiceName("Credit note — " + label);
+        note.setOriginalInvoiceId(original.getId());
+        note.setOriginalDocumentUuid(issued.getMyInvoisDocumentUuid());
+        note.setOriginalInternalId(issued.getInternalId() != null ? issued.getInternalId() : "INV-" + original.getId());
+        note.setSupplierTin(original.getSupplierTin());
+        note.setSupplierName(original.getSupplierName());
+        note.setBuyerTin(original.getBuyerTin());
+        note.setBuyerName(original.getBuyerName());
+        note.setBuyerIdType(original.getBuyerIdType());
+        note.setBuyerIdValue(original.getBuyerIdValue());
+        note.setBuyerSst(original.getBuyerSst());
+        note.setBuyerAddressLine1(original.getBuyerAddressLine1());
+        note.setBuyerAddressLine2(original.getBuyerAddressLine2());
+        note.setBuyerCity(original.getBuyerCity());
+        note.setBuyerPostalZone(original.getBuyerPostalZone());
+        note.setBuyerStateCode(original.getBuyerStateCode());
+        note.setBuyerCountryCode(original.getBuyerCountryCode());
+        note.setBuyerPhone(original.getBuyerPhone());
+        note.setBuyerEmail(original.getBuyerEmail());
+        note.setSubtotal(original.getSubtotal());
+        note.setTaxTotal(original.getTaxTotal());
+        note.setGrandTotal(original.getGrandTotal());
+        note.setDiscountTotal(original.getDiscountTotal());
+        note = mappedInvoiceRepository.save(note);
+
+        int lineNo = 1;
+        for (MappedInvoiceLineItem li : lineItemRepository.findByMappedInvoiceIdOrderByLineNo(original.getId())) {
+            lineItemRepository.save(MappedInvoiceLineItem.builder()
+                    .mappedInvoiceId(note.getId())
+                    .lineNo(lineNo++)
+                    .description(li.getDescription())
+                    .quantity(li.getQuantity())
+                    .unitPrice(li.getUnitPrice())
+                    .taxAmount(li.getTaxAmount())
+                    .classificationCode(li.getClassificationCode())
+                    .unitCode(li.getUnitCode())
+                    .build());
+        }
+        return toResponse(note);
     }
 
     /** Copies all editable fields + line items from the request onto {@code invoice}. Shared by
@@ -150,6 +219,7 @@ public class InvoiceReviewService {
                 invoice.getBuyerCountryCode(), invoice.getBuyerPhone(), invoice.getBuyerEmail(),
                 invoice.getSubtotal(), invoice.getTaxTotal(), invoice.getGrandTotal(), invoice.getDiscountTotal(),
                 invoice.getStatus(), invoice.getConfidenceScore(), items, invoice.getCreatedAt(),
-                invoice.getInvoiceName());
+                invoice.getInvoiceName(),
+                invoice.getOriginalInvoiceId(), invoice.getOriginalInternalId());
     }
 }

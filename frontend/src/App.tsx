@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-r
 import { Button, Layout, Menu, Spin, Tooltip } from 'antd';
 import { ArrowLeftOutlined, BulbOutlined, MoonOutlined } from '@ant-design/icons';
 import BrandLogo from './components/BrandLogo';
+import NotificationBell from './components/NotificationBell';
 import BottomTabBar from './components/BottomTabBar';
 import { useIsMobile } from './hooks/useIsMobile';
 import { ProtectedRoute } from './auth/ProtectedRoute';
@@ -115,7 +116,10 @@ function AppLayout() {
         >
           <BrandLogo dark={isDark} />
           {/* Log out lives in Settings → Account on phones, away from accidental taps. */}
-          {themeToggle}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <NotificationBell />
+            {themeToggle}
+          </div>
         </div>
         <Content style={{ margin: 16, paddingBottom: 'calc(112px + env(safe-area-inset-bottom))' }}>
           {backButton}
@@ -147,6 +151,7 @@ function AppLayout() {
       </Sider>
       <Layout>
         <Header style={{ background: surface.header, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, padding: '0 20px', borderBottom: `1px solid ${surface.border}`, boxShadow: surface.shadow }}>
+          <NotificationBell />
           {themeToggle}
           <span>{email}</span>
           <a onClick={logout} style={{ fontWeight: 500 }}>Log out</a>

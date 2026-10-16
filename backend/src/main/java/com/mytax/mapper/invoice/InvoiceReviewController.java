@@ -36,6 +36,12 @@ public class InvoiceReviewController {
         return ApiResponse.ok(invoiceReviewService.update(id, CurrentUser.id(), request));
     }
 
+    /** Start a credit note correcting this (LHDN-accepted) invoice. */
+    @PostMapping("/{id}/credit-note")
+    public ApiResponse<MappedInvoiceResponse> creditNote(@PathVariable Long id) {
+        return ApiResponse.ok(invoiceReviewService.createCreditNote(id, CurrentUser.id()));
+    }
+
     @PostMapping("/{id}/confirm")
     public ApiResponse<MappedInvoiceResponse> confirm(@PathVariable Long id) {
         return ApiResponse.ok(invoiceReviewService.confirm(id, CurrentUser.id()));

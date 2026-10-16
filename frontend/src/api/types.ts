@@ -151,9 +151,12 @@ export interface MappedInvoiceResponse {
   lineItems: LineItem[];
   createdAt: string | null;
   invoiceName: string | null;
+  /** Credit notes: the invoice being corrected and its LHDN document ID. */
+  originalInvoiceId: number | null;
+  originalInternalId: string | null;
 }
 
-export type SubmissionStatus = 'PENDING' | 'IN_PROGRESS' | 'VALID' | 'INVALID' | 'PARTIALLY_VALID';
+export type SubmissionStatus = 'PENDING' | 'IN_PROGRESS' | 'VALID' | 'INVALID' | 'PARTIALLY_VALID' | 'CANCELLED';
 
 export interface SubmissionResponse {
   id: number;
@@ -166,6 +169,13 @@ export interface SubmissionResponse {
   statusUpdatedAt: string | null;
   errorMessage: string | null;
   environment: MyInvoisEnvironment;
+  /** Document ID sent to LHDN, e.g. INV-12 or INV-12-R2. */
+  internalId: string | null;
+  validatedAt: string | null;
+  /** Last moment it can be cancelled at LHDN (validated + 72h). */
+  cancellableUntil: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
 }
 
 export type SalesTransactionStatus = 'PENDING' | 'GROUPED' | 'EXCLUDED';
@@ -204,4 +214,21 @@ export interface ConsolidatedInvoiceResponse {
   transactions: SalesTransactionResponse[];
   createdAt: string | null;
   invoiceName: string | null;
+}
+
+export type NotificationType = 'SUBMISSION_ACCEPTED' | 'SUBMISSION_REJECTED' | 'SUBSCRIPTION_EXPIRING' | 'CONSOLIDATED_DUE';
+
+export interface NotificationItem {
+  id: number;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface NotificationList {
+  unreadCount: number;
+  items: NotificationItem[];
 }

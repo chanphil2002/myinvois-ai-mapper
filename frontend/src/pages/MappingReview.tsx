@@ -1,19 +1,17 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Button, Card, Col, DatePicker, Input, InputNumber, Row, Select, Space, Typography, message } from 'antd';
+import { Alert, Button, Card, Col, DatePicker, Input, InputNumber, Row, Select, Space, Typography, message } from 'antd';
 import StatusTag from '../components/StatusTag';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import MappingReviewTable from '../components/MappingReviewTable';
 import SourceDocumentCard from '../components/SourceDocumentCard';
-import SubmissionStatusBadge from '../components/SubmissionStatusBadge';
 import {
   confirmMappedInvoice,
   getBusinessProfile,
   getMappedInvoice,
   listSubmissions,
-  refreshSubmission,
   submitMappedInvoice,
   updateMappedInvoice,
 } from '../api/endpoints';
@@ -21,7 +19,7 @@ import type { LineItem, MappedInvoiceResponse } from '../api/types';
 import { MALAYSIA_STATE_CODES, matchStateCode } from '../constants/malaysiaStates';
 import { defaultInvoiceName, invoiceDisplayName } from '../utils/invoice';
 import Page from '../components/Page';
-import EnvironmentTag from '../components/EnvironmentTag';
+import SubmissionHistoryCard from '../components/SubmissionHistoryCard';
 
 export default function MappingReview() {
   const { id } = useParams();
@@ -37,7 +35,8 @@ export default function MappingReview() {
   const { data: submissions } = useQuery({
     queryKey: ['submissions', mappedInvoiceId],
     queryFn: () => listSubmissions(mappedInvoiceId),
-    enabled: invoice?.status === 'SUBMITTED' || invoice?.status === 'ACCEPTED' || invoice?.status === 'REJECTED',
+    // Always loaded: a cancelled submission stays in the history after the invoice reopens as a draft.
+    enabled: !!invoice,
   });
 
   // The supplier on every submission is always the account's own Business Profile, shown read-only below.
@@ -82,15 +81,6 @@ export default function MappingReview() {
       invalidate();
     },
     onError: (err) => message.error(err instanceof Error ? err.message : 'Submission failed'),
-  });
-
-  const refreshMutation = useMutation({
-    mutationFn: (submissionId: number) => refreshSubmission(submissionId),
-    onSuccess: () => {
-      message.success('Status refreshed');
-      invalidate();
-    },
-    onError: (err) => message.error(err instanceof Error ? err.message : 'Refresh failed'),
   });
 
   if (isLoading || !draft) {
@@ -140,6 +130,21 @@ export default function MappingReview() {
         </>
       }
     >
+      {draft.originalInvoiceId && (
+        <Alert
+          type="info"
+          showIcon
+          message={`Credit note correcting ${draft.originalInternalId ?? `invoice #${draft.originalInvoiceId}`}`}
+          description={
+            <>
+              Set the line items to the amounts being credited (not the full invoice, unless refunding everything), then
+              confirm and submit. LHDN links it to the original automatically.{' '}
+              <Link to={`/mapped-invoices/${draft.originalInvoiceId}`}>Open original invoice</Link>
+            </>
+          }
+        />
+      )}
+
       <SourceDocumentCard documentId={draft.documentId} />
 
       <Card title="Invoice details">
@@ -339,26 +344,12 @@ export default function MappingReview() {
         <MappingReviewTable lineItems={draft.lineItems} onChange={updateLineItems} disabled={!editable} />
       </Card>
 
-      {submissions && submissions.length > 0 && (
-        <Card title="Submission history">
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            {submissions.map((s) => (
-              <div key={s.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-                <SubmissionStatusBadge status={s.status} />
-                <EnvironmentTag environment={s.environment} />
-                <Typography.Text
-                  type="secondary"
-                  style={{ fontSize: 12, wordBreak: 'break-all', flex: '1 1 140px', minWidth: 0 }}
-                >
-                  {s.myInvoisSubmissionUid}
-                </Typography.Text>
-                <Button size="small" loading={refreshMutation.isPending} onClick={() => refreshMutation.mutate(s.id)}>
-                  Refresh status
-                </Button>
-              </div>
-            ))}
-          </Space>
-        </Card>
+      {submissions && (
+        <SubmissionHistoryCard
+          submissions={submissions}
+          invalidateKeys={[['mapped-invoice', mappedInvoiceId], ['submissions', mappedInvoiceId], ['mapped-invoices']]}
+          creditNoteFor={draft.invoiceTypeCode === '01' && draft.status === 'ACCEPTED' ? draft.id : undefined}
+        />
       )}
 
       {/* Supplier is always the account's own Business Profile — read-only, shown last. */}

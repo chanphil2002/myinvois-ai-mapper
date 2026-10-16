@@ -25,7 +25,7 @@ import java.util.Map;
  * of {"_": value, ...attributes}) was reverse-engineered from a real, LHDN-validated ("status":
  * "Valid") submission the user pulled from their MyInvois account — not guessed. Optional UBL
  * sections we have no real data for (Delivery, PaymentMeans, PaymentTerms, PrepaidPayment,
- * BillingReference, AdditionalDocumentReference, per-line AllowanceCharge) are omitted entirely
+ * AdditionalDocumentReference, per-line AllowanceCharge — and BillingReference except on credit notes) are omitted entirely
  * rather than emitted as blank placeholders — the reference document had them blank, which reads
  * as a template artifact of whatever software produced it, not a strict LHDN requirement. Revisit
  * if a real submission gets rejected for a missing section.
@@ -50,8 +50,12 @@ public class UblDocumentBuilder {
         this.support = support;
     }
 
-    public BuiltDocument build(BusinessProfile supplier, MappedInvoice invoice, List<MappedInvoiceLineItem> lineItems) {
-        String codeNumber = "INV-" + invoice.getId();
+    /**
+     * @param codeNumber the document ID sent to LHDN — "INV-{id}", or with a revision suffix
+     *                   ("INV-{id}-R2") when resubmitting after a cancellation
+     */
+    public BuiltDocument build(BusinessProfile supplier, MappedInvoice invoice, List<MappedInvoiceLineItem> lineItems,
+                               String codeNumber) {
         String json = buildInvoiceJson(supplier, invoice, lineItems, codeNumber);
 
         String hash = support.sha256Hex(json);
@@ -80,6 +84,14 @@ public class UblDocumentBuilder {
         // submissions succeed in the meantime. Bump back to "1.1" once signing is built.
         support.put(invoiceNode, "InvoiceTypeCode", support.val(invoice.getInvoiceTypeCode(), Map.of("listVersionID", "1.0")));
         support.put(invoiceNode, "DocumentCurrencyCode", support.val(currency));
+
+        // Credit / debit / refund notes must reference the issued invoice they adjust (LHDN SDK
+        // "BillingReference > InvoiceDocumentReference": original internal ID + LHDN UUID).
+        if (invoice.getOriginalDocumentUuid() != null) {
+            support.put(invoiceNode, "BillingReference", List.of(Map.of("InvoiceDocumentReference", List.of(Map.of(
+                    "ID", support.val(invoice.getOriginalInternalId()),
+                    "UUID", support.val(invoice.getOriginalDocumentUuid()))))));
+        }
 
         support.put(invoiceNode, "AccountingSupplierParty", List.of(Map.of("Party", List.of(support.supplierParty(supplier)))));
         support.put(invoiceNode, "AccountingCustomerParty", List.of(Map.of("Party", List.of(buyerParty(invoice)))));

@@ -5,5 +5,7 @@ public enum SubmissionStatus {
     IN_PROGRESS,
     VALID,
     INVALID,
-    PARTIALLY_VALID
+    PARTIALLY_VALID,
+    /** Cancelled at LHDN by the issuer (within 72 hours of validation). */
+    CANCELLED
 }

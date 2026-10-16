@@ -91,6 +91,16 @@ public class MappedInvoice {
     @Enumerated(EnumType.STRING)
     private InvoiceStatus status = InvoiceStatus.DRAFT;
 
+    /** Credit notes only: the issued invoice this one corrects. */
+    @Column(name = "original_invoice_id")
+    private Long originalInvoiceId;
+
+    @Column(name = "original_document_uuid")
+    private String originalDocumentUuid;
+
+    @Column(name = "original_internal_id")
+    private String originalInternalId;
+
     @Column(name = "confidence_score")
     private BigDecimal confidenceScore;
 
@@ -98,6 +108,30 @@ public class MappedInvoice {
     private Instant createdAt;
 
     public MappedInvoice() {
+    }
+
+    public Long getOriginalInvoiceId() {
+        return originalInvoiceId;
+    }
+
+    public void setOriginalInvoiceId(Long originalInvoiceId) {
+        this.originalInvoiceId = originalInvoiceId;
+    }
+
+    public String getOriginalDocumentUuid() {
+        return originalDocumentUuid;
+    }
+
+    public void setOriginalDocumentUuid(String originalDocumentUuid) {
+        this.originalDocumentUuid = originalDocumentUuid;
+    }
+
+    public String getOriginalInternalId() {
+        return originalInternalId;
+    }
+
+    public void setOriginalInternalId(String originalInternalId) {
+        this.originalInternalId = originalInternalId;
     }
 
     public static Builder builder() {

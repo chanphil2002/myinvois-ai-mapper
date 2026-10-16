@@ -74,12 +74,15 @@ public class ConsolidatedSubmissionService {
                 .toList();
         List<SalesTransaction> transactions = salesTransactionRepository.findByIdIn(transactionIds);
 
-        BuiltDocument built = ublDocumentBuilder.build(supplier, invoice, transactions);
+        String codeNumber = com.mytax.mapper.invoice.SubmissionService.revisionCode("CON-" + invoice.getId(),
+                submissionRepository.findByConsolidatedInvoiceId(invoice.getId()).size());
+        BuiltDocument built = ublDocumentBuilder.build(supplier, invoice, transactions, codeNumber);
         com.mytax.mapper.myinvois.MyInvoisEnvironment environment = submissionService.activeEnvironment(userId);
         SubmitDocumentsResponse response = submissionService.submitBuiltDocument(userId, environment, built);
 
         Submission submission = Submission.builder()
                 .consolidatedInvoiceId(invoice.getId())
+                .internalId(built.codeNumber())
                 .environment(environment)
                 .myInvoisSubmissionUid(response.submissionUid())
                 .status(SubmissionStatus.PENDING)

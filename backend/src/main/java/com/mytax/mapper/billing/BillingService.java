@@ -107,6 +107,9 @@ public class BillingService {
                 }
                 sub.setStatus(SubscriptionStatus.ACTIVE);
                 sub.setPaidAt(Instant.now());
+                // One-off payment: one month of access, no automatic renewal.
+                sub.setPeriodEnd(Instant.now().plus(java.time.Duration.ofDays(30)));
+                sub.setAutoRenew(false);
                 subscriptionRepository.save(sub);
                 log.info("Subscription {} activated for user {} (plan {})", sub.getId(), sub.getUserId(), sub.getPlan());
             }

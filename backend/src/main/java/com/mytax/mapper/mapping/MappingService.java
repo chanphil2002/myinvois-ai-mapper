@@ -147,6 +147,7 @@ public class MappingService {
                 invoice.getBuyerCountryCode(), invoice.getBuyerPhone(), invoice.getBuyerEmail(),
                 invoice.getSubtotal(), invoice.getTaxTotal(), invoice.getGrandTotal(), invoice.getDiscountTotal(),
                 invoice.getStatus(), invoice.getConfidenceScore(), items, invoice.getCreatedAt(),
-                invoice.getInvoiceName());
+                invoice.getInvoiceName(),
+                invoice.getOriginalInvoiceId(), invoice.getOriginalInternalId());
     }
 }

@@ -39,6 +39,19 @@ public class MyInvoisSubmissionClient {
                 .body(SubmissionStatusResponse.class);
     }
 
+    /**
+     * Cancels an issued document (issuer only, within 72 hours of validation):
+     * PUT /api/v1.0/documents/state/{uuid}/state with {"status":"cancelled","reason":...}.
+     */
+    public void cancelDocument(MyInvoisEnvironment environment, String accessToken, String documentUuid, String reason) {
+        restClient.put()
+                .uri(properties.apiBaseUrl(environment) + "/api/v1.0/documents/state/{uuid}/state", documentUuid)
+                .headers(h -> h.setBearerAuth(accessToken))
+                .body(java.util.Map.of("status", "cancelled", "reason", reason))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
     /** Per-document details including {@code validationResults} — the only endpoint that exposes
      *  the step-level reason (e.g. ERR406) behind an Invalid document. Returns the raw JSON body so
      *  no nested error fields (innerError/details) are lost to DTO mapping before they can be read. */

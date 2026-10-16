@@ -26,6 +26,12 @@ public class InvoiceSubmissionController {
         return ApiResponse.ok(submissionService.listForInvoice(id, CurrentUser.id()));
     }
 
+    /** Cancel an issued e-invoice at LHDN (within 72 hours) and reopen it for correction. */
+    @PostMapping("/api/submissions/{id}/cancel")
+    public ApiResponse<SubmissionResponse> cancel(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        return ApiResponse.ok(submissionService.cancel(id, CurrentUser.id(), body.get("reason")));
+    }
+
     @PostMapping("/api/submissions/{id}/refresh")
     public ApiResponse<SubmissionResponse> refresh(@PathVariable Long id) {
         return ApiResponse.ok(submissionService.refreshStatus(id, CurrentUser.id()));

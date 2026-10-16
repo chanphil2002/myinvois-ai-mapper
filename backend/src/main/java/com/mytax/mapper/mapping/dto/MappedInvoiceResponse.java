@@ -36,7 +36,10 @@ public record MappedInvoiceResponse(
         BigDecimal confidenceScore,
         List<LineItemResponse> lineItems,
         Instant createdAt,
-        String invoiceName
+        String invoiceName,
+        /** Credit notes: the invoice being corrected, and its LHDN document ID. */
+        Long originalInvoiceId,
+        String originalInternalId
 ) {
     public record LineItemResponse(
             Long id,

@@ -40,6 +40,14 @@ public class Subscription {
     @Column(name = "paid_at")
     private Instant paidAt;
 
+    /** Access lasts until this moment; renewal (or a new payment) extends it. */
+    @Column(name = "period_end")
+    private Instant periodEnd;
+
+    /** True when the payment provider will charge again automatically at period end. */
+    @Column(name = "auto_renew", nullable = false)
+    private boolean autoRenew;
+
     public static Builder builder() {
         return new Builder();
     }
@@ -82,6 +90,22 @@ public class Subscription {
 
     public void setPaidAt(Instant paidAt) {
         this.paidAt = paidAt;
+    }
+
+    public Instant getPeriodEnd() {
+        return periodEnd;
+    }
+
+    public void setPeriodEnd(Instant periodEnd) {
+        this.periodEnd = periodEnd;
+    }
+
+    public boolean isAutoRenew() {
+        return autoRenew;
+    }
+
+    public void setAutoRenew(boolean autoRenew) {
+        this.autoRenew = autoRenew;
     }
 
     public static final class Builder {

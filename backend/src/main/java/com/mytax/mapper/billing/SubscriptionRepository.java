@@ -12,4 +12,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     Optional<Subscription> findFirstByUserIdAndStatusOrderByIdDesc(Long userId, SubscriptionStatus status);
 
     List<Subscription> findByUserIdAndStatus(Long userId, SubscriptionStatus status);
+
+    /** Active, non-renewing plans ending in the window — expiry reminders. */
+    List<Subscription> findByStatusAndAutoRenewFalseAndPeriodEndBetween(SubscriptionStatus status, java.time.Instant from, java.time.Instant to);
 }

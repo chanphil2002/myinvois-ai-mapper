@@ -43,6 +43,20 @@ public class Submission {
     @Column(name = "status_updated_at")
     private Instant statusUpdatedAt;
 
+    /** When LHDN first reported Valid — the 72-hour cancellation window starts here. */
+    @Column(name = "validated_at")
+    private Instant validatedAt;
+
+    /** The document ID sent to LHDN (INV-12, or INV-12-R2 for a resubmission after cancelling). */
+    @Column(name = "internal_id")
+    private String internalId;
+
+    @Column(name = "cancelled_at")
+    private Instant cancelledAt;
+
+    @Column(name = "cancel_reason")
+    private String cancelReason;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "response_payload")
     private String responsePayload;
@@ -134,6 +148,38 @@ public class Submission {
         this.environment = environment;
     }
 
+    public Instant getValidatedAt() {
+        return validatedAt;
+    }
+
+    public void setValidatedAt(Instant validatedAt) {
+        this.validatedAt = validatedAt;
+    }
+
+    public String getInternalId() {
+        return internalId;
+    }
+
+    public void setInternalId(String internalId) {
+        this.internalId = internalId;
+    }
+
+    public Instant getCancelledAt() {
+        return cancelledAt;
+    }
+
+    public void setCancelledAt(Instant cancelledAt) {
+        this.cancelledAt = cancelledAt;
+    }
+
+    public String getCancelReason() {
+        return cancelReason;
+    }
+
+    public void setCancelReason(String cancelReason) {
+        this.cancelReason = cancelReason;
+    }
+
     public static final class Builder {
         private final Submission submission = new Submission();
 
@@ -159,6 +205,11 @@ public class Submission {
 
         public Builder environment(com.mytax.mapper.myinvois.MyInvoisEnvironment environment) {
             submission.environment = environment;
+            return this;
+        }
+
+        public Builder internalId(String internalId) {
+            submission.internalId = internalId;
             return this;
         }
 

@@ -15,6 +15,7 @@ import type {
   SubscribeResponse,
   SubscriptionResponse,
   UsageResponse,
+  NotificationList,
 } from './types';
 
 export function register(payload: {
@@ -248,4 +249,30 @@ export function subscribePlan(plan: string): Promise<SubscribeResponse> {
 export async function getDocumentFile(id: number): Promise<Blob> {
   const res = await apiClient.get(`/api/documents/${id}/file`, { responseType: 'blob' });
   return res.data as Blob;
+}
+
+// --- Notifications ---
+
+export function listNotifications(): Promise<NotificationList> {
+  return unwrap(apiClient.get<ApiResponse<NotificationList>>('/api/notifications'));
+}
+
+export function markNotificationRead(id: number): Promise<void> {
+  return unwrap(apiClient.post<ApiResponse<void>>(`/api/notifications/${id}/read`));
+}
+
+export function markAllNotificationsRead(): Promise<void> {
+  return unwrap(apiClient.post<ApiResponse<void>>('/api/notifications/read-all'));
+}
+
+// --- Corrections after submission ---
+
+/** Cancel an issued e-invoice at LHDN (within 72 hours of validation) and reopen it for correction. */
+export function cancelSubmission(id: number, reason: string): Promise<SubmissionResponse> {
+  return unwrap(apiClient.post<ApiResponse<SubmissionResponse>>(`/api/submissions/${id}/cancel`, { reason }));
+}
+
+/** Start a credit note (type 02) correcting an accepted invoice. */
+export function createCreditNote(mappedInvoiceId: number): Promise<MappedInvoiceResponse> {
+  return unwrap(apiClient.post<ApiResponse<MappedInvoiceResponse>>(`/api/mapped-invoices/${mappedInvoiceId}/credit-note`));
 }

@@ -42,8 +42,8 @@ public class ConsolidatedUblDocumentBuilder {
         this.consolidationProperties = consolidationProperties;
     }
 
-    public BuiltDocument build(BusinessProfile supplier, ConsolidatedInvoice invoice, List<SalesTransaction> transactions) {
-        String codeNumber = "CON-" + invoice.getId();
+    public BuiltDocument build(BusinessProfile supplier, ConsolidatedInvoice invoice, List<SalesTransaction> transactions, String codeNumberOverride) {
+        String codeNumber = codeNumberOverride != null ? codeNumberOverride : "CON-" + invoice.getId();
         String json = buildInvoiceJson(supplier, invoice, transactions, codeNumber);
 
         String hash = support.sha256Hex(json);
