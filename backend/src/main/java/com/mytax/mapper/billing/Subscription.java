@@ -48,6 +48,17 @@ public class Subscription {
     @Column(name = "auto_renew", nullable = false)
     private boolean autoRenew;
 
+    /** STRIPE (current) or BILLPLZ (legacy one-off FPX bills). */
+    @Column(nullable = false)
+    private String provider = "STRIPE";
+
+    @Column(name = "stripe_checkout_session_id")
+    private String stripeCheckoutSessionId;
+
+    /** Set for auto-renewing plans (Stripe Billing subscription). */
+    @Column(name = "stripe_subscription_id")
+    private String stripeSubscriptionId;
+
     public static Builder builder() {
         return new Builder();
     }
@@ -106,6 +117,26 @@ public class Subscription {
 
     public void setAutoRenew(boolean autoRenew) {
         this.autoRenew = autoRenew;
+    }
+
+    public String getProvider() {
+        return provider;
+    }
+
+    public String getStripeCheckoutSessionId() {
+        return stripeCheckoutSessionId;
+    }
+
+    public void setStripeCheckoutSessionId(String stripeCheckoutSessionId) {
+        this.stripeCheckoutSessionId = stripeCheckoutSessionId;
+    }
+
+    public String getStripeSubscriptionId() {
+        return stripeSubscriptionId;
+    }
+
+    public void setStripeSubscriptionId(String stripeSubscriptionId) {
+        this.stripeSubscriptionId = stripeSubscriptionId;
     }
 
     public static final class Builder {

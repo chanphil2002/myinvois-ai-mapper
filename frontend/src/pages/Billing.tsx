@@ -1,8 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, Col, Input, Row, Space, Table, Tag, Typography, message } from 'antd';
-import { CheckCircleTwoTone } from '@ant-design/icons';
+import { Button, Card, Col, Input, Modal, Radio, Row, Space, Switch, Table, Tag, Typography, message } from 'antd';
+import { CheckCircleTwoTone, CreditCardOutlined, LockOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { applyReferralCode, getSubscription, subscribePlan } from '../api/endpoints';
+import {
+  applyReferralCode,
+  getSubscription,
+  listPayments,
+  openBillingPortal,
+  setAutoRenew,
+  startCheckout,
+} from '../api/endpoints';
+import type { PaymentRecord } from '../api/types';
+import { formatRM } from '../utils/money';
 import { useMe } from '../hooks/useMe';
 import StatusTag from '../components/StatusTag';
 import Page from '../components/Page';
@@ -169,67 +179,165 @@ function ReferralCard() {
   );
 }
 
-export default function Billing() {
-  const queryClient = useQueryClient();
-  const { data: current } = useQuery({ queryKey: ['subscription'], queryFn: getSubscription });
+const PRICE_BY_PLAN: Record<string, string> = Object.fromEntries(PLANS.map((p) => [p.id, p.price]));
 
-  // When Billplz redirects the user back here after payment, acknowledge it and refresh. The actual
-  // activation is driven by the server-to-server callback, so the status may briefly stay PENDING.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const paid = params.get('billplz[paid]');
-    if (paid !== null) {
-      if (paid === 'true') {
-        message.success('Payment received — your subscription will activate shortly.');
-      } else {
-        message.warning('Payment was not completed.');
-      }
-      queryClient.invalidateQueries({ queryKey: ['subscription'] });
-      window.history.replaceState({}, '', '/billing');
-    }
-  }, [queryClient]);
-
-  const subscribeMutation = useMutation({
-    mutationFn: subscribePlan,
-    onSuccess: (res) => {
-      // Hand off to Billplz's hosted payment page.
-      window.location.href = res.paymentUrl;
+/** Pick how to pay: auto-renewing (card / Apple Pay) or a one-off 30 days (also FPX). */
+function PayModal({ plan, onClose }: { plan: string | null; onClose: () => void }) {
+  const { palette: p } = useTheme();
+  const [autoRenew, setAutoRenew] = useState(true);
+  const checkout = useMutation({
+    mutationFn: () => startCheckout(plan!, autoRenew),
+    onSuccess: (r) => {
+      if (r.url) window.location.href = r.url; // Stripe-hosted checkout
     },
     onError: (err) => message.error(err instanceof Error ? err.message : 'Could not start checkout'),
   });
+  const option = (value: boolean, title: string, detail: string, methods: string) => {
+    const on = autoRenew === value;
+    return (
+      <div
+        role="radio"
+        aria-checked={on}
+        tabIndex={0}
+        onClick={() => setAutoRenew(value)}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setAutoRenew(value)}
+        style={{
+          border: `1.5px solid ${on ? p.primary : p.border}`,
+          background: on ? p.primarySoft : 'transparent',
+          borderRadius: 12,
+          padding: 14,
+          cursor: 'pointer',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Radio checked={on} style={{ pointerEvents: 'none' }} />
+          <Typography.Text strong>{title}</Typography.Text>
+        </div>
+        <div style={{ marginTop: 4, marginLeft: 24, color: p.textSecondary, fontSize: 13 }}>{detail}</div>
+        <div style={{ marginTop: 8, marginLeft: 24, fontSize: 12, color: p.textTertiary }}>{methods}</div>
+      </div>
+    );
+  };
+  return (
+    <Modal
+      open={plan !== null}
+      title={`${PLANS.find((x) => x.id === plan)?.name ?? ''} plan — ${plan ? PRICE_BY_PLAN[plan] : ''}/month`}
+      okText="Continue to payment"
+      confirmLoading={checkout.isPending}
+      onOk={() => checkout.mutate()}
+      onCancel={onClose}
+    >
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        {option(
+          true,
+          'Monthly, auto-renew',
+          'Charged automatically each month so you never lose access. Turn it off any time.',
+          'Visa / Mastercard · Apple Pay',
+        )}
+        {option(
+          false,
+          'Pay once for 30 days',
+          "No automatic charge — we'll remind you before it ends.",
+          'FPX online banking · Visa / Mastercard · Apple Pay',
+        )}
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          <LockOutlined /> Payments are processed securely by Stripe. MyTax never sees or stores your card or bank details.
+        </Typography.Text>
+      </Space>
+    </Modal>
+  );
+}
+
+export default function Billing() {
+  const queryClient = useQueryClient();
+  const { palette: p } = useTheme();
+  const [choosing, setChoosing] = useState<string | null>(null);
+  const { data: current, refetch } = useQuery({ queryKey: ['subscription'], queryFn: getSubscription });
+  const { data: payments } = useQuery({ queryKey: ['payments'], queryFn: listPayments });
+
+  // Back from Stripe Checkout. Activation comes from Stripe's webhook, so poll briefly until it lands.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get('checkout');
+    if (!result) return;
+    window.history.replaceState({}, '', '/billing');
+    if (result === 'cancelled') {
+      message.warning('Checkout cancelled — you were not charged.');
+      return;
+    }
+    message.success('Payment received — activating your plan…');
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      ['subscription', 'payments', 'usage', 'me'].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
+      if (tries >= 6) clearInterval(timer);
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [queryClient]);
+
+  const autoRenew = useMutation({
+    mutationFn: setAutoRenew,
+    onSuccess: (r, enabled) => {
+      if (r.url) {
+        window.location.href = r.url; // one-off plan: save a card for renewal at period end
+        return;
+      }
+      message.success(enabled ? 'Auto-renew is on' : "Auto-renew is off — your plan won't be charged again");
+      refetch();
+    },
+    onError: (err) => message.error(err instanceof Error ? err.message : 'Could not change auto-renew'),
+  });
+  const portal = useMutation({
+    mutationFn: openBillingPortal,
+    onSuccess: (r) => {
+      if (r.url) window.location.href = r.url;
+    },
+    onError: (err) => message.error(err instanceof Error ? err.message : 'Could not open billing settings'),
+  });
 
   const currentPlan = current?.status === 'ACTIVE' ? current.plan : null;
-  const pendingPlan = subscribeMutation.isPending ? (subscribeMutation.variables as string) : null;
-
-  const pastInvoices =
-    current?.status === 'ACTIVE'
-      ? [
-          {
-            key: '1',
-            invoice: 'INV-0001',
-            date: current.paidAt ? current.paidAt.slice(0, 10) : '',
-            plan: current.planName,
-            amount: `RM ${(current.amountCents / 100).toFixed(2)}`,
-            status: 'PAID',
-          },
-        ]
-      : [];
+  const ends = current?.periodEnd ? dayjs(current.periodEnd).format('D MMM YYYY') : null;
 
   return (
-    <Page title="Billing" subtitle="Your plan, AI parsing credits and payment history.">
-
-      <Card title="Current Plan">
-        {currentPlan ? (
-          <Space direction="vertical" size="small">
-            <Space>
-              <Typography.Text strong style={{ fontSize: 18 }}>
-                {current?.planName}
-              </Typography.Text>
-              <StatusTag status="ACTIVE" />
-            </Space>
-            <Typography.Text type="secondary">
-              RM {((current?.amountCents ?? 0) / 100).toFixed(2)}/month
-            </Typography.Text>
+    <Page title="Billing" subtitle="Your plan, AI allowance and payment history.">
+      <Card title="Current plan">
+        {currentPlan && current ? (
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <div>
+              <Space wrap>
+                <Typography.Text strong style={{ fontSize: 18 }}>
+                  {current.planName}
+                </Typography.Text>
+                <StatusTag status="ACTIVE" />
+              </Space>
+              <div style={{ color: p.textSecondary, marginTop: 4 }}>
+                {formatRM(current.amountCents / 100)}/month
+                {ends && (current.autoRenew ? ` · renews on ${ends}` : ` · ends on ${ends}`)}
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <Switch
+                checked={current.autoRenew}
+                loading={autoRenew.isPending}
+                onChange={(on) => autoRenew.mutate(on)}
+                aria-label="Auto-renew"
+              />
+              <div>
+                <div style={{ fontWeight: 500 }}>Auto-renew</div>
+                <div style={{ fontSize: 12, color: p.textSecondary }}>
+                  {current.autoRenew
+                    ? current.renewalScheduled
+                      ? `Your card will be charged on ${ends} to continue.`
+                      : 'Charged automatically each month (card / Apple Pay).'
+                    : "Off — we'll remind you before your plan ends."}
+                </div>
+              </div>
+            </div>
+            {current.canManageBilling && (
+              <Button icon={<CreditCardOutlined />} loading={portal.isPending} onClick={() => portal.mutate()}>
+                Manage payment method &amp; invoices
+              </Button>
+            )}
           </Space>
         ) : (
           <Space direction="vertical" size="small">
@@ -245,35 +353,48 @@ export default function Billing() {
       </Card>
 
       <Card title={currentPlan ? 'Change plan' : 'Plans'}>
-        <PlanCards currentPlan={currentPlan} onChoose={subscribeMutation.mutate} pendingPlan={pendingPlan} />
+        <PlanCards currentPlan={currentPlan} onChoose={setChoosing} pendingPlan={null} />
+      </Card>
+
+      <PayModal plan={choosing} onClose={() => setChoosing(null)} />
+
+      <Card title="Ways to pay">
+        <Space wrap size={[8, 8]}>
+          <Tag style={{ padding: '4px 10px', fontSize: 13 }}>FPX online banking</Tag>
+          <Tag style={{ padding: '4px 10px', fontSize: 13 }}>Visa / Mastercard</Tag>
+          <Tag style={{ padding: '4px 10px', fontSize: 13 }}>Apple Pay</Tag>
+          <Tag style={{ padding: '4px 10px', fontSize: 13 }}>Auto-renew (card / Apple Pay)</Tag>
+        </Space>
+        <Typography.Paragraph type="secondary" style={{ fontSize: 12, margin: '10px 0 0' }}>
+          <LockOutlined /> Processed securely by Stripe — MyTax never stores card or bank details. FPX is for one-off payments;
+          auto-renew needs a card or Apple Pay.
+        </Typography.Paragraph>
       </Card>
 
       <ReferralCard />
 
-      <Card title="Payment Method">
-        <Typography.Text type="secondary">
-          Payments are handled securely by Billplz (FPX online banking) at checkout — no card details are
-          stored here.
-        </Typography.Text>
-      </Card>
-
-      <Card title="Past Invoices">
+      <Card title="Payment history">
         <Table
-          rowKey="key"
-          dataSource={pastInvoices}
-          pagination={false}
+          rowKey="id"
+          dataSource={payments ?? []}
+          pagination={{ pageSize: 10, hideOnSinglePage: true }}
           scroll={{ x: 'max-content' }}
-          locale={{ emptyText: 'No past invoices yet' }}
+          locale={{ emptyText: 'No payments yet' }}
           columns={[
-            { title: 'Invoice', dataIndex: 'invoice', key: 'invoice' },
-            { title: 'Date', dataIndex: 'date', key: 'date' },
-            { title: 'Plan', dataIndex: 'plan', key: 'plan' },
-            { title: 'Amount', dataIndex: 'amount', key: 'amount' },
+            { title: 'Date', dataIndex: 'paidAt', render: (v: string) => dayjs(v).format('D MMM YYYY') },
+            { title: 'Description', dataIndex: 'description' },
+            { title: 'Amount', dataIndex: 'amountCents', render: (v: number) => formatRM(v / 100) },
             {
-              title: 'Status',
-              dataIndex: 'status',
-              key: 'status',
-              render: (s: string) => <StatusTag status={s} />,
+              title: 'Receipt',
+              key: 'receipt',
+              render: (_: unknown, r: PaymentRecord) =>
+                r.receiptUrl ? (
+                  <a href={r.receiptUrl} target="_blank" rel="noreferrer">
+                    View
+                  </a>
+                ) : (
+                  <Typography.Text type="secondary">{r.provider === 'BILLPLZ' ? 'FPX (Billplz)' : '—'}</Typography.Text>
+                ),
             },
           ]}
         />

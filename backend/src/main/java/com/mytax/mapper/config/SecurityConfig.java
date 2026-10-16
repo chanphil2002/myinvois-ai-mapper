@@ -79,8 +79,8 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        // Billplz server-to-server payment callback — authenticated by X-Signature, not JWT.
-                        .requestMatchers("/api/billing/callback").permitAll()
+                        // Stripe webhook — authenticated by the Stripe-Signature header, not JWT.
+                        .requestMatchers("/api/billing/stripe/webhook").permitAll()
                         // Admin console: only users with role ADMIN.
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())

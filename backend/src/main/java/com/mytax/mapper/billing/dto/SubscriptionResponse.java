@@ -10,6 +10,14 @@ public record SubscriptionResponse(
         String planName,
         SubscriptionStatus status,
         int amountCents,
-        Instant paidAt
+        Instant paidAt,
+        /** Access lasts until this moment. */
+        Instant periodEnd,
+        /** Stripe will charge again at periodEnd. */
+        boolean autoRenew,
+        /** Has a Stripe customer (card / billing details can be managed in the Stripe portal). */
+        boolean canManageBilling,
+        /** An auto-renewal set up to start when the current one-off period ends. */
+        boolean renewalScheduled
 ) {
 }

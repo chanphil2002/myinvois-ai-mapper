@@ -12,7 +12,8 @@ import type {
   RevealedCredentialResponse,
   SalesTransactionResponse,
   SubmissionResponse,
-  SubscribeResponse,
+  RedirectResponse,
+  PaymentRecord,
   SubscriptionResponse,
   UsageResponse,
   NotificationList,
@@ -250,8 +251,21 @@ export async function getSubscription(): Promise<SubscriptionResponse | null> {
   return res.data.data;
 }
 
-export function subscribePlan(plan: string): Promise<SubscribeResponse> {
-  return unwrap(apiClient.post<ApiResponse<SubscribeResponse>>('/api/billing/subscribe', { plan }));
+/** Stripe Checkout for a plan. autoRenew = monthly card / Apple Pay subscription; otherwise pay once (FPX too). */
+export function startCheckout(plan: string, autoRenew: boolean): Promise<RedirectResponse> {
+  return unwrap(apiClient.post<ApiResponse<RedirectResponse>>('/api/billing/checkout', { plan, autoRenew }));
+}
+
+export function setAutoRenew(enabled: boolean): Promise<RedirectResponse> {
+  return unwrap(apiClient.post<ApiResponse<RedirectResponse>>('/api/billing/auto-renew', { enabled }));
+}
+
+export function openBillingPortal(): Promise<RedirectResponse> {
+  return unwrap(apiClient.post<ApiResponse<RedirectResponse>>('/api/billing/portal'));
+}
+
+export function listPayments(): Promise<PaymentRecord[]> {
+  return unwrap(apiClient.get<ApiResponse<PaymentRecord[]>>('/api/billing/payments'));
 }
 
 export async function getDocumentFile(id: number): Promise<Blob> {

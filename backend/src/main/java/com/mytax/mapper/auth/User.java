@@ -33,6 +33,10 @@ public class User {
     @Column(name = "referral_code_id")
     private Long referralCodeId;
 
+    /** Stripe Customer for this account (created on first checkout). */
+    @Column(name = "stripe_customer_id")
+    private String stripeCustomerId;
+
     /** Which MyInvois environment submissions go to (credentials are stored per environment). */
     @Enumerated(EnumType.STRING)
     @Column(name = "myinvois_environment", nullable = false)
@@ -127,6 +131,14 @@ public class User {
 
     public boolean isAdmin() {
         return "ADMIN".equals(role);
+    }
+
+    public String getStripeCustomerId() {
+        return stripeCustomerId;
+    }
+
+    public void setStripeCustomerId(String stripeCustomerId) {
+        this.stripeCustomerId = stripeCustomerId;
     }
 
     public static final class Builder {

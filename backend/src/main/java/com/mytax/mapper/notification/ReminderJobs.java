@@ -43,16 +43,19 @@ public class ReminderJobs {
     private final SubscriptionRepository subscriptionRepository;
     private final ConsolidatedInvoiceRepository consolidatedInvoiceRepository;
     private final NotificationService notificationService;
+    private final com.mytax.mapper.billing.BillingService billingService;
 
     public ReminderJobs(SubmissionRepository submissionRepository, SubmissionService submissionService,
                         SubscriptionRepository subscriptionRepository,
                         ConsolidatedInvoiceRepository consolidatedInvoiceRepository,
-                        NotificationService notificationService) {
+                        NotificationService notificationService,
+                        com.mytax.mapper.billing.BillingService billingService) {
         this.submissionRepository = submissionRepository;
         this.submissionService = submissionService;
         this.subscriptionRepository = subscriptionRepository;
         this.consolidatedInvoiceRepository = consolidatedInvoiceRepository;
         this.notificationService = notificationService;
+        this.billingService = billingService;
     }
 
     /** Every 2 minutes: ask LHDN about submissions from the last 3 days that have no verdict yet. */
@@ -77,6 +80,7 @@ public class ReminderJobs {
     /** Reminder jobs: shortly after start-up, then every 6 hours (dedupe keys prevent repeats). */
     @Scheduled(initialDelay = 120_000, fixedDelay = 6 * 3_600_000)
     public void runReminders() {
+        billingService.expireLapsed();
         remindExpiringSubscriptions();
         remindConsolidatedDeadlines();
     }

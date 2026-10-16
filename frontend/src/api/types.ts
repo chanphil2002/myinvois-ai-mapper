@@ -53,7 +53,7 @@ export interface RevealedCredentialResponse {
   environment: MyInvoisEnvironment;
 }
 
-export type BillingSubscriptionStatus = 'PENDING' | 'ACTIVE' | 'CANCELLED';
+export type BillingSubscriptionStatus = 'PENDING' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED';
 
 export interface SubscriptionResponse {
   plan: string;
@@ -61,11 +61,26 @@ export interface SubscriptionResponse {
   status: BillingSubscriptionStatus;
   amountCents: number;
   paidAt: string | null;
+  /** Access lasts until this moment. */
+  periodEnd: string | null;
+  /** Stripe will charge again at periodEnd (or a renewal is scheduled to start then). */
+  autoRenew: boolean;
+  /** A Stripe customer exists — cards/invoices can be managed in the Stripe portal. */
+  canManageBilling: boolean;
+  renewalScheduled: boolean;
 }
 
-export interface SubscribeResponse {
-  paymentUrl: string;
-  billId: string;
+export interface RedirectResponse {
+  url: string | null;
+}
+
+export interface PaymentRecord {
+  id: number;
+  description: string | null;
+  amountCents: number;
+  provider: string;
+  receiptUrl: string | null;
+  paidAt: string;
 }
 
 export interface UsageResponse {
