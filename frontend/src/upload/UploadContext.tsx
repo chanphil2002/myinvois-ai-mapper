@@ -61,7 +61,7 @@ export function UploadProvider({ children }: { children: ReactNode }) {
         .then((res) => {
           setJobs((j) => j.map((x) => (x.id === id ? { ...x, status: 'done', link: res?.link, summary: res?.summary, result: res?.result } : x)));
           // Refresh anything that may now have new data.
-          ['documents', 'mapped-invoices', 'consolidated-invoices', 'eligible-transactions', 'usage'].forEach((k) =>
+          ['documents', 'mapped-invoices', 'consolidated-invoices', 'eligible-transactions', 'usage', 'document-stats'].forEach((k) =>
             queryClient.invalidateQueries({ queryKey: [k] }),
           );
         })

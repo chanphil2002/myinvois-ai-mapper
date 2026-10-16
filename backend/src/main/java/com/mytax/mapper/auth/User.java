@@ -37,6 +37,11 @@ public class User {
     @Column(name = "stripe_customer_id")
     private String stripeCustomerId;
 
+    /** Profile photo as a data URL (cropped square, small JPEG/PNG/WebP), or null. */
+    @Lob
+    @Column(columnDefinition = "MEDIUMTEXT")
+    private String avatar;
+
     /** Which MyInvois environment submissions go to (credentials are stored per environment). */
     @Enumerated(EnumType.STRING)
     @Column(name = "myinvois_environment", nullable = false)
@@ -139,6 +144,14 @@ public class User {
 
     public void setStripeCustomerId(String stripeCustomerId) {
         this.stripeCustomerId = stripeCustomerId;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
     }
 
     public static final class Builder {

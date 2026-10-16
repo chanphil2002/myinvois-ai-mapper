@@ -14,9 +14,12 @@ import java.time.Instant;
 public class ExtractionJobSupport {
 
     private final ExtractionJobRepository extractionJobRepository;
+    private final com.mytax.mapper.document.DocumentRepository documentRepository;
 
-    public ExtractionJobSupport(ExtractionJobRepository extractionJobRepository) {
+    public ExtractionJobSupport(ExtractionJobRepository extractionJobRepository,
+                                com.mytax.mapper.document.DocumentRepository documentRepository) {
         this.extractionJobRepository = extractionJobRepository;
+        this.documentRepository = documentRepository;
     }
 
     public ExtractionJob start(Long documentId) {
@@ -41,6 +44,30 @@ public class ExtractionJobSupport {
         job.setErrorMessage(errorMessage);
         job.setCompletedAt(Instant.now());
         extractionJobRepository.save(job);
+    }
+
+    /**
+     * Records a failed parse <i>after</i> the extraction transaction has rolled back. The in-transaction
+     * {@link #fail} call is undone by that same rollback, which left failed documents stuck as
+     * UPLOADED with no job row; callers (the controllers) invoke this once the service has thrown.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public void recordFailure(Long documentId, String errorMessage) {
+        extractionJobRepository.save(ExtractionJob.builder()
+                .documentId(documentId)
+                .status(ExtractionJobStatus.FAILED)
+                .startedAt(Instant.now())
+                .build());
+        extractionJobRepository.findTopByDocumentIdOrderByIdDesc(documentId).ifPresent(job -> {
+            job.setErrorMessage(errorMessage == null ? null
+                    : errorMessage.length() > 2000 ? errorMessage.substring(0, 2000) : errorMessage);
+            job.setCompletedAt(Instant.now());
+            extractionJobRepository.save(job);
+        });
+        documentRepository.findById(documentId).ifPresent(doc -> {
+            doc.setStatus(com.mytax.mapper.document.DocumentStatus.FAILED);
+            documentRepository.save(doc);
+        });
     }
 
     /**

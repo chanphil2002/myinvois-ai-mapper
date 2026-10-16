@@ -232,7 +232,12 @@ export interface ConsolidatedInvoiceResponse {
   invoiceName: string | null;
 }
 
-export type NotificationType = 'SUBMISSION_ACCEPTED' | 'SUBMISSION_REJECTED' | 'SUBSCRIPTION_EXPIRING' | 'CONSOLIDATED_DUE';
+export type NotificationType =
+  | 'SUBMISSION_ACCEPTED'
+  | 'SUBMISSION_REJECTED'
+  | 'SUBSCRIPTION_EXPIRING'
+  | 'CONSOLIDATED_DUE'
+  | 'AI_BILLING';
 
 export interface NotificationItem {
   id: number;
@@ -255,6 +260,18 @@ export interface Me {
   companyName: string;
   role: 'OWNER' | 'ADMIN';
   referralCode: string | null;
+  /** Profile photo as a data URL, or null. */
+  avatar: string | null;
+}
+
+export interface DocumentStats {
+  aiParsed: number;
+  aiFailed: number;
+  byType: { type: 'pdf' | 'png' | 'jpeg' | 'csv' | 'xlsx' | 'other'; parsed: number; failed: number }[];
+  aiInvoices: number;
+  aiSales: number;
+  manualInvoices: number;
+  manualSales: number;
 }
 
 // --- Admin console ---

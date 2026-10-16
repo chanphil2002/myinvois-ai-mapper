@@ -107,14 +107,17 @@ public class GeminiMappingService implements MappingEngine {
 
     private final GeminiProperties properties;
     private final com.mytax.mapper.usage.UsageService usageService;
+    private final com.mytax.mapper.notification.NotificationService notificationService;
     private final XlsxParser xlsxParser;
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
 
     public GeminiMappingService(GeminiProperties properties, XlsxParser xlsxParser, ObjectMapper objectMapper,
-                                com.mytax.mapper.usage.UsageService usageService) {
+                                com.mytax.mapper.usage.UsageService usageService,
+                                com.mytax.mapper.notification.NotificationService notificationService) {
         this.properties = properties;
         this.usageService = usageService;
+        this.notificationService = notificationService;
         this.xlsxParser = xlsxParser;
         this.objectMapper = objectMapper;
         this.restClient = RestClient.create();
@@ -207,12 +210,17 @@ public class GeminiMappingService implements MappingEngine {
 
         Exception lastFailure = null;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-            JsonNode response = restClient.post()
-                    .uri(uri)
-                    .headers(h -> h.set("x-goog-api-key", properties.getApiKey()))
-                    .body(requestBody)
-                    .retrieve()
-                    .body(JsonNode.class);
+            JsonNode response;
+            try {
+                response = restClient.post()
+                        .uri(uri)
+                        .headers(h -> h.set("x-goog-api-key", properties.getApiKey()))
+                        .body(requestBody)
+                        .retrieve()
+                        .body(JsonNode.class);
+            } catch (org.springframework.web.client.HttpClientErrorException e) {
+                throw billingOrQuotaError(e);
+            }
 
             boolean ok = false;
             try {
@@ -240,6 +248,31 @@ public class GeminiMappingService implements MappingEngine {
         throw new IllegalStateException(
                 "Gemini produced malformed structured output " + MAX_ATTEMPTS + " times in a row: "
                         + (lastFailure == null ? "unknown error" : lastFailure.getMessage()), lastFailure);
+    }
+
+    /**
+     * Gemini refuses requests when the shared prepaid balance is empty (HTTP 402) or a rate / spend
+     * limit is hit (HTTP 429). Users get a plain message instead of a raw API error, and admins are
+     * alerted once a day for 402 so they can top up (or check auto-reload) in AI Studio.
+     */
+    private RuntimeException billingOrQuotaError(org.springframework.web.client.HttpClientErrorException e) {
+        int status = e.getStatusCode().value();
+        if (status == 402) {
+            log.error("Gemini returned 402 Payment Required — prepaid credit balance is empty");
+            try {
+                notificationService.notifyAdmins(com.mytax.mapper.notification.NotificationType.AI_BILLING,
+                        "AI parsing is down: Gemini credit balance is empty",
+                        "Gemini returned 402 Payment Required, so every upload is failing. Top up credits or check auto-reload in Google AI Studio → Billing.",
+                        "/admin", "gemini-402-" + java.time.LocalDate.now());
+            } catch (Exception notifyFailure) {
+                log.warn("Could not alert admins: {}", notifyFailure.getMessage());
+            }
+            return new IllegalStateException("AI reading is temporarily unavailable. We've alerted the MyTax team — please try again later.");
+        }
+        if (status == 429) {
+            return new IllegalStateException("The AI service is busy right now. Please try again in a minute.");
+        }
+        return e;
     }
 
     private void recordUsage(Document document, String operation, JsonNode response, boolean success) {

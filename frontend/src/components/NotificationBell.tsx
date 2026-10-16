@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Badge, Button, Drawer, Empty, Popover, Tooltip, Typography } from 'antd';
 import {
   BellOutlined,
@@ -6,13 +6,14 @@ import {
   ClockCircleFilled,
   CloseCircleFilled,
   CreditCardFilled,
+  WarningFilled,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from '../api/endpoints';
-import type { NotificationItem, NotificationType } from '../api/types';
+import type { NotificationItem, NotificationList, NotificationType } from '../api/types';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -25,6 +26,9 @@ export default function NotificationBell() {
   const queryClient = useQueryClient();
   const { palette: p } = useTheme();
   const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+  // Close whenever the page changes (e.g. after opening an alert, or navigating elsewhere).
+  useEffect(() => setOpen(false), [pathname]);
 
   // Poll for new alerts (LHDN verdicts arrive from a background job); faster while the panel is open.
   const { data } = useQuery({
@@ -36,14 +40,33 @@ export default function NotificationBell() {
   const items = data?.items ?? [];
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['notifications'] });
-  const readOne = useMutation({ mutationFn: markNotificationRead, onSuccess: refresh });
-  const readAll = useMutation({ mutationFn: markAllNotificationsRead, onSuccess: refresh });
+  // Optimistic: the highlight clears the instant an alert is opened, not after the round-trip.
+  const markLocal = (match: (n: NotificationItem) => boolean) =>
+    queryClient.setQueryData<NotificationList>(['notifications'], (old) =>
+      old
+        ? {
+            unreadCount: old.items.filter((n) => !n.read && !match(n)).length,
+            items: old.items.map((n) => (match(n) ? { ...n, read: true } : n)),
+          }
+        : old,
+    );
+  const readOne = useMutation({
+    mutationFn: markNotificationRead,
+    onMutate: (id: number) => markLocal((n) => n.id === id),
+    onSettled: refresh,
+  });
+  const readAll = useMutation({
+    mutationFn: markAllNotificationsRead,
+    onMutate: () => markLocal(() => true),
+    onSettled: refresh,
+  });
 
   const icon: Record<NotificationType, JSX.Element> = {
     SUBMISSION_ACCEPTED: <CheckCircleFilled style={{ color: p.success }} />,
     SUBMISSION_REJECTED: <CloseCircleFilled style={{ color: p.error }} />,
     SUBSCRIPTION_EXPIRING: <CreditCardFilled style={{ color: p.warning }} />,
     CONSOLIDATED_DUE: <ClockCircleFilled style={{ color: p.warning }} />,
+    AI_BILLING: <WarningFilled style={{ color: p.error }} />,
   };
 
   const openItem = (n: NotificationItem) => {

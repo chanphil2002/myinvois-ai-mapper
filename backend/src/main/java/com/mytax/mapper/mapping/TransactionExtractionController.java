@@ -12,14 +12,24 @@ import java.util.List;
 public class TransactionExtractionController {
 
     private final TransactionExtractionService transactionExtractionService;
+    private final ExtractionJobSupport extractionJobSupport;
 
-    public TransactionExtractionController(TransactionExtractionService transactionExtractionService) {
+    public TransactionExtractionController(TransactionExtractionService transactionExtractionService, ExtractionJobSupport extractionJobSupport) {
         this.transactionExtractionService = transactionExtractionService;
+        this.extractionJobSupport = extractionJobSupport;
     }
 
     @PostMapping
     public ApiResponse<List<SalesTransactionResponse>> extract(@PathVariable Long documentId) {
-        return ApiResponse.ok(transactionExtractionService.extractTransactions(documentId, CurrentUser.id()));
+        try {
+            return ApiResponse.ok(transactionExtractionService.extractTransactions(documentId, CurrentUser.id()));
+        } catch (IllegalStateException e) {
+            // An AI parse failure (the service wraps those in IllegalStateException, and ownership /
+            // quota errors are other types, so another user's document is never touched). The
+            // service's transaction has rolled back by now; persist the failure separately.
+            extractionJobSupport.recordFailure(documentId, e.getMessage());
+            throw e;
+        }
     }
 
     @GetMapping

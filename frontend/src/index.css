@@ -46,6 +46,61 @@ a,
   }
 }
 
+/* ---- Gradients (values come from the palette via CSS variables; see ThemeContext) ---- */
+
+body {
+  background: var(--grad-page) fixed;
+  background-color: #f7f7f5;
+}
+
+/* Desktop sidebar */
+.ant-layout-sider,
+.ant-layout-sider .ant-menu-dark {
+  background: var(--grad-sider) !important;
+}
+.ant-layout-sider .ant-menu-dark {
+  background: transparent !important;
+}
+.ant-menu-dark .ant-menu-item-selected {
+  background: var(--grad-primary) !important;
+  box-shadow: 0 4px 14px rgba(4, 120, 87, 0.35);
+}
+
+/* Primary actions */
+.ant-btn-primary:not(:disabled):not(.ant-btn-dangerous) {
+  background: var(--grad-primary);
+  border-color: transparent;
+}
+.ant-btn-primary:not(:disabled):not(.ant-btn-dangerous):hover {
+  background: var(--grad-primary-hover);
+  border-color: transparent;
+}
+
+/* Cards: barely-there top light for depth */
+.ant-card:not(.ant-card-type-inner) {
+  background-image: var(--grad-card);
+}
+
+/* Progress bars, stat bars, accent figures */
+.gradient-progress .ant-progress-bg,
+.gradient-bar {
+  background: var(--grad-accent) !important;
+}
+.gradient-text {
+  background: var(--grad-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Dashboard stat tiles lift slightly on hover */
+.stat-tile {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.stat-tile:hover {
+  transform: translateY(-1px);
+}
+
 /* Buttons in the phone sticky action bar share the width equally. */
 .page-sticky-actions > * {
   flex: 1 1 0;

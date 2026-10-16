@@ -44,6 +44,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     // Keep the page/overscroll background in step with the theme.
     document.body.style.background = p.bg;
+    // Gradients are applied by index.css through these variables (one source: the palette).
+    const root = document.documentElement.style;
+    root.setProperty('--grad-page', p.gradPage);
+    root.setProperty('--grad-sider', p.gradSider);
+    root.setProperty('--grad-primary', p.gradPrimary);
+    root.setProperty('--grad-primary-hover', p.gradPrimaryHover);
+    root.setProperty('--grad-accent', p.gradAccent);
+    root.setProperty('--grad-card', p.gradCard);
+    root.setProperty('--on-primary', p.onPrimary);
     document.documentElement.style.colorScheme = mode;
     // Browser/PWA status bar colour follows the in-app theme, not just the OS setting.
     document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', p.header));
@@ -92,7 +101,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             Layout: {
               siderBg: p.sider,
               headerBg: p.header,
-              bodyBg: p.bg,
+              // Transparent so the gradient page canvas (index.css) shows through.
+              bodyBg: 'transparent',
             },
             Menu: {
               darkItemBg: p.sider,

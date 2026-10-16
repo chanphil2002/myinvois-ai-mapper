@@ -8,5 +8,7 @@ public enum NotificationType {
     /** A paid plan is about to end and won't auto-renew. */
     SUBSCRIPTION_EXPIRING,
     /** A monthly consolidated e-invoice deadline is close (or passed). */
-    CONSOLIDATED_DUE
+    CONSOLIDATED_DUE,
+    /** Admins: the Gemini API refused requests (out of prepaid credit / quota). */
+    AI_BILLING
 }

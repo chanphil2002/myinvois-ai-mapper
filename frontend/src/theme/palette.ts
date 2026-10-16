@@ -41,6 +41,19 @@ export interface Palette {
   siderHover: string;
   tabInactive: string;
   shadow: string;
+
+  // Gradients (CSS background values). Subtle by design: they add depth without changing contrast.
+  /** Page canvas: soft emerald + warm glows over the base colour. */
+  gradPage: string;
+  /** Sidebar: graphite deepening downwards with a faint emerald glow. */
+  gradSider: string;
+  /** Primary actions and the selected nav item. */
+  gradPrimary: string;
+  gradPrimaryHover: string;
+  /** Accent for figures and bars (progress, statistics). */
+  gradAccent: string;
+  /** Card surface: barely-there top light. */
+  gradCard: string;
 }
 
 export const PALETTES: Record<'light' | 'dark', Palette> = {
@@ -77,6 +90,14 @@ export const PALETTES: Record<'light' | 'dark', Palette> = {
     siderHover: 'rgba(255,255,255,0.07)',
     tabInactive: '#78716c',
     shadow: '0 1px 2px rgba(28,28,26,0.05), 0 1px 3px rgba(28,28,26,0.04)',
+
+    gradPage:
+      'radial-gradient(1100px 520px at 0% -10%, rgba(16,185,129,0.10), transparent 60%), radial-gradient(900px 480px at 100% 0%, rgba(245,158,11,0.06), transparent 55%), linear-gradient(180deg, #f9f9f7 0%, #f3f3ef 100%)',
+    gradSider: 'linear-gradient(180deg, #1f1f1c 0%, #171715 55%, #0f2a22 100%)',
+    gradPrimary: 'linear-gradient(135deg, #059669 0%, #047857 55%, #065f46 100%)',
+    gradPrimaryHover: 'linear-gradient(135deg, #10b981 0%, #059669 55%, #047857 100%)',
+    gradAccent: 'linear-gradient(90deg, #047857 0%, #10b981 100%)',
+    gradCard: 'linear-gradient(180deg, #ffffff 0%, #fdfdfb 100%)',
   },
   dark: {
     bg: '#121211',
@@ -111,6 +132,14 @@ export const PALETTES: Record<'light' | 'dark', Palette> = {
     siderHover: 'rgba(255,255,255,0.06)',
     tabInactive: '#8f8f89',
     shadow: 'none', // shadows don't read on dark — elevation comes from lighter surfaces
+
+    gradPage:
+      'radial-gradient(1100px 520px at 0% -10%, rgba(16,185,129,0.09), transparent 60%), radial-gradient(900px 480px at 100% 0%, rgba(96,165,250,0.05), transparent 55%), linear-gradient(180deg, #141413 0%, #10100f 100%)',
+    gradSider: 'linear-gradient(180deg, #121211 0%, #0e0e0d 55%, #0b2019 100%)',
+    gradPrimary: 'linear-gradient(135deg, #34d399 0%, #10b981 55%, #059669 100%)',
+    gradPrimaryHover: 'linear-gradient(135deg, #6ee7b7 0%, #34d399 55%, #10b981 100%)',
+    gradAccent: 'linear-gradient(90deg, #10b981 0%, #6ee7b7 100%)',
+    gradCard: 'linear-gradient(180deg, #1e1e1c 0%, #1b1b19 100%)',
   },
 };
 

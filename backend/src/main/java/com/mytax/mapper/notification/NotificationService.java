@@ -53,6 +53,11 @@ public class NotificationService {
         log.info("Notification {} ({}) for user {}: {}", id, type, userId, title);
     }
 
+    /** Same alert to every admin (e.g. the shared Gemini balance ran out). */
+    public void notifyAdmins(NotificationType type, String title, String body, String link, String dedupeKey) {
+        userRepository.findByRole("ADMIN").forEach(admin -> notify(admin.getId(), type, title, body, link, dedupeKey));
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markEmailed(Long id) {
         repository.findById(id).ifPresent(n -> {

@@ -18,6 +18,7 @@ import type {
   UsageResponse,
   NotificationList,
   Me,
+  DocumentStats,
   AdminOverview,
   AdminUserRow,
   SalespersonRow,
@@ -330,3 +331,16 @@ export const adminApi = {
     unwrap(apiClient.get<ApiResponse<CommissionRow[]>>('/api/admin/commissions', { params: { status } })),
   markCommissionPaid: (id: number) => unwrap(apiClient.post<ApiResponse<void>>(`/api/admin/commissions/${id}/pay`)),
 };
+
+export function getDocumentStats(): Promise<DocumentStats> {
+  return unwrap(apiClient.get<ApiResponse<DocumentStats>>('/api/stats/documents'));
+}
+
+/** Save a cropped square profile photo (data URL). */
+export function setAvatar(image: string): Promise<{ avatar: string }> {
+  return unwrap(apiClient.put<ApiResponse<{ avatar: string }>>('/api/account/avatar', { image }));
+}
+
+export function removeAvatar(): Promise<void> {
+  return unwrap(apiClient.delete<ApiResponse<void>>('/api/account/avatar'));
+}

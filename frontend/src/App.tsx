@@ -4,6 +4,7 @@ import { Button, Layout, Menu, Spin, Tooltip } from 'antd';
 import { ArrowLeftOutlined, BulbOutlined, MoonOutlined } from '@ant-design/icons';
 import BrandLogo from './components/BrandLogo';
 import NotificationBell from './components/NotificationBell';
+import UserAvatar from './components/UserAvatar';
 import BottomTabBar from './components/BottomTabBar';
 import { useIsMobile } from './hooks/useIsMobile';
 import { useMe } from './hooks/useMe';
@@ -123,6 +124,9 @@ function AppLayout() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <NotificationBell />
             {themeToggle}
+            <Link to="/settings" aria-label="Account settings" style={{ display: 'inline-flex', padding: 6 }}>
+              <UserAvatar size={30} />
+            </Link>
           </div>
         </div>
         <Content style={{ margin: 16, paddingBottom: 'calc(112px + env(safe-area-inset-bottom))' }}>
@@ -158,7 +162,10 @@ function AppLayout() {
         <Header style={{ background: surface.header, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, padding: '0 20px', borderBottom: `1px solid ${surface.border}`, boxShadow: surface.shadow }}>
           <NotificationBell />
           {themeToggle}
-          <span>{email}</span>
+          <Link to="/settings" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, color: 'inherit' }}>
+            <UserAvatar size={32} />
+            <span>{email}</span>
+          </Link>
           <a onClick={logout} style={{ fontWeight: 500 }}>Log out</a>
         </Header>
         <Content style={{ margin: 24, paddingBottom: 48 }}>

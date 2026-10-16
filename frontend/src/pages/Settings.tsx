@@ -22,10 +22,14 @@ import {
   saveBusinessProfile,
   saveCredentials,
   setActiveEnvironment,
+  setAvatar,
+  removeAvatar,
 } from '../api/endpoints';
 import type { BusinessProfile, CredentialResponse, MyInvoisEnvironment, RevealedCredentialResponse } from '../api/types';
 import { useTheme } from '../theme/ThemeContext';
 import Page from '../components/Page';
+import UserAvatar from '../components/UserAvatar';
+import AvatarCropper from '../components/AvatarCropper';
 import { MALAYSIA_STATE_CODES } from '../constants/malaysiaStates';
 
 const SECRET_MASK = '••••••••••••';
@@ -453,7 +457,27 @@ function BusinessProfileCard() {
 /** Signed-in account: help, appearance and sign-out (on phones this is the only place to log out). */
 function AccountCard() {
   const { email, logout } = useAuth();
-  const { isAdmin } = useMe();
+  const { me, isAdmin } = useMe();
+  const queryClient = useQueryClient();
+  const [cropping, setCropping] = useState(false);
+  const refreshMe = () => queryClient.invalidateQueries({ queryKey: ['me'] });
+  const savePhoto = useMutation({
+    mutationFn: setAvatar,
+    onSuccess: () => {
+      message.success('Profile photo updated');
+      setCropping(false);
+      refreshMe();
+    },
+    onError: (err) => message.error(err instanceof Error ? err.message : 'Could not save the photo'),
+  });
+  const removePhoto = useMutation({
+    mutationFn: removeAvatar,
+    onSuccess: () => {
+      message.success('Profile photo removed');
+      refreshMe();
+    },
+    onError: (err) => message.error(err instanceof Error ? err.message : 'Could not remove the photo'),
+  });
   const { isDark, toggle, palette } = useTheme();
   const navigate = useNavigate();
   const row = (icon: ReactNode, label: ReactNode, extra: ReactNode, onClick?: () => void, danger = false) => (
@@ -482,12 +506,31 @@ function AccountCard() {
   );
   return (
     <Card title="Account">
-      <div style={{ paddingBottom: 12 }}>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          Signed in as
-        </Typography.Text>
-        <div style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{email}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingBottom: 16, flexWrap: 'wrap' }}>
+        <UserAvatar size={64} />
+        <div style={{ flex: 1, minWidth: 160 }}>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            Signed in as
+          </Typography.Text>
+          <div style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{email}</div>
+          <Space size={4} style={{ marginTop: 4, marginLeft: -8 }}>
+            <Button type="link" size="small" onClick={() => setCropping(true)}>
+              {me?.avatar ? 'Change photo' : 'Add profile photo'}
+            </Button>
+            {me?.avatar && (
+              <Button type="link" size="small" danger loading={removePhoto.isPending} onClick={() => removePhoto.mutate()}>
+                Remove
+              </Button>
+            )}
+          </Space>
+        </div>
       </div>
+      <AvatarCropper
+        open={cropping}
+        saving={savePhoto.isPending}
+        onCancel={() => setCropping(false)}
+        onConfirm={(image) => savePhoto.mutate(image)}
+      />
       {/* The whole row toggles, not just the small switch. */}
       {row(
         <BulbOutlined />,
