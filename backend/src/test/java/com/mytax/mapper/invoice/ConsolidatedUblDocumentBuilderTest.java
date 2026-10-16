@@ -58,7 +58,7 @@ class ConsolidatedUblDocumentBuilderTest {
                 .build();
         t2.setId(2L);
 
-        BuiltDocument built = builder.build(supplier, invoice, List.of(t1, t2));
+        BuiltDocument built = builder.build(supplier, invoice, List.of(t1, t2), null); // null = default "CON-{id}"
 
         assertThat(built.codeNumber()).isEqualTo("CON-42");
 
