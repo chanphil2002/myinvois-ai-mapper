@@ -101,6 +101,15 @@ body {
   transform: translateY(-1px);
 }
 
+/* Fixed-height invoice table (dashboard): the body keeps one height whatever the row count, so the
+   card never grows or shrinks and the page numbers stay put. Rows beyond it scroll inside. */
+.fixed-table .ant-table-body {
+  height: var(--table-body-h);
+}
+.fixed-table .ant-table-placeholder .ant-table-cell {
+  border-bottom: none;
+}
+
 /* Buttons in the phone sticky action bar share the width equally. */
 .page-sticky-actions > * {
   flex: 1 1 0;

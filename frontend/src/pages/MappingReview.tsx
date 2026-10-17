@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Alert, Button, Card, Col, DatePicker, Input, InputNumber, Row, Select, Space, Typography, message } from 'antd';
+import { Alert, Button, Card, Col, DatePicker, Input, InputNumber, Row, Select, Space, Tooltip, Typography, message } from 'antd';
 import StatusTag from '../components/StatusTag';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
@@ -19,6 +19,8 @@ import type { LineItem, MappedInvoiceResponse } from '../api/types';
 import { MALAYSIA_STATE_CODES, matchStateCode } from '../constants/malaysiaStates';
 import { defaultInvoiceName, invoiceDisplayName } from '../utils/invoice';
 import Page from '../components/Page';
+import { invoiceTotals, missingForReview } from '../utils/invoiceReadiness';
+import { formatRM } from '../utils/money';
 import SubmissionHistoryCard from '../components/SubmissionHistoryCard';
 
 export default function MappingReview() {
@@ -65,8 +67,12 @@ export default function MappingReview() {
     onError: (err) => message.error(err instanceof Error ? err.message : 'Save failed'),
   });
 
+  // Saves the current edits first, so the server checks exactly what's on screen.
   const confirmMutation = useMutation({
-    mutationFn: () => confirmMappedInvoice(mappedInvoiceId),
+    mutationFn: async () => {
+      await updateMappedInvoice(mappedInvoiceId, draft!);
+      return confirmMappedInvoice(mappedInvoiceId);
+    },
     onSuccess: () => {
       message.success('Invoice confirmed — ready to submit');
       invalidate();
@@ -88,6 +94,8 @@ export default function MappingReview() {
   }
 
   const editable = draft.status === 'DRAFT';
+  const missing = editable ? missingForReview(draft, profile) : [];
+  const totals = invoiceTotals(draft);
 
   const updateField = <K extends keyof MappedInvoiceResponse>(field: K, value: MappedInvoiceResponse[K]) => {
     setDraft({ ...draft, [field]: value });
@@ -118,9 +126,16 @@ export default function MappingReview() {
             </Button>
           )}
           {editable && (
-            <Button type="primary" onClick={() => confirmMutation.mutate()} loading={confirmMutation.isPending}>
-              Confirm
-            </Button>
+            <Tooltip title={missing.length ? `${missing.length} LHDN-required field${missing.length === 1 ? '' : 's'} missing — see the checklist` : undefined}>
+              <Button
+                type="primary"
+                disabled={missing.length > 0}
+                onClick={() => confirmMutation.mutate()}
+                loading={confirmMutation.isPending}
+              >
+                Confirm
+              </Button>
+            </Tooltip>
           )}
           {draft.status === 'CONFIRMED' && (
             <Button type="primary" onClick={() => submitMutation.mutate()} loading={submitMutation.isPending}>
@@ -342,7 +357,37 @@ export default function MappingReview() {
 
       <Card title="Line items">
         <MappingReviewTable lineItems={draft.lineItems} onChange={updateLineItems} disabled={!editable} />
+        {/* Totals follow the line items (the server recalculates them on save). */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, marginTop: 16 }}>
+          {[
+            ['Subtotal', totals.subtotal],
+            ['Tax', totals.tax],
+            ['Grand total', totals.grand],
+          ].map(([label, value], i) => (
+            <div key={label as string} style={{ textAlign: 'right' }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {label}
+              </Typography.Text>
+              <div style={{ fontWeight: i === 2 ? 700 : 500, fontSize: i === 2 ? 16 : 14 }}>{formatRM(value as number)}</div>
+            </div>
+          ))}
+        </div>
       </Card>
+
+      {editable && missing.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          message={`Before this can go to review, complete ${missing.length} LHDN-required field${missing.length === 1 ? '' : 's'}`}
+          description={
+            <ul style={{ margin: '4px 0 0', paddingLeft: 18, columns: missing.length > 6 ? 2 : 1 }}>
+              {missing.map((f) => (
+                <li key={f}>{f}</li>
+              ))}
+            </ul>
+          }
+        />
+      )}
 
       {submissions && (
         <SubmissionHistoryCard

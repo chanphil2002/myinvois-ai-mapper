@@ -1,9 +1,10 @@
-import type { Key } from 'react';
-import { Card, Spin, Table, Tag, Typography, theme } from 'antd';
+import type React from 'react';
+import { useEffect, useState } from 'react';
+import { Card, Pagination, Spin, Table, Tag, Typography, theme } from 'antd';
 import { AppstoreOutlined, LoadingOutlined, RightOutlined, UserOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
-import StatusTag from './StatusTag';
+import StatusTag, { statusLabel } from './StatusTag';
 import { useTheme } from '../theme/ThemeContext';
 
 export type InvoiceType = 'Individual' | 'Consolidated';
@@ -84,15 +85,22 @@ function DesktopTable({
   loading,
   statuses,
   emptyText,
-  paginate,
   showType,
+  typeFilter,
+  statusFilter,
+  onFilters,
+  height,
 }: {
   rows: InvoiceRow[];
   loading: boolean;
   statuses: string[];
   emptyText: string;
-  paginate: boolean;
   showType: boolean;
+  typeFilter: string[];
+  statusFilter: string[];
+  onFilters: (type: string[], status: string[]) => void;
+  /** Fixed body height (scrolls inside) so the surrounding card never grows or shrinks. */
+  height?: number;
 }) {
   const columns = [
     { title: 'Date', dataIndex: 'createdAt', key: 'createdAt', width: 170, render: dateTime },
@@ -119,7 +127,7 @@ function DesktopTable({
               { text: 'Individual', value: 'Individual' },
               { text: 'Consolidated', value: 'Consolidated' },
             ],
-            onFilter: (value: boolean | Key, record: InvoiceRow) => record.type === value,
+            filteredValue: typeFilter,
             render: (type: InvoiceType, r: InvoiceRow) => (r.pending ? null : <TypeTag type={type} />),
           },
         ]
@@ -130,8 +138,9 @@ function DesktopTable({
       dataIndex: 'status',
       key: 'status',
       width: 130,
-      filters: statuses.map((s) => ({ text: s, value: s })),
-      onFilter: (value: boolean | Key, record: InvoiceRow) => record.status === value,
+      // Same names the status tags show (Editing, Reviewing…), not the internal codes.
+      filters: statuses.map((s) => ({ text: statusLabel(s), value: s })),
+      filteredValue: statusFilter,
       render: (status: string) => <StatusTag status={status} />,
     },
   ];
@@ -142,13 +151,21 @@ function DesktopTable({
       loading={loading}
       dataSource={rows}
       columns={columns}
-      pagination={paginate ? { pageSize: 10, hideOnSinglePage: true } : false}
+      pagination={false}
+      scroll={height ? { y: height } : undefined}
+      onChange={(_p, filters) =>
+        onFilters((filters.type as string[] | null) ?? [], (filters.status as string[] | null) ?? [])
+      }
       locale={{ emptyText }}
     />
   );
 }
 
-/** Responsive list of e-invoices: tappable cards on mobile, a table on wider screens. */
+/**
+ * Responsive list of e-invoices: tappable cards on mobile, a table on wider screens. Filtering and
+ * paging happen here (not inside the table) so a filter applies across every page, and the page
+ * numbers can stay pinned at the bottom of a fixed-height box.
+ */
 export default function InvoiceList({
   rows,
   mobile,
@@ -156,7 +173,9 @@ export default function InvoiceList({
   emptyText,
   loading = false,
   paginate = true,
+  pageSize = 10,
   showType = false,
+  fixedBodyHeight,
 }: {
   rows: InvoiceRow[];
   mobile: boolean;
@@ -164,23 +183,72 @@ export default function InvoiceList({
   emptyText: string;
   loading?: boolean;
   paginate?: boolean;
+  pageSize?: number;
   showType?: boolean;
+  /** Desktop only: keep the table body this tall regardless of how many rows there are. */
+  fixedBodyHeight?: number;
 }) {
+  const [page, setPage] = useState(1);
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+
+  const filtered = rows.filter(
+    (r) =>
+      (typeFilter.length === 0 || typeFilter.includes(r.type)) &&
+      (statusFilter.length === 0 || statusFilter.includes(r.status)),
+  );
+  const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  // Back to page 1 whenever the data or filters change underneath us.
+  useEffect(() => setPage(1), [rows.length, typeFilter, statusFilter]);
+  const current = Math.min(page, pages);
+  const visible = paginate ? filtered.slice((current - 1) * pageSize, current * pageSize) : filtered;
+
+  const pager = paginate && (filtered.length > pageSize || fixedBodyHeight) && (
+    <Pagination
+      size="small"
+      align="end"
+      current={current}
+      pageSize={pageSize}
+      total={filtered.length}
+      showSizeChanger={false}
+      showTotal={(t, [from, to]) => (t ? `${from}–${to} of ${t}` : '')}
+      onChange={setPage}
+      style={{ marginTop: 12 }}
+    />
+  );
+
   if (mobile) {
-    return rows.length ? (
-      <Cards rows={rows} showType={showType} />
-    ) : (
-      <Typography.Text type="secondary">{emptyText}</Typography.Text>
+    return (
+      <>
+        {visible.length ? (
+          <Cards rows={visible} showType={showType} />
+        ) : (
+          <Typography.Text type="secondary">{emptyText}</Typography.Text>
+        )}
+        {pager}
+      </>
     );
   }
   return (
-    <DesktopTable
-      rows={rows}
-      loading={loading}
-      statuses={statuses}
-      emptyText={emptyText}
-      paginate={paginate}
-      showType={showType}
-    />
+    <div
+      className={fixedBodyHeight ? 'fixed-table' : undefined}
+      style={fixedBodyHeight ? ({ '--table-body-h': `${fixedBodyHeight}px` } as React.CSSProperties) : undefined}
+    >
+      <DesktopTable
+        rows={visible}
+        loading={loading}
+        statuses={statuses}
+        emptyText={emptyText}
+        showType={showType}
+        typeFilter={typeFilter}
+        statusFilter={statusFilter}
+        onFilters={(t, s) => {
+          setTypeFilter(t);
+          setStatusFilter(s);
+        }}
+        height={fixedBodyHeight}
+      />
+      {pager}
+    </div>
   );
 }

@@ -21,15 +21,18 @@ public class InvoiceReviewService {
     private final MappedInvoiceLineItemRepository lineItemRepository;
     private final DocumentService documentService;
     private final SubmissionRepository submissionRepository;
+    private final com.mytax.mapper.profile.BusinessProfileRepository businessProfileRepository;
 
     public InvoiceReviewService(MappedInvoiceRepository mappedInvoiceRepository,
                                  MappedInvoiceLineItemRepository lineItemRepository,
                                  DocumentService documentService,
-                                 SubmissionRepository submissionRepository) {
+                                 SubmissionRepository submissionRepository,
+                                 com.mytax.mapper.profile.BusinessProfileRepository businessProfileRepository) {
         this.mappedInvoiceRepository = mappedInvoiceRepository;
         this.lineItemRepository = lineItemRepository;
         this.documentService = documentService;
         this.submissionRepository = submissionRepository;
+        this.businessProfileRepository = businessProfileRepository;
     }
 
     public MappedInvoice getOwned(Long mappedInvoiceId, Long userId) {
@@ -171,6 +174,14 @@ public class InvoiceReviewService {
         invoice = mappedInvoiceRepository.save(invoice);
 
         if (request.lineItems() != null) {
+            // Lines removed in the editor must be deleted (previously they silently survived a save).
+            java.util.Set<Long> kept = request.lineItems().stream()
+                    .map(UpdateMappedInvoiceRequest.LineItem::id)
+                    .filter(java.util.Objects::nonNull)
+                    .collect(java.util.stream.Collectors.toSet());
+            lineItemRepository.findByMappedInvoiceIdOrderByLineNo(invoice.getId()).stream()
+                    .filter(li -> !kept.contains(li.getId()))
+                    .forEach(lineItemRepository::delete);
             int lineNo = 1;
             for (UpdateMappedInvoiceRequest.LineItem item : request.lineItems()) {
                 Long invoiceId = invoice.getId();
@@ -189,7 +200,32 @@ public class InvoiceReviewService {
                 lineItemRepository.save(lineItem);
             }
         }
-        return invoice;
+        return recalculateTotals(invoice);
+    }
+
+    /**
+     * Totals always follow the line items (LHDN checks them against the lines): subtotal = Σ qty × unit
+     * price, tax = Σ line tax, grand total = subtotal − discount + tax. Previously totals only came from
+     * AI extraction, so keyed-in invoices had none.
+     */
+    private MappedInvoice recalculateTotals(MappedInvoice invoice) {
+        java.math.BigDecimal subtotal = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal tax = java.math.BigDecimal.ZERO;
+        for (MappedInvoiceLineItem li : lineItemRepository.findByMappedInvoiceIdOrderByLineNo(invoice.getId())) {
+            if (li.getQuantity() != null && li.getUnitPrice() != null) {
+                subtotal = subtotal.add(li.getQuantity().multiply(li.getUnitPrice()));
+            }
+            if (li.getTaxAmount() != null) {
+                tax = tax.add(li.getTaxAmount());
+            }
+        }
+        subtotal = subtotal.setScale(2, java.math.RoundingMode.HALF_UP);
+        tax = tax.setScale(2, java.math.RoundingMode.HALF_UP);
+        java.math.BigDecimal discount = invoice.getDiscountTotal() == null ? java.math.BigDecimal.ZERO : invoice.getDiscountTotal();
+        invoice.setSubtotal(subtotal);
+        invoice.setTaxTotal(tax);
+        invoice.setGrandTotal(subtotal.subtract(discount).add(tax).setScale(2, java.math.RoundingMode.HALF_UP));
+        return mappedInvoiceRepository.save(invoice);
     }
 
     @Transactional
@@ -197,6 +233,13 @@ public class InvoiceReviewService {
         MappedInvoice invoice = getOwned(mappedInvoiceId, userId);
         if (invoice.getStatus() != InvoiceStatus.DRAFT) {
             throw new IllegalStateException("Only DRAFT invoices can be confirmed (current status: " + invoice.getStatus() + ")");
+        }
+        // Moving to "Reviewing" means it's ready for LHDN: every mandatory field must be filled.
+        List<String> missing = InvoiceReadiness.missing(invoice,
+                lineItemRepository.findByMappedInvoiceIdOrderByLineNo(invoice.getId()),
+                businessProfileRepository.findByUserId(userId).orElse(null));
+        if (!missing.isEmpty()) {
+            throw new IllegalArgumentException("Complete these LHDN-required fields first: " + String.join("; ", missing));
         }
         invoice.setStatus(InvoiceStatus.CONFIRMED);
         invoice = mappedInvoiceRepository.save(invoice);

@@ -93,14 +93,13 @@ public class SubmissionService {
         if (invoice.getStatus() != InvoiceStatus.CONFIRMED) {
             throw new IllegalStateException("Invoice must be CONFIRMED before submission (current status: " + invoice.getStatus() + ")");
         }
-        // Buyer name is mandatory for a standard e-invoice and is required to build the UBL document.
-        // Validate here so a missing buyer surfaces as a clear 400 instead of an opaque build failure.
-        if (invoice.getBuyerName() == null || invoice.getBuyerName().isBlank()) {
-            throw new IllegalArgumentException("Buyer name is required before submission");
-        }
-
         BusinessProfile supplier = businessProfileService.getOwned(userId);
         List<MappedInvoiceLineItem> lineItems = lineItemRepository.findByMappedInvoiceIdOrderByLineNo(invoice.getId());
+        // Same LHDN mandatory-field check as confirm — a clear 400 instead of an LHDN rejection.
+        List<String> missing = InvoiceReadiness.missing(invoice, lineItems, supplier);
+        if (!missing.isEmpty()) {
+            throw new IllegalArgumentException("Complete these LHDN-required fields first: " + String.join("; ", missing));
+        }
         String codeNumber = revisionCode("INV-" + invoice.getId(),
                 submissionRepository.findByMappedInvoiceId(invoice.getId()).size());
         BuiltDocument built = ublDocumentBuilder.build(supplier, invoice, lineItems, codeNumber);

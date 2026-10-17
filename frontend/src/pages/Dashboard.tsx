@@ -100,6 +100,9 @@ function StatTile({
 
 type FilterKey = 'review' | 'progress' | 'accepted';
 
+/** Table body height: 10 rows (~53px each) — the box stays this size whether it holds 1 row or 10. */
+const RECENT_BODY_HEIGHT = 530;
+
 const FILTERS: Record<FilterKey, { label: string; statuses: string[] }> = {
   review: { label: 'To review', statuses: ['DRAFT'] },
   progress: { label: 'In progress', statuses: ['CONFIRMED', 'SUBMITTED'] },
@@ -172,13 +175,15 @@ export default function Dashboard() {
 
   const sorted = [...allRows].sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '') || b.id - a.id);
   const filtered = filter ? sorted.filter((r) => FILTERS[filter].statuses.includes(r.status)) : sorted;
-  const recent: InvoiceRow[] = filter ? filtered.slice(0, 10) : [...pendingRows, ...sorted.slice(0, 6)];
+  // Everything, newest first, 10 per page (in-flight uploads on top when not filtering).
+  const recent: InvoiceRow[] = filter ? filtered : [...pendingRows, ...sorted];
   const toggle = (f: FilterKey) => setFilter((cur) => (cur === f ? null : f));
 
   return (
     <Page title="Dashboard">
 
-      <Row gutter={[16, 16]}>
+      {/* Columns stretch to equal height: the side panel ends exactly where the invoice table does. */}
+      <Row gutter={[16, 16]} style={{ alignItems: 'stretch' }}>
         {/* Side panel from 1200px; below that it stacks under the list (the table needs the width). */}
         <Col xs={24} xl={16} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Invoice-centric stat row — each tile filters the list below */}
@@ -237,7 +242,7 @@ export default function Dashboard() {
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               {FILTERS[filter].label}
               <Tag closable onClose={(e) => (e.preventDefault(), setFilter(null))} style={{ marginInlineEnd: 0, fontWeight: 400 }}>
-                {filtered.length} shown{filtered.length > 10 ? ' · latest 10' : ''}
+                {filtered.length} shown
               </Tag>
             </span>
           ) : (
@@ -254,7 +259,9 @@ export default function Dashboard() {
           rows={recent}
           mobile={mobile}
           loading={isLoading}
-          paginate={false}
+          paginate
+          pageSize={10}
+          fixedBodyHeight={mobile ? undefined : RECENT_BODY_HEIGHT}
           showType
           statuses={['DRAFT', 'CONFIRMED', 'SUBMITTED', 'ACCEPTED', 'REJECTED']}
           emptyText={
@@ -263,17 +270,10 @@ export default function Dashboard() {
               : 'No e-invoices yet — create one from Create. Each invoice keeps its source file (or manual entry) inside it.'
           }
         />
-        {filter && filtered.length > 10 && (
-          <div style={{ textAlign: 'center', marginTop: 12 }}>
-            <Link to="/submissions">View all in Invoices →</Link>
-          </div>
-        )}
       </Card>
         </Col>
-        <Col xs={24} xl={8}>
-          <div style={{ position: wide ? 'sticky' : 'static', top: 24 }}>
-            <DocumentStatsCard />
-          </div>
+        <Col xs={24} xl={8} style={{ display: 'flex' }}>
+          <DocumentStatsCard fill={wide} />
         </Col>
       </Row>
     </Page>

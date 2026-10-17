@@ -33,15 +33,18 @@ public class ConsolidationService {
     private final ConsolidatedInvoiceTransactionRepository linkRepository;
     private final SalesTransactionRepository salesTransactionRepository;
     private final DocumentService documentService;
+    private final com.mytax.mapper.profile.BusinessProfileRepository businessProfileRepository;
 
     public ConsolidationService(ConsolidatedInvoiceRepository consolidatedInvoiceRepository,
                                  ConsolidatedInvoiceTransactionRepository linkRepository,
                                  SalesTransactionRepository salesTransactionRepository,
-                                 DocumentService documentService) {
+                                 DocumentService documentService,
+                                 com.mytax.mapper.profile.BusinessProfileRepository businessProfileRepository) {
         this.consolidatedInvoiceRepository = consolidatedInvoiceRepository;
         this.linkRepository = linkRepository;
         this.salesTransactionRepository = salesTransactionRepository;
         this.documentService = documentService;
+        this.businessProfileRepository = businessProfileRepository;
     }
 
     public List<SalesTransactionResponse> listEligibleTransactions(Long userId) {
@@ -263,6 +266,28 @@ public class ConsolidationService {
         if (linkRepository.findByConsolidatedInvoiceId(invoice.getId()).isEmpty()) {
             throw new IllegalStateException("Add at least one sale before confirming this consolidated invoice");
         }
+        if (invoice.getGrandTotal() == null || invoice.getGrandTotal().signum() <= 0) {
+            throw new IllegalArgumentException("The grand total must be above RM 0 — check the sales' prices");
+        }
+        // The supplier on a consolidated e-invoice is the user's business profile: LHDN needs it complete.
+        java.util.List<String> missing = new java.util.ArrayList<>();
+        var profile = businessProfileRepository.findByUserId(userId).orElse(null);
+        if (profile == null) {
+            missing.add("Your business profile (Settings)");
+        } else {
+            if (isBlank(profile.getRegistrationName())) missing.add("Supplier registration name");
+            if (isBlank(profile.getTin())) missing.add("Supplier TIN");
+            if (isBlank(profile.getIdValue())) missing.add("Supplier ID number");
+            if (isBlank(profile.getMsicCode())) missing.add("Supplier MSIC code");
+            if (isBlank(profile.getMsicDescription())) missing.add("Supplier business activity");
+            if (isBlank(profile.getAddressLine1()) || isBlank(profile.getCity()) || isBlank(profile.getStateCode())) {
+                missing.add("Supplier address (line 1, city, state)");
+            }
+            if (isBlank(profile.getPhone())) missing.add("Supplier phone");
+        }
+        if (!missing.isEmpty()) {
+            throw new IllegalArgumentException("Complete these LHDN-required fields in Settings first: " + String.join("; ", missing));
+        }
         invoice.setStatus(ConsolidatedInvoiceStatus.CONFIRMED);
         invoice = consolidatedInvoiceRepository.save(invoice);
         return toResponse(invoice);
@@ -305,6 +330,10 @@ public class ConsolidationService {
         invoice.setTaxTotal(taxTotal);
         invoice.setGrandTotal(subtotal.add(taxTotal));
         consolidatedInvoiceRepository.save(invoice);
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.isBlank();
     }
 
     private void requireDraft(ConsolidatedInvoice invoice, String action) {

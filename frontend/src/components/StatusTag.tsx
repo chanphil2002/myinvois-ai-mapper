@@ -51,6 +51,9 @@ function toneStyle(tone: Tone, p: Palette) {
   return { color: fg, background: bg, borderColor: `${fg}55` }; // tone colours are hex, so append ~33% alpha
 }
 
+/** The user-facing name for a status (same text the tag shows) — use it anywhere a status is listed. */
+export const statusLabel = (status: string) => LABELS[status] ?? status;
+
 export default function StatusTag({ status }: { status?: string | null }) {
   const { palette } = useTheme();
   if (!status) return null;

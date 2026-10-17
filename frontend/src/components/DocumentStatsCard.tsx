@@ -7,7 +7,7 @@ import { useTheme } from '../theme/ThemeContext';
 const TYPE_LABEL: Record<string, string> = { pdf: 'PDF', png: 'PNG', jpeg: 'JPEG', csv: 'CSV', xlsx: 'Excel', other: 'Other' };
 
 /** How the user's data got in: documents the AI read (by file type) vs. entries typed in by hand. */
-export default function DocumentStatsCard() {
+export default function DocumentStatsCard({ fill = false }: { fill?: boolean }) {
   const { token } = theme.useToken();
   const { palette: p } = useTheme();
   const { data, isLoading } = useQuery({ queryKey: ['document-stats'], queryFn: getDocumentStats });
@@ -35,11 +35,17 @@ export default function DocumentStatsCard() {
   );
 
   return (
-    <Card title="Documents & entries" className="dash-stats">
+    // fill: stretch to the full column height (side-by-side layout) so both columns end together.
+    <Card
+      title="Documents & entries"
+      className="dash-stats"
+      style={fill ? { width: '100%', height: '100%', display: 'flex', flexDirection: 'column' } : { width: '100%' }}
+      styles={fill ? { body: { flex: 1, display: 'flex', flexDirection: 'column' } } : undefined}
+    >
       {isLoading || !data ? (
         <Skeleton active paragraph={{ rows: 6 }} />
       ) : (
-        <div style={{ display: 'grid', gap: 20 }}>
+        <div style={{ display: 'grid', gap: 20, flex: 1, alignContent: 'space-between' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <span style={{ fontSize: 32, fontWeight: 700, lineHeight: 1 }} className="gradient-text">
